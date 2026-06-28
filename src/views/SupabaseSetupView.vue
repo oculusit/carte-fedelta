@@ -27,11 +27,42 @@
           <span class="step-number">!</span>
           <h3>Esegui setup SQL</h3>
         </div>
-        <p>Vai su <strong>SQL Editor</strong> nel tuo progetto Supabase, incolla il codice qui sotto e premi <strong>Run</strong>.</p>
-        <div class="sql-box">
-          <button class="copy-btn" @click="copySql">{{ copyText }}</button>
-          <pre><code>{{ sqlScript }}</code></pre>
+
+        <div class="setup-options">
+          <button class="setup-option" :class="{ active: fixMode === 'auto' }" @click="fixMode = 'auto'">
+            <span class="option-icon">⚡</span>
+            <span class="option-title">Automatico (consigliato)</span>
+            <span class="option-desc">Usa un Personal Access Token per creare la policy RLS automaticamente</span>
+          </button>
+          <button class="setup-option" :class="{ active: fixMode === 'manual' }" @click="fixMode = 'manual'">
+            <span class="option-icon">📋</span>
+            <span class="option-title">Manuale</span>
+            <span class="option-desc">Copia e incolla lo SQL manualmente nell'SQL Editor</span>
+          </button>
         </div>
+
+        <div v-if="fixMode === 'manual'">
+          <p>Vai su <strong>SQL Editor</strong> nel tuo progetto Supabase, incolla il codice qui sotto e premi <strong>Run</strong>.</p>
+          <div class="sql-box">
+            <button class="copy-btn" @click="copySql">{{ copyText }}</button>
+            <pre><code>{{ sqlScript }}</code></pre>
+          </div>
+        </div>
+
+        <div v-if="fixMode === 'auto'">
+          <p>Crea un <strong>Personal Access Token</strong> in Supabase Dashboard → Settings → API → Personal Access Tokens, generane uno nuovo e incollalo qui sotto.</p>
+          <div class="form-group">
+            <label>Personal Access Token</label>
+            <input v-model="fixPat" type="password" placeholder="sbp_..." />
+          </div>
+          <p v-if="autoResult === 'working'" class="test-status testing">Creazione policy in corso...</p>
+          <p v-if="autoResult === 'ok'" class="test-status ok">Policy creata con successo! ✅</p>
+          <p v-if="autoResult === 'error'" class="test-status error">{{ autoError }}</p>
+          <button class="btn btn-primary" :disabled="!fixPat || autoWorking" @click="autoFixRls">
+            {{ autoWorking ? 'Creazione...' : 'Crea policy automaticamente' }}
+          </button>
+        </div>
+
         <button class="btn btn-primary btn-block" @click="recheckWrites" :disabled="rechecking" style="margin-top:12px">
           {{ rechecking ? 'Verifico...' : 'Ho eseguito lo script, verifica ora' }}
         </button>
@@ -201,6 +232,8 @@ const autoError = ref('')
 const isConfigured = ref(false)
 const writesOk = ref(false)
 const rechecking = ref(false)
+const fixMode = ref('auto')
+const fixPat = ref('')
 
 onMounted(async () => {
   isConfigured.value = isSupabaseConfigured()
@@ -236,6 +269,45 @@ async function recheckWrites() {
     toast.show('Ancora non funziona. Assicurati di aver eseguito lo script SQL.', 'error')
   }
   rechecking.value = false
+}
+
+async function autoFixRls() {
+  if (!fixPat.value) return
+  autoWorking.value = true
+  autoResult.value = 'working'
+  autoError.value = ''
+  try {
+    const config = getSupabaseConfig()
+    if (!config?.url) throw new Error('Configurazione Supabase mancante')
+    const ref = extractProjectRef(config.url)
+    if (!ref) throw new Error('Impossibile estrarre il project ref dalla URL')
+    const rlsSql = `
+      create policy "Enable all access for cards"
+        on cards for all
+        using (true)
+        with check (true);
+    `
+    const response = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${fixPat.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: rlsSql }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(err.error || `Errore ${response.status}`)
+    }
+    autoResult.value = 'ok'
+    toast.show('Policy RLS creata con successo!', 'success')
+    writesOk.value = await checkWrites()
+  } catch (e) {
+    autoResult.value = 'error'
+    autoError.value = e.message
+  } finally {
+    autoWorking.value = false
+  }
 }
 
 const maskedUrl = computed(() => {
