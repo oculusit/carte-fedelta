@@ -37,9 +37,6 @@
         </label>
       </div>
 
-      <p v-if="isNative && !loading && !error" class="scanner-hint">
-        Premi "Scansiona" per aprire la fotocamera con il mirino
-      </p>
       <p v-if="!isNative && isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
       </p>
@@ -402,6 +399,7 @@ watch(() => props.active, (val) => {
   if (val) {
     if (isNative) {
       error.value = ''
+      startScan()
     } else {
       startCamera()
     }
