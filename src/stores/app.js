@@ -234,11 +234,16 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  function getServerUrl() {
+    return localStorage.getItem('server_url') || './api'
+  }
+
   async function loadLogo(storeName, color) {
     const cached = await logosDb.get(storeName)
     if (cached) return cached
+    const base = getServerUrl()
     try {
-      const res = await fetch(`./api/logos/${encodeURIComponent(storeName)}`)
+      const res = await fetch(`${base}/logos/${encodeURIComponent(storeName)}`)
       if (res.ok) {
         const data = await res.json()
         if (data && data.logo_data) {
@@ -254,7 +259,7 @@ export const useAppStore = defineStore('app', () => {
     } catch {}
     if (!cached) {
       try {
-        await fetch('./api/logos/report-missing', {
+        await fetch(`${base}/logos/report-missing`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

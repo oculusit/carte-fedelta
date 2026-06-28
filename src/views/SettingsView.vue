@@ -25,7 +25,19 @@
       </template>
     </div>
 
-    <!-- 2) Cache applicazione -->
+    <!-- 2) Server backend loghi -->
+    <div class="card settings-card">
+      <h3>Server backend</h3>
+      <p class="section-desc">URL del server web (versione PHP) per caricare i loghi personalizzati. Lascia vuoto per usare il percorso relativo ./api</p>
+      <div class="input-group">
+        <input v-model="serverUrl" type="url" placeholder="https://mioserver.com/carte" class="input" />
+        <button class="btn btn-primary btn-block" @click="saveServerUrl" style="margin-top:8px">
+          Salva
+        </button>
+      </div>
+    </div>
+
+    <!-- 3) Cache applicazione -->
     <div class="card settings-card">
       <h3>Cache applicazione</h3>
       <p class="section-desc">Cancella la cache senza eliminare le carte salvate localmente.</p>
@@ -34,7 +46,7 @@
       </button>
     </div>
 
-    <!-- 3) Informazioni -->
+    <!-- 4) Informazioni -->
     <div class="card settings-card">
       <h3>Informazioni</h3>
       <div class="info-row">
@@ -70,6 +82,18 @@ const clearing = ref(false)
 const syncing = ref(false)
 const cloudCount = ref(-1)
 const syncConfigured = computed(() => isSupabaseConfigured())
+const serverUrl = ref(localStorage.getItem('server_url') || '')
+
+function saveServerUrl() {
+  const val = serverUrl.value.replace(/\/+$/, '')
+  if (val) {
+    localStorage.setItem('server_url', val)
+    toast.show('URL server salvato', 'success')
+  } else {
+    localStorage.removeItem('server_url')
+    toast.show('URL rimosso, uso percorso relativo', 'info')
+  }
+}
 
 onMounted(async () => {
   if (syncConfigured.value) {
@@ -148,4 +172,6 @@ async function clearCache() {
 
 .tag-online { color: var(--success); font-weight: 600; }
 .tag-offline { color: var(--danger); font-weight: 600; }
+.input-group { display: flex; flex-direction: column; gap: 4px; }
+.input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
 </style>

@@ -1,4 +1,6 @@
-const API_BASE = './api'
+function getApiBase() {
+  return localStorage.getItem('server_url') || './api'
+}
 
 class ApiError extends Error {
   constructor(message, status) {
@@ -20,7 +22,7 @@ async function request(endpoint, options = {}) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30000)
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(`${getApiBase()}${endpoint}`, {
     ...options,
     headers,
     signal: controller.signal,
@@ -141,7 +143,7 @@ export const api = {
       formData.append('logo', file)
       formData.append('store_name', storeName)
 
-      const res = await fetch(`${API_BASE}/logos`, {
+      const res = await fetch(`${getApiBase()}/logos`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
