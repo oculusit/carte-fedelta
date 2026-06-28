@@ -27,6 +27,13 @@
         <div class="step-actions">
           <button class="btn btn-primary" @click="step = 1">Fatto, passo successivo →</button>
         </div>
+        <hr class="divider" style="margin:20px 0" />
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">
+          Ho già fatto la configurazione completa ed ho già i dati da inserire per il collegamento
+        </p>
+        <button class="btn btn-outline btn-block" @click="step = 4">
+          Configura manualmente
+        </button>
       </div>
 
       <div v-else-if="step === 1" class="step">
