@@ -42,8 +42,9 @@ export const useAppStore = defineStore('app', () => {
 
       // Upload local cards to server (upsert — never delete)
       for (const card of localCards) {
-        const { error } = await supabase.from('cards').upsert(card)
+        const { error } = await supabase.from('cards').upsert(sanitizeCardForSupabase(card))
         if (error) {
+          console.warn('syncMerge upsert error:', error)
           await settingsDb.addToQueue({ id: card.id, action: 'create', card })
         }
       }
@@ -71,11 +72,12 @@ export const useAppStore = defineStore('app', () => {
     for (const entry of queue) {
       try {
         const { action, card } = entry
+        const safe = sanitizeCardForSupabase(card)
         if (action === 'create') {
-          const { error } = await supabase.from('cards').insert(card)
+          const { error } = await supabase.from('cards').insert(safe)
           if (error) throw error
         } else if (action === 'update') {
-          const { error } = await supabase.from('cards').update(card).eq('id', card.id)
+          const { error } = await supabase.from('cards').update(safe).eq('id', card.id)
           if (error) throw error
         } else if (action === 'delete') {
           const { error } = await supabase.from('cards').delete().eq('id', card.id)
@@ -105,17 +107,19 @@ export const useAppStore = defineStore('app', () => {
       return
     }
     try {
+      const safe = sanitizeCardForSupabase(card)
       if (action === 'create') {
-        const { error } = await supabase.from('cards').insert(card)
+        const { error } = await supabase.from('cards').insert(safe)
         if (error) throw error
       } else if (action === 'update') {
-        const { error } = await supabase.from('cards').update(card).eq('id', card.id)
+        const { error } = await supabase.from('cards').update(safe).eq('id', card.id)
         if (error) throw error
       } else if (action === 'delete') {
         const { error } = await supabase.from('cards').delete().eq('id', card.id)
         if (error) throw error
       }
-    } catch {
+    } catch (e) {
+      console.warn('syncToSupabase error:', e)
       await settingsDb.addToQueue({ id: card.id, action, card })
     }
   }
@@ -232,6 +236,22 @@ export const useAppStore = defineStore('app', () => {
     } catch {
       return -1
     }
+  }
+
+  const SUPABASE_CARD_COLUMNS = [
+    'id', 'store_name', 'card_number', 'barcode_type', 'holder_name',
+    'notes', 'color', 'logo_type', 'logo_data', 'is_favorite',
+    'created_at', 'updated_at',
+  ]
+
+  function sanitizeCardForSupabase(card) {
+    const clean = {}
+    for (const key of SUPABASE_CARD_COLUMNS) {
+      if (card[key] !== undefined) {
+        clean[key] = card[key]
+      }
+    }
+    return clean
   }
 
   function getServerUrl() {
