@@ -16,7 +16,15 @@
 
       <div class="scanner-controls">
         <button
-          v-if="isScanning"
+          v-if="isNative && !loading"
+          class="btn btn-primary btn-block"
+          @click="startNativeCamera"
+          type="button"
+        >
+          Scatta foto
+        </button>
+        <button
+          v-if="!isNative && isScanning"
           class="btn btn-danger btn-block"
           @click="stopCamera"
           type="button"
@@ -29,7 +37,10 @@
         </label>
       </div>
 
-      <p v-if="isScanning" class="scanner-hint">
+      <p v-if="isNative && !loading && !error" class="scanner-hint">
+        Premi "Scatta foto" per fotografare il codice a barre
+      </p>
+      <p v-if="!isNative && isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
       </p>
     </div>
@@ -56,6 +67,67 @@ let scanner = null
 let scannerContainer = null
 
 const SCANNER_ID = 'qrcode-scanner-element'
+
+const isNative = !!(window.Capacitor?.isNativePlatform?.())
+
+async function startNativeCamera() {
+  loading.value = true
+  loadingMsg.value = 'Apro fotocamera...'
+  error.value = ''
+  try {
+    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
+    const photo = await Camera.getPhoto({
+      resultType: CameraResultType.Base64,
+      source: CameraSource.Camera,
+      quality: 80,
+    })
+    if (!photo.base64String) {
+      throw new Error('Nessuna foto')
+    }
+    loadingMsg.value = 'Analisi codice a barre...'
+    const byteChars = atob(photo.base64String)
+    const byteNums = new Uint8Array(byteChars.length)
+    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i)
+    const blob = new Blob([byteNums], { type: 'image/jpeg' })
+    const fileId = SCANNER_ID + '-native'
+    let fileDiv = document.getElementById(fileId)
+    if (!fileDiv) {
+      fileDiv = document.createElement('div')
+      fileDiv.id = fileId
+      fileDiv.style.position = 'fixed'
+      fileDiv.style.top = '-9999px'
+      fileDiv.style.width = '1px'
+      fileDiv.style.height = '1px'
+      document.body.appendChild(fileDiv)
+    }
+    const fileScanner = new Html5Qrcode(fileId, {
+      formatsToSupport: getSupportedFormats(),
+      verbose: false,
+    })
+    const result = await fileScanner.scanFileV2(blob, false)
+    let code = result.decodedText
+    let type = ''
+    try { type = mapScannerFormat(result.result?.format || result.format) } catch {}
+    if (!type) type = detectBarcodeType(code)
+    if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
+      type = 'EAN13'
+      code = '0' + code
+    }
+    if (type === 'EAN13' && code.length === 12) code = '0' + code
+    fileScanner.clear()
+    if (fileDiv.parentNode) fileDiv.parentNode.removeChild(fileDiv)
+    emit('scan', { code, type, cameraFormat: true })
+  } catch (e) {
+    console.warn('Native scan error:', e)
+    if (e.code === 'CAMERA_CANCELLED' || e.message?.includes('cancel')) {
+      error.value = 'Scansione annullata. Premi "Scatta foto" per riprovare.'
+    } else {
+      error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
+    }
+  } finally {
+    loading.value = false
+  }
+}
 
 function getSupportedFormats() {
   return [
@@ -96,17 +168,19 @@ function removeContainer() {
 }
 
 async function startCamera() {
+  if (isNative) {
+    await startNativeCamera()
+    return
+  }
   loading.value = true
   loadingMsg.value = 'Richiedo permesso fotocamera...'
   error.value = ''
 
   try {
-    // Try to get cameras first - this triggers the permission prompt
     let cameras = []
     try {
       cameras = await Html5Qrcode.getCameras()
     } catch (permErr) {
-      // Permission denied or no cameras
       loading.value = false
       error.value = 'Fotocamera non accessibile. Verifica i permessi del browser (HTTPS richiesto).'
       return
@@ -127,7 +201,6 @@ async function startCamera() {
       return
     }
 
-    // Destroy any previous scanner instance
     if (scanner) {
       try { await scanner.stop() } catch {}
       scanner.clear()
@@ -139,7 +212,6 @@ async function startCamera() {
       verbose: false,
     })
 
-    // Try rear camera first, fall back to front camera
     const backCam = cameras.find(c =>
       c.label?.toLowerCase().includes('back') ||
       c.label?.toLowerCase().includes('rear') ||
@@ -317,7 +389,11 @@ async function close() {
 
 watch(() => props.active, (val) => {
   if (val) {
-    startCamera()
+    if (isNative) {
+      startNativeCamera()
+    } else {
+      startCamera()
+    }
   } else {
     stopCamera()
     error.value = ''
