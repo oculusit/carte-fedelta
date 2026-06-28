@@ -24,7 +24,7 @@
     </div>
 
     <!-- 3) Famiglia -->
-    <div v-if="store.isLoggedIn" class="card settings-card">
+    <div v-if="loggedIn" class="card settings-card">
       <h3>Famiglia</h3>
       <p class="section-desc">Gestisci gruppi famiglia per condividere le carte</p>
       <button class="btn btn-outline btn-block" @click="$router.push('/family')">

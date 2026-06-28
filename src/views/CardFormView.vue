@@ -248,8 +248,11 @@ onMounted(async () => {
 
   if (auth.isLoggedIn()) {
     try {
-      allStores.value = await api.stores.listBrief()
-    } catch {}
+      const stores = await api.stores.listBrief()
+      allStores.value = Array.isArray(stores) ? stores : []
+    } catch {
+      allStores.value = []
+    }
   }
   initializing.value = false
 })

@@ -134,11 +134,7 @@ const showFab = computed(() => {
 })
 
 function goToNewCard() {
-  if (!auth.isLoggedIn()) {
-    router.push('/login')
-  } else {
-    router.push('/card/new')
-  }
+  router.push('/card/new')
 }
 
 onMounted(async () => {
@@ -163,18 +159,9 @@ onMounted(async () => {
     }
   } catch {}
 
-  if (auth.isLoggedIn()) {
-    store.loadCards()
-    store.loadMissingLogos()
-  }
-
-  api.settings.info().then(r => {
-    if (r.app_name) {
-      document.title = r.app_name
-      store.appName = r.app_name
-    }
-    store.encryptionSeedSet = !!r.encryption_seed_set
-  }).catch(() => {})
+  store.updateAuthState()
+  store.loadCards()
+  store.loadMissingLogos()
   checkInvitations()
 })
 

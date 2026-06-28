@@ -13,16 +13,20 @@ export const useAppStore = defineStore('app', () => {
   const error = ref(null)
   const appName = ref('')
   const encryptionSeedSet = ref(false)
+  const isLoggedIn = ref(false)
 
-  const isLoggedIn = computed(() => auth.isLoggedIn())
+  function updateAuthState() {
+    isLoggedIn.value = auth.isLoggedIn()
+  }
 
   function handleOnline() {
     isOnline.value = true
+    updateAuthState()
     if (isLoggedIn.value) {
       processSyncQueue()
       pullFromSupabase()
-      loadCards()
     }
+    loadCards()
   }
 
   function handleOffline() {
@@ -113,6 +117,9 @@ export const useAppStore = defineStore('app', () => {
     loading.value = true
     error.value = null
     try {
+      const localCards = await db.getAll()
+      cards.value = localCards
+      saveBackup(localCards)
       if (isLoggedIn.value && isOnline.value) {
         const supabase = getSupabase()
         if (supabase) {
@@ -124,26 +131,10 @@ export const useAppStore = defineStore('app', () => {
               await db.cleanStaleCards(serverIds)
               cards.value = supabaseCards
               saveBackup(supabaseCards)
-              return
             }
           } catch { }
         }
-        try {
-          const serverCards = await api.cards.getAll()
-          const serverIds = new Set(serverCards.map(c => c.id))
-          await db.importCards(serverCards)
-          await db.cleanStaleCards(serverIds)
-          cards.value = serverCards
-          saveBackup(serverCards)
-          return
-        } catch { }
       }
-      if (isLoggedIn.value) {
-        cards.value = await db.getAll()
-        saveBackup(cards.value)
-        return
-      }
-      cards.value = []
     } catch (e) {
       try {
         cards.value = await db.getAll()
@@ -182,7 +173,7 @@ export const useAppStore = defineStore('app', () => {
       const card = {
         ...data,
         id: crypto.randomUUID(),
-        user_id: auth.getUserId() || null,
+        user_id: isLoggedIn.value ? auth.getUserId() : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -285,6 +276,6 @@ export const useAppStore = defineStore('app', () => {
   return {
     isOnline, isLoggedIn, cards, loading, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
-    loadLogo, loadMissingLogos, processSyncQueue,
+    loadLogo, loadMissingLogos, processSyncQueue, updateAuthState,
   }
 })

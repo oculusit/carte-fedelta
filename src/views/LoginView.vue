@@ -43,6 +43,12 @@
           <input v-model="privacyAccepted" type="checkbox" required />
           <span>Ho letto e accetto l'<a href="#/privacy" target="_blank">informativa sulla privacy</a></span>
         </label>
+        <div class="login-note">
+          ⚠️ Dopo la registrazione riceverai una mail di conferma. Se il link punta a
+          "localhost", vai in Supabase Dashboard → Authentication → Settings e cambia
+          <strong>"Site URL"</strong> con l'indirizzo della tua app.
+          Puoi anche <strong>disabilitare la conferma email</strong> in Authentication → Settings → "Confirm email".
+        </div>
         <button type="submit" class="btn btn-success btn-block" :disabled="loading || !privacyAccepted">
           {{ loading ? 'Registrazione...' : 'Registrati' }}
         </button>
@@ -59,6 +65,11 @@
           <input v-model="email" type="email" placeholder="la@tua.email" required />
         </div>
         <p class="fa-hint">Riceverai un link per il reset via email.</p>
+        <div class="login-note">
+          ⚠️ Se non ricevi l'email, assicurati di aver configurato un provider SMTP in
+          Supabase Dashboard → Authentication → Settings → SMTP.
+          Con il piano gratuito di Supabase le email non vengono inviate realmente finché non configuri SMTP.
+        </div>
         <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
           {{ loading ? 'Invio...' : 'Invia link reset' }}
         </button>
@@ -224,6 +235,17 @@ async function doForgotPassword() {
 .checkbox-label a {
   color: var(--primary);
   text-decoration: underline;
+}
+
+.login-note {
+  font-size: 12px;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin: 8px 0;
+  line-height: 1.5;
 }
 
 .login-back {

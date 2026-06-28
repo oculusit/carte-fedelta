@@ -7,17 +7,13 @@
     <div v-else-if="store.cards.length === 0" class="empty-state">
       <div class="empty-icon">📇</div>
       <h3>Nessuna carta</h3>
-      <template v-if="!store.isLoggedIn">
-        <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/login')">
-          Accedi
-        </button>
-      </template>
-      <template v-else>
-        <p>Inserisci la prima carta</p>
-        <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/card/new')">
-          + Aggiungi Carta
-        </button>
-      </template>
+      <p>Inserisci la prima carta</p>
+      <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/card/new')">
+        + Aggiungi Carta
+      </button>
+      <p v-if="!store.isLoggedIn" style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+        💾 I dati sono salvati solo localmente. Vai in Impostazioni per abilitare il backup cloud.
+      </p>
     </div>
 
     <div v-else class="cards-list">

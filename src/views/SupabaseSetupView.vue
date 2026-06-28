@@ -50,22 +50,72 @@
       <div v-else-if="step === 2" class="step">
         <div class="step-header">
           <span class="step-number">3</span>
-          <h3>Esegui lo script SQL</h3>
+          <h3>Configura le impostazioni di Auth</h3>
         </div>
-        <p>Vai su <strong>"SQL Editor"</strong> nel menu di sinistra, clicca <strong>"New Query"</strong>, incolla il codice qui sotto e premi <strong>"Run"</strong>.</p>
-        <div class="sql-box">
-          <button class="copy-btn" @click="copySql">{{ copyText }}</button>
-          <pre><code>{{ sqlScript }}</code></pre>
-        </div>
+        <p>Vai su <strong>Authentication → Settings</strong> nel menu di sinistra e modifica:</p>
+        <ul class="step-list">
+          <li><strong>Site URL</strong>: inserisci l'URL della tua app (es. <code>https://tuo-dominio.com</code> o lascia il default se usi solo l'app nativa)</li>
+          <li><strong>Redirect URLs</strong>: aggiungi <code>it.oculus.carte://auth/callback</code></li>
+          <li><strong>SMTP</strong>: configura un provider email (es. Resend, SendGrid) per ricevere email di reset password. <em>Con il piano gratuito Supabase non invia email reali finché non configuri SMTP.</em></li>
+          <li><strong>Disabilita "Confirm email"</strong> se non vuoi che gli utenti debbano confermare la registrazione via email</li>
+        </ul>
         <div class="step-actions">
           <button class="btn btn-ghost" @click="step = 1">← Indietro</button>
-          <button class="btn btn-primary" @click="step = 3">Eseguito, passo successivo →</button>
+          <button class="btn btn-primary" @click="step = 3">Fatto, passo successivo →</button>
         </div>
       </div>
 
       <div v-else-if="step === 3" class="step">
         <div class="step-header">
           <span class="step-number">4</span>
+          <h3>Crea le tabelle nel database</h3>
+        </div>
+        <p>Scegli come creare le tabelle necessarie nel tuo progetto Supabase:</p>
+
+        <div class="setup-options">
+          <button class="setup-option" :class="{ active: setupMode === 'auto' }" @click="setupMode = 'auto'">
+            <span class="option-icon">⚡</span>
+            <span class="option-title">Automatico (consigliato)</span>
+            <span class="option-desc">Usa un Personal Access Token per creare le tabelle automaticamente</span>
+          </button>
+          <button class="setup-option" :class="{ active: setupMode === 'manual' }" @click="setupMode = 'manual'">
+            <span class="option-icon">📋</span>
+            <span class="option-title">Manuale</span>
+            <span class="option-desc">Copia e incolla lo SQL manualmente nell'SQL Editor di Supabase</span>
+          </button>
+        </div>
+
+        <div v-if="setupMode === 'manual'">
+          <p>Vai su <strong>"SQL Editor"</strong> → <strong>"New Query"</strong>, incolla il codice sotto e premi <strong>"Run"</strong>.</p>
+          <div class="sql-box">
+            <button class="copy-btn" @click="copySql">{{ copyText }}</button>
+            <pre><code>{{ sqlScript }}</code></pre>
+          </div>
+        </div>
+
+        <div v-if="setupMode === 'auto'">
+          <p>Crea un <strong>Personal Access Token</strong> in Supabase Dashboard → Settings → API → Personal Access Tokens, generane uno nuovo e incollalo qui sotto. L'app lo userà solo per creare le tabelle, poi verrà scartato.</p>
+          <div class="form-group">
+            <label>Personal Access Token</label>
+            <input v-model="patKey" type="password" placeholder="sbp_..." />
+          </div>
+          <p v-if="autoResult === 'working'" class="test-status testing">Creazione tabelle in corso...</p>
+          <p v-if="autoResult === 'ok'" class="test-status ok">Tabelle create con successo! ✅</p>
+          <p v-if="autoResult === 'error'" class="test-status error">{{ autoError }}</p>
+          <button class="btn btn-primary" :disabled="!patKey || autoWorking" @click="autoCreateTables">
+            {{ autoWorking ? 'Creazione...' : 'Crea tabelle automaticamente' }}
+          </button>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn btn-ghost" @click="step = 2">← Indietro</button>
+          <button class="btn btn-primary" @click="step = 4">Tabelle create, passo successivo →</button>
+        </div>
+      </div>
+
+      <div v-else-if="step === 4" class="step">
+        <div class="step-header">
+          <span class="step-number">5</span>
           <h3>Inserisci le credenziali</h3>
         </div>
         <p>Vai su <strong>"Project Settings" → "API"</strong> nel menu di sinistra. Copia i valori qui sotto.</p>
@@ -81,7 +131,7 @@
         <p v-if="testResult === 'ok'" class="test-status ok">Connessione riuscita! ✅</p>
         <p v-if="testResult === 'error'" class="test-status error">Errore: {{ testError }}</p>
         <div class="step-actions">
-          <button class="btn btn-ghost" @click="step = 2">← Indietro</button>
+          <button class="btn btn-ghost" @click="step = 3">← Indietro</button>
           <button class="btn btn-primary" :disabled="!formUrl || !formKey || testing" @click="testAndSave">
             {{ testing ? 'Verifica...' : 'Verifica e salva' }}
           </button>
@@ -105,7 +155,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { isSupabaseConfigured, getSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig, testSupabaseConnection, SUPABASE_SETUP_SQL } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
+import { useAppStore } from '../stores/app.js'
 
+const store = useAppStore()
 const step = ref(0)
 const formUrl = ref('')
 const formKey = ref('')
@@ -114,6 +166,11 @@ const testResult = ref(null)
 const testError = ref('')
 const copyText = ref('Copia codice')
 const disconnecting = ref(false)
+const setupMode = ref('auto')
+const patKey = ref('')
+const autoWorking = ref(false)
+const autoResult = ref(null)
+const autoError = ref('')
 
 const isConfigured = ref(false)
 
@@ -144,6 +201,48 @@ async function copySql() {
   }
 }
 
+function extractProjectRef(url) {
+  try {
+    const u = new URL(url)
+    return u.hostname.split('.')[0]
+  } catch {
+    return null
+  }
+}
+
+async function autoCreateTables() {
+  if (!patKey.value) return
+  autoWorking.value = true
+  autoResult.value = 'working'
+  autoError.value = ''
+  try {
+    const ref = extractProjectRef(formUrl.value || 'placeholder.supabase.co')
+    if (!ref && !formUrl.value) {
+      throw new Error('Inserisci prima la Project URL o completa il setup manualmente')
+    }
+    const projectRef = ref || extractProjectRef(formUrl.value)
+    const response = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${patKey.value}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: SUPABASE_SETUP_SQL }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: response.statusText }))
+      throw new Error(err.error || `Errore ${response.status}`)
+    }
+    autoResult.value = 'ok'
+    toast.show('Tabelle create con successo su Supabase!', 'success')
+  } catch (e) {
+    autoResult.value = 'error'
+    autoError.value = e.message
+  } finally {
+    autoWorking.value = false
+  }
+}
+
 async function testAndSave() {
   if (!formUrl.value || !formKey.value) return
   testing.value = true
@@ -156,6 +255,7 @@ async function testAndSave() {
       testResult.value = 'ok'
       isConfigured.value = true
       toast.show('Connessione a Supabase riuscita!', 'success')
+      store.updateAuthState()
     } else {
       testResult.value = 'error'
       testError.value = result.error
@@ -390,5 +490,51 @@ async function disconnect() {
   color: var(--text-secondary);
   line-height: 1.7;
   padding-left: 18px;
+}
+
+.setup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.setup-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.setup-option.active {
+  border-color: var(--primary);
+  background: rgba(26, 115, 232, 0.05);
+}
+
+.setup-option:hover {
+  border-color: var(--primary);
+}
+
+.option-icon {
+  font-size: 20px;
+}
+
+.option-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.option-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>
