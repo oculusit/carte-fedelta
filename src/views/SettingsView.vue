@@ -7,6 +7,22 @@
       <button class="btn btn-outline btn-block" @click="$router.push('/supabase-setup')">
         Configura sincronizzazione
       </button>
+      <template v-if="syncConfigured">
+        <hr class="divider" />
+        <div class="info-row">
+          <span>Locale</span>
+          <span class="tag">{{ store.cards.length }} carte</span>
+        </div>
+        <div class="info-row">
+          <span>Cloud</span>
+          <span :class="cloudCount >= 0 ? 'tag' : 'tag-offline'">
+            {{ cloudCount >= 0 ? cloudCount + ' carte' : 'Non disponibile' }}
+          </span>
+        </div>
+        <button class="btn btn-primary btn-block" @click="syncNow" :disabled="syncing" style="margin-top:12px">
+          {{ syncing ? 'Sincronizzazione...' : 'Sincronizza ora' }}
+        </button>
+      </template>
     </div>
 
     <!-- 2) Cache applicazione -->
@@ -23,7 +39,7 @@
       <h3>Informazioni</h3>
       <div class="info-row">
         <span>Versione</span>
-        <span>1.0.0</span>
+        <span>1.1.0</span>
       </div>
       <div class="info-row">
         <span>Stato rete</span>
@@ -43,14 +59,42 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured } from '../services/supabase.js'
+import { toast } from '../services/toast.js'
 
 const store = useAppStore()
 
 const clearing = ref(false)
+const syncing = ref(false)
+const cloudCount = ref(-1)
 const syncConfigured = computed(() => isSupabaseConfigured())
+
+onMounted(async () => {
+  if (syncConfigured.value) {
+    cloudCount.value = await store.getCloudCardCount()
+  }
+})
+
+async function syncNow() {
+  syncing.value = true
+  try {
+    await store.pullFromServer()
+    cloudCount.value = await store.getCloudCardCount()
+    const local = store.cards.length
+    const cloud = cloudCount.value
+    if (local === cloud) {
+      toast.show(`Sincronizzato: ${local} carte (cloud + locale uguali)`, 'success')
+    } else {
+      toast.show(`Locale: ${local} · Cloud: ${cloud >= 0 ? cloud : '?'}`, 'info')
+    }
+  } catch (e) {
+    toast.show('Errore sincronizzazione: ' + (e.message || e), 'error')
+  } finally {
+    syncing.value = false
+  }
+}
 
 async function clearCache() {
   clearing.value = true

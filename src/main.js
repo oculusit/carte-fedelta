@@ -30,8 +30,8 @@ app.use(createPinia())
 app.use(router)
 app.mount('#app')
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+// Register service worker (only on web, not native)
+if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform?.()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(err => {
       console.warn('SW registration failed:', err)
