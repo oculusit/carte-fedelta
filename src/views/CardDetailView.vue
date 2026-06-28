@@ -195,9 +195,9 @@ onMounted(async () => {
   loadCard()
   acquireWakeLock()
   try {
-    const { CapacitorBrightness } = await import('@capgo/capacitor-brightness')
-    brightnessPlugin = CapacitorBrightness
-    const { brightness: current } = await CapacitorBrightness.getBrightness()
+    const { CapgoBrightness } = await import('@capgo/capacitor-brightness')
+    brightnessPlugin = CapgoBrightness
+    const { brightness: current } = await CapgoBrightness.getBrightness()
     previousBrightness = current
     await CapacitorBrightness.setBrightness({ brightness: 1 })
     console.log('Brightness set to 1, previous was', current)
