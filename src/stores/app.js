@@ -12,13 +12,12 @@ export const useAppStore = defineStore('app', () => {
   const appName = ref('')
   const encryptionSeedSet = ref(false)
 
-  function handleOnline() {
+  async function handleOnline() {
     isOnline.value = true
     if (isSupabaseConfigured()) {
-      processSyncQueue()
-      syncMerge()
+      await processSyncQueue()
     }
-    loadCards()
+    await loadCards()
   }
 
   function handleOffline() {
