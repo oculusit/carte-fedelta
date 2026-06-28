@@ -1,0 +1,28 @@
+RewriteEngine On
+
+# Se l'URL richiede un file statico con estensione, servilo direttamente
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|webp)$ [NC]
+RewriteRule ^ - [L]
+
+# API routes: passa a api/index.php (anche se il file non esiste)
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# SPA: tutto il resto va a index.html
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Security + cache headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "DENY"
+  Header set X-XSS-Protection "1; mode=block"
+  # Non cache mai l'HTML della SPA
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  # Cache assets statici (con hash Vite)
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>

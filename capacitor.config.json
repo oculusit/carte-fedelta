@@ -1,0 +1,11 @@
+{
+  "appId": "it.oculus.carte",
+  "appName": "Carte Fedeltà",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorBrightness": {}
+  }
+}
