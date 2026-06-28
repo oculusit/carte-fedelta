@@ -255,7 +255,7 @@ async function testAndSave() {
       testResult.value = 'ok'
       isConfigured.value = true
       toast.show('Connessione a Supabase riuscita!', 'success')
-      store.updateAuthState()
+      store.pullFromServer()
     } else {
       testResult.value = 'error'
       testError.value = result.error

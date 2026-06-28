@@ -199,7 +199,7 @@ onMounted(async () => {
     brightnessPlugin = CapgoBrightness
     const { brightness: current } = await CapgoBrightness.getBrightness()
     previousBrightness = current
-    await CapacitorBrightness.setBrightness({ brightness: 1 })
+    await CapgoBrightness.setBrightness({ brightness: 1 })
     console.log('Brightness set to 1, previous was', current)
   } catch (e) {
     console.log('Brightness not available:', e?.message || e)
@@ -210,7 +210,7 @@ onUnmounted(async () => {
   releaseWakeLock()
   if (brightnessPlugin) {
     try {
-      brightnessPlugin.setBrightness({ brightness: previousBrightness })
+      await brightnessPlugin.setBrightness({ brightness: previousBrightness })
       console.log('Brightness restored to', previousBrightness)
     } catch (e) {
       console.warn('Brightness restore error:', e)
