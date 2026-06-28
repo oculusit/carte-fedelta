@@ -11,7 +11,7 @@
       <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/card/new')">
         + Aggiungi Carta
       </button>
-      <p v-if="!store.isLoggedIn" style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+      <p v-if="!isSupabaseConfigured()" style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
         💾 I dati sono salvati solo localmente. Vai in Impostazioni per abilitare il backup cloud.
       </p>
     </div>
@@ -70,6 +70,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
+import { isSupabaseConfigured } from '../services/supabase.js'
 import BarcodeCard from '../components/BarcodeCard.vue'
 
 const router = useRouter()

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'carte-v9'
-const STATIC_CACHE = 'carte-static-v9'
+const CACHE_NAME = 'carte-v10'
+const STATIC_CACHE = 'carte-static-v10'
 
 const PRECACHE_ASSETS = [
   './',
