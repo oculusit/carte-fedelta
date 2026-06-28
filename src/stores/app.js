@@ -39,24 +39,38 @@ export const useAppStore = defineStore('app', () => {
     const supabase = getSupabase()
     if (!supabase || !isOnline.value) return
     try {
-      const { data: supabaseCards, error } = await supabase.from('cards').select('*').order('created_at', { ascending: false })
-      if (error) throw error
-      if (supabaseCards && supabaseCards.length) {
-        await db.importCards(supabaseCards)
-      }
       const localCards = await db.getAll()
+
+      // Upload local cards to server (upsert in case already exists)
+      for (const card of localCards) {
+        const { error } = await supabase.from('cards').upsert(card)
+        if (error) {
+          await settingsDb.addToQueue({ id: card.id, action: 'create', card })
+        }
+      }
+
+      // Download all server cards
+      const { data: supabaseCards, error } = await supabase.from('cards').select('*')
+      if (error) throw error
+
+      // Remove local cards that were deleted from server (e.g. by another device)
       const serverIds = new Set((supabaseCards || []).map(c => c.id))
       for (const card of localCards) {
         if (!serverIds.has(card.id)) {
-          const { error: insertError } = await supabase.from('cards').insert(card)
-          if (insertError) {
-            await settingsDb.addToQueue({ id: card.id, action: 'create', card })
-          }
+          await db.delete(card.id)
         }
       }
+
+      // Import/refresh all server cards locally (upsert by id)
+      if (supabaseCards?.length) {
+        await db.importCards(supabaseCards)
+      }
+
       cards.value = await db.getAll()
       saveBackup(cards.value)
-    } catch {}
+    } catch (e) {
+      console.warn('syncMerge error:', e)
+    }
   }
 
   async function processSyncQueue() {
