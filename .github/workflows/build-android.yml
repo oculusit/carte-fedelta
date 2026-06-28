@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -39,12 +39,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Build debug APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        shell: bash
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
