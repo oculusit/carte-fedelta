@@ -40,7 +40,7 @@ export const useAppStore = defineStore('app', () => {
     try {
       const localCards = await db.getAll()
 
-      // Upload local cards to server (upsert in case already exists)
+      // Upload local cards to server (upsert — never delete)
       for (const card of localCards) {
         const { error } = await supabase.from('cards').upsert(card)
         if (error) {
@@ -48,19 +48,9 @@ export const useAppStore = defineStore('app', () => {
         }
       }
 
-      // Download all server cards
+      // Download all server cards and upsert locally (never delete)
       const { data: supabaseCards, error } = await supabase.from('cards').select('*')
       if (error) throw error
-
-      // Remove local cards that were deleted from server (e.g. by another device)
-      const serverIds = new Set((supabaseCards || []).map(c => c.id))
-      for (const card of localCards) {
-        if (!serverIds.has(card.id)) {
-          await db.delete(card.id)
-        }
-      }
-
-      // Import/refresh all server cards locally (upsert by id)
       if (supabaseCards?.length) {
         await db.importCards(supabaseCards)
       }
