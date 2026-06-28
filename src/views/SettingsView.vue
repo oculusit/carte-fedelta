@@ -22,6 +22,10 @@
         <button class="btn btn-primary btn-block" @click="syncNow" :disabled="syncing" style="margin-top:12px">
           {{ syncing ? 'Sincronizzazione...' : 'Sincronizza ora' }}
         </button>
+        <button class="btn btn-outline btn-block" @click="testWrite" :disabled="testing" style="margin-top:8px">
+          {{ testing ? 'Test in corso...' : 'Test scrittura' }}
+        </button>
+        <p v-if="testResult" :class="testResult.ok ? 'test-ok' : 'test-err'">{{ testResult.msg }}</p>
       </template>
     </div>
 
@@ -73,13 +77,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
-import { isSupabaseConfigured } from '../services/supabase.js'
+import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
 
 const store = useAppStore()
 
 const clearing = ref(false)
 const syncing = ref(false)
+const testing = ref(false)
+const testResult = ref(null)
 const cloudCount = ref(-1)
 const syncConfigured = computed(() => isSupabaseConfigured())
 const serverUrl = ref(localStorage.getItem('server_url') || '')
@@ -117,6 +123,37 @@ async function syncNow() {
     toast.show('Errore sincronizzazione: ' + (e.message || e), 'error')
   } finally {
     syncing.value = false
+  }
+}
+
+async function testWrite() {
+  testing.value = true
+  testResult.value = null
+  const sb = getSupabaseClient()
+  if (!sb) {
+    testResult.value = { ok: false, msg: 'Client Supabase non inizializzato' }
+    testing.value = false
+    return
+  }
+  try {
+    const { data, error } = await sb.from('cards').insert({
+      id: crypto.randomUUID(),
+      store_name: '__test__',
+      card_number: '0',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).select()
+    if (error) {
+      testResult.value = { ok: false, msg: 'ERRORE: ' + error.message + ' (codice: ' + error.code + ')' }
+    } else {
+      await sb.from('cards').delete().eq('id', data[0].id)
+      testResult.value = { ok: true, msg: 'OK: scrittura e cancellazione riuscite' }
+      cloudCount.value = await store.getCloudCardCount()
+    }
+  } catch (e) {
+    testResult.value = { ok: false, msg: 'ERRORE: ' + (e.message || e) }
+  } finally {
+    testing.value = false
   }
 }
 
@@ -174,4 +211,6 @@ async function clearCache() {
 .tag-offline { color: var(--danger); font-weight: 600; }
 .input-group { display: flex; flex-direction: column; gap: 4px; }
 .input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
+.test-ok { margin-top: 8px; font-size: 13px; color: var(--success); word-break: break-all; }
+.test-err { margin-top: 8px; font-size: 13px; color: var(--danger); word-break: break-all; }
 </style>
