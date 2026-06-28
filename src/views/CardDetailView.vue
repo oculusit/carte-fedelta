@@ -89,6 +89,7 @@ const countdown = ref(0)
 let previousBrightness = 1
 
 async function getBrightness() {
+  if (!window.Capacitor?.isNativePlatform?.()) return null
   try {
     const { CapacitorBrightness } = await import('@capgo/capacitor-brightness')
     return CapacitorBrightness

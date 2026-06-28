@@ -175,7 +175,6 @@ import BarcodeScanner from '../components/BarcodeScanner.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-
 const isEdit = computed(() => !!route.params.id)
 
 const normalizedNumber = computed(() => form.value.card_number.replace(/\s/g, ''))
@@ -395,6 +394,7 @@ async function save() {
     } else {
       await store.createCard(data)
     }
+    router.push('/')
   } catch (e) {
     toast.show('Errore: ' + e.message, 'error')
   } finally {

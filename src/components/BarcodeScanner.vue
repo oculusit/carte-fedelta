@@ -18,10 +18,10 @@
         <button
           v-if="isNative && !loading"
           class="btn btn-primary btn-block"
-          @click="startNativeCamera"
+          @click="startScan"
           type="button"
         >
-          Scatta foto
+          Scansiona
         </button>
         <button
           v-if="!isNative && isScanning"
@@ -38,7 +38,7 @@
       </div>
 
       <p v-if="isNative && !loading && !error" class="scanner-hint">
-        Premi "Scatta foto" per fotografare il codice a barre
+        Premi "Scansiona" per aprire la fotocamera con il mirino
       </p>
       <p v-if="!isNative && isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
@@ -70,61 +70,78 @@ const SCANNER_ID = 'qrcode-scanner-element'
 
 const isNative = !!(window.Capacitor?.isNativePlatform?.())
 
-async function startNativeCamera() {
+async function startScan() {
   loading.value = true
-  loadingMsg.value = 'Apro fotocamera...'
+  loadingMsg.value = 'Apro scanner...'
   error.value = ''
   try {
-    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
-    const photo = await Camera.getPhoto({
-      resultType: CameraResultType.DataUrl,
-      source: CameraSource.Camera,
-      quality: 50,
+    const { BarcodeScanner, BarcodeFormat } = await import('@capacitor-mlkit/barcode-scanning')
+
+    const { supported } = await BarcodeScanner.isSupported()
+    if (!supported) {
+      throw new Error('Scanner non supportato su questo dispositivo')
+    }
+
+    const result = await BarcodeScanner.scan({
+      formats: [
+        BarcodeFormat.Code128,
+        BarcodeFormat.Ean13,
+        BarcodeFormat.Ean8,
+        BarcodeFormat.UpcA,
+        BarcodeFormat.UpcE,
+        BarcodeFormat.Code39,
+        BarcodeFormat.Itf,
+        BarcodeFormat.QrCode,
+        BarcodeFormat.Codabar,
+        BarcodeFormat.Code93,
+        BarcodeFormat.DataMatrix,
+        BarcodeFormat.Pdf417,
+      ],
     })
-    if (!photo.dataUrl) {
-      throw new Error('Nessuna foto')
-    }
-    loadingMsg.value = 'Analisi codice a barre...'
-    const blobRes = await fetch(photo.dataUrl)
-    const blob = await blobRes.blob()
-    const fileId = SCANNER_ID + '-native'
-    let fileDiv = document.getElementById(fileId)
-    if (!fileDiv) {
-      fileDiv = document.createElement('div')
-      fileDiv.id = fileId
-      fileDiv.style.position = 'fixed'
-      fileDiv.style.top = '-9999px'
-      fileDiv.style.width = '1px'
-      fileDiv.style.height = '1px'
-      document.body.appendChild(fileDiv)
-    }
-    const fileScanner = new Html5Qrcode(fileId, {
-      formatsToSupport: getSupportedFormats(),
-      verbose: false,
-    })
-    const result = await fileScanner.scanFileV2(blob, false)
-    let code = result.decodedText
-    let type = ''
-    try { type = mapScannerFormat(result.result?.format || result.format) } catch {}
-    if (!type) type = detectBarcodeType(code)
-    if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
-      type = 'EAN13'
-      code = '0' + code
-    }
-    if (type === 'EAN13' && code.length === 12) code = '0' + code
-    fileScanner.clear()
-    if (fileDiv.parentNode) fileDiv.parentNode.removeChild(fileDiv)
-    emit('scan', { code, type, cameraFormat: true })
-  } catch (e) {
-    console.warn('Native scan error:', e)
-    if (e.code === 'CAMERA_CANCELLED' || e.message?.includes('cancel')) {
-      error.value = 'Scansione annullata. Premi "Scatta foto" per riprovare.'
+
+    if (result.barcodes && result.barcodes.length > 0) {
+      const barcode = result.barcodes[0]
+      let code = barcode.displayValue
+      let type = mapMlkitFormat(barcode.format)
+      if (!type) type = detectBarcodeType(code)
+      if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
+        type = 'EAN13'
+        code = '0' + code
+      }
+      if (type === 'EAN13' && code.length === 12) code = '0' + code
+      emit('scan', { code, type, cameraFormat: true })
     } else {
-      error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
+      throw new Error('Nessun codice riconosciuto')
+    }
+  } catch (e) {
+    console.warn('Scan error:', e)
+    if (e.message?.includes('cancel') || e.message?.includes('cancelled') || e.code === 'CAMERA_CANCELLED') {
+      error.value = 'Scansione annullata. Premi "Scansiona" per riprovare.'
+    } else {
+      error.value = 'Errore scanner: ' + (e.message || 'sconosciuto')
     }
   } finally {
     loading.value = false
   }
+}
+
+function mapMlkitFormat(fmt) {
+  const map = {
+    CODE_128: 'CODE128',
+    EAN_13: 'EAN13',
+    EAN_8: 'EAN8',
+    UPC_A: 'UPC',
+    UPC_E: 'UPC',
+    CODE_39: 'CODE39',
+    ITF: 'ITF',
+    QR_CODE: 'QR',
+    CODABAR: 'CODE128',
+    CODE_93: 'CODE128',
+    DATA_MATRIX: 'CODE128',
+    PDF_417: 'CODE128',
+    AZTEC: 'CODE128',
+  }
+  return map[fmt] || ''
 }
 
 function getSupportedFormats() {
@@ -167,7 +184,7 @@ function removeContainer() {
 
 async function startCamera() {
   if (isNative) {
-    await startNativeCamera()
+    await startScan()
     return
   }
   loading.value = true
@@ -384,7 +401,7 @@ async function close() {
 watch(() => props.active, (val) => {
   if (val) {
     if (isNative) {
-      startNativeCamera()
+      error.value = ''
     } else {
       startCamera()
     }
@@ -464,25 +481,6 @@ onBeforeUnmount(() => {
   min-height: 260px;
   background: #1a1a1a;
   overflow: hidden;
-}
-
-.scanner-placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
-  gap: 8px;
-}
-
-.placeholder-icon {
-  font-size: 40px;
-}
-
-.scanner-placeholder p {
-  font-size: 14px;
 }
 
 .scanner-loading {
