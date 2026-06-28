@@ -44,8 +44,26 @@ export function isSupabaseConfigured() {
 export async function testSupabaseConnection(url, anonKey) {
   try {
     const testClient = createClient(url, anonKey, { auth: { persistSession: false } })
-    const { error } = await testClient.from('cards').select('id', { count: 'exact', head: true })
-    if (error && error.code !== 'PGRST116') throw error
+    const { error: selErr } = await testClient.from('cards').select('id', { count: 'exact', head: true })
+    if (selErr && selErr.code === 'PGRST116') {
+      return { ok: false, error: 'La tabella "cards" non esiste. Vai su SQL Editor ed esegui lo script di setup.' }
+    }
+    if (selErr) throw selErr
+    const testId = crypto.randomUUID()
+    const { error: insErr } = await testClient.from('cards').insert({
+      id: testId,
+      store_name: '__test__',
+      card_number: '0',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    if (insErr) {
+      if (insErr.code === '42501') {
+        return { ok: false, error: 'La policy RLS blocca le scritture. Assicurati di aver eseguito lo script SQL di setup (include "create policy ... for all using (true) with check (true)").' }
+      }
+      throw insErr
+    }
+    await testClient.from('cards').delete().eq('id', testId)
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e.message }

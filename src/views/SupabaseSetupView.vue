@@ -7,14 +7,33 @@
         I tuoi dati rimangono privati e accessibili solo a te.
       </p>
 
-      <div v-if="isConfigured" class="status-card status-ok">
-        <span class="status-icon">✓</span>
+      <div v-if="isConfigured" class="status-card" :class="writesOk ? 'status-ok' : 'status-warn'">
+        <span class="status-icon">{{ writesOk ? '✓' : '!' }}</span>
         <div>
-          <strong>Sincronizzazione configurata</strong>
+          <strong v-if="writesOk">Sincronizzazione configurata</strong>
+          <strong v-else>Attenzione: setup incompleto</strong>
           <p class="status-sub">Supabase: {{ maskedUrl }}</p>
+          <p v-if="!writesOk" class="status-sub" style="color:#c5221f">
+            La policy RLS blocca le scritture. Segui il setup manuale qui sotto.
+          </p>
         </div>
         <button class="btn btn-sm btn-outline" @click="disconnect" :disabled="disconnecting">
           {{ disconnecting ? '...' : 'Disconnetti' }}
+        </button>
+      </div>
+
+      <div v-if="isConfigured && !writesOk" class="step" style="margin-top:16px">
+        <div class="step-header">
+          <span class="step-number">!</span>
+          <h3>Esegui setup SQL</h3>
+        </div>
+        <p>Vai su <strong>SQL Editor</strong> nel tuo progetto Supabase, incolla il codice qui sotto e premi <strong>Run</strong>.</p>
+        <div class="sql-box">
+          <button class="copy-btn" @click="copySql">{{ copyText }}</button>
+          <pre><code>{{ sqlScript }}</code></pre>
+        </div>
+        <button class="btn btn-primary btn-block" @click="recheckWrites" :disabled="rechecking" style="margin-top:12px">
+          {{ rechecking ? 'Verifico...' : 'Ho eseguito lo script, verifica ora' }}
         </button>
       </div>
 
@@ -160,7 +179,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { isSupabaseConfigured, getSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig, testSupabaseConnection, SUPABASE_SETUP_SQL } from '../services/supabase.js'
+import { isSupabaseConfigured, getSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig, testSupabaseConnection, getSupabaseClient, SUPABASE_SETUP_SQL } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
 import { useAppStore } from '../stores/app.js'
 
@@ -180,10 +199,44 @@ const autoResult = ref(null)
 const autoError = ref('')
 
 const isConfigured = ref(false)
+const writesOk = ref(false)
+const rechecking = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   isConfigured.value = isSupabaseConfigured()
+  if (isConfigured.value) {
+    writesOk.value = await checkWrites()
+  }
 })
+
+async function checkWrites() {
+  const sb = getSupabaseClient()
+  if (!sb) return false
+  try {
+    const testId = crypto.randomUUID()
+    const { error } = await sb.from('cards').insert({
+      id: testId, store_name: '__test__', card_number: '0',
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    })
+    if (error) return false
+    await sb.from('cards').delete().eq('id', testId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function recheckWrites() {
+  rechecking.value = true
+  writesOk.value = await checkWrites()
+  if (writesOk.value) {
+    store.pullFromServer()
+    toast.show('Scritture funzionanti! Sincronizzazione completata.', 'success')
+  } else {
+    toast.show('Ancora non funziona. Assicurati di aver eseguito lo script SQL.', 'error')
+  }
+  rechecking.value = false
+}
 
 const maskedUrl = computed(() => {
   const config = getSupabaseConfig()
@@ -324,6 +377,10 @@ async function disconnect() {
 .status-ok {
   background: #e6f4ea;
   border: 1px solid #b7e1bd;
+}
+.status-warn {
+  background: #fef7e0;
+  border: 1px solid #f9d849;
 }
 
 .status-icon {
