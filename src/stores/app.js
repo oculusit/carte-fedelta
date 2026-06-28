@@ -16,7 +16,7 @@ export const useAppStore = defineStore('app', () => {
     isOnline.value = true
     if (isSupabaseConfigured()) {
       processSyncQueue()
-      pullFromSupabase()
+      syncMerge()
     }
     loadCards()
   }
@@ -33,6 +33,30 @@ export const useAppStore = defineStore('app', () => {
   function getSupabase() {
     if (!isSupabaseConfigured()) return null
     return getSupabaseClient()
+  }
+
+  async function syncMerge() {
+    const supabase = getSupabase()
+    if (!supabase || !isOnline.value) return
+    try {
+      const { data: supabaseCards, error } = await supabase.from('cards').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      if (supabaseCards && supabaseCards.length) {
+        await db.importCards(supabaseCards)
+      }
+      const localCards = await db.getAll()
+      const serverIds = new Set((supabaseCards || []).map(c => c.id))
+      for (const card of localCards) {
+        if (!serverIds.has(card.id)) {
+          const { error: insertError } = await supabase.from('cards').insert(card)
+          if (insertError) {
+            await settingsDb.addToQueue({ id: card.id, action: 'create', card })
+          }
+        }
+      }
+      cards.value = await db.getAll()
+      saveBackup(cards.value)
+    } catch {}
   }
 
   async function processSyncQueue() {
@@ -67,19 +91,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   async function pullFromSupabase() {
-    const supabase = getSupabase()
-    if (!supabase) return
-    try {
-      const { data: supabaseCards, error } = await supabase.from('cards').select('*').order('created_at', { ascending: false })
-      if (error) throw error
-      if (supabaseCards) {
-        const serverIds = new Set(supabaseCards.map(c => c.id))
-        await db.importCards(supabaseCards)
-        await db.cleanStaleCards(serverIds)
-        cards.value = supabaseCards
-        saveBackup(supabaseCards)
-      }
-    } catch { }
+    await syncMerge()
   }
 
   async function syncToSupabase(card, action) {
@@ -113,19 +125,7 @@ export const useAppStore = defineStore('app', () => {
       cards.value = localCards
       saveBackup(localCards)
       if (isSupabaseConfigured() && isOnline.value) {
-        const supabase = getSupabase()
-        if (supabase) {
-          try {
-            const { data: supabaseCards, error: err } = await supabase.from('cards').select('*').order('created_at', { ascending: false })
-            if (!err && supabaseCards) {
-              const serverIds = new Set(supabaseCards.map(c => c.id))
-              await db.importCards(supabaseCards)
-              await db.cleanStaleCards(serverIds)
-              cards.value = supabaseCards
-              saveBackup(supabaseCards)
-            }
-          } catch { }
-        }
+        await syncMerge()
       }
     } catch (e) {
       try {

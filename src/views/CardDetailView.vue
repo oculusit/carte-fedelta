@@ -24,6 +24,12 @@
           <h2>{{ card.store_name }}</h2>
           <p class="holder" v-if="card.holder_name">{{ card.holder_name }}</p>
         </div>
+        <span
+          class="star"
+          :class="{ starred: card.is_favorite }"
+          @click="toggleFavorite"
+          title="Preferiti"
+        >{{ card.is_favorite ? '★' : '☆' }}</span>
       </div>
 
       <div class="detail-section" style="cursor:pointer" @click="copyNumber">
@@ -93,7 +99,8 @@ async function getBrightness() {
   try {
     const { CapacitorBrightness } = await import('@capgo/capacitor-brightness')
     return CapacitorBrightness
-  } catch {
+  } catch (e) {
+    console.warn('Brightness import error:', e)
     return null
   }
 }
@@ -144,7 +151,6 @@ async function acquireWakeLock() {
       startCountdown()
     }
   } catch {
-    // Wake lock not supported or denied — ignore
   }
 }
 
@@ -172,6 +178,13 @@ async function loadCard() {
   loading.value = false
 }
 
+async function toggleFavorite() {
+  if (!card.value) return
+  await store.updateCard(card.value.id, { is_favorite: card.value.is_favorite ? 0 : 1 })
+  await loadCard()
+  toast.show(card.value.is_favorite ? 'Aggiunta ai preferiti' : 'Rimossa dai preferiti', 'success')
+}
+
 async function confirmDelete() {
   if (!confirm(`Eliminare la carta di ${card.value.store_name}? Verrà cancellata definitivamente.`)) return
   await store.deleteCard(card.value.id)
@@ -197,9 +210,12 @@ onMounted(async () => {
       const { brightness: current } = await brightness.getBrightness()
       previousBrightness = current
       await brightness.setBrightness({ brightness: 1 })
+      console.log('Brightness set to 1, previous was', current)
     } catch (e) {
       console.warn('Brightness error:', e)
     }
+  } else {
+    console.warn('Brightness plugin not available')
   }
 })
 
@@ -209,6 +225,7 @@ onUnmounted(async () => {
   if (brightness) {
     try {
       await brightness.setBrightness({ brightness: previousBrightness })
+      console.log('Brightness restored to', previousBrightness)
     } catch (e) {
       console.warn('Brightness restore error:', e)
     }
@@ -294,16 +311,6 @@ onUnmounted(async () => {
 
 .star.starred {
   color: #f5a623;
-}
-
-.shared-badge {
-  display: inline-block;
-  font-size: 11px;
-  color: var(--text-secondary);
-  background: #e3f2fd;
-  padding: 2px 8px;
-  border-radius: 8px;
-  margin-top: 4px;
 }
 
 .detail-section {
