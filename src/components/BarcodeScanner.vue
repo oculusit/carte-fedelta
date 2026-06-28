@@ -77,18 +77,16 @@ async function startNativeCamera() {
   try {
     const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
     const photo = await Camera.getPhoto({
-      resultType: CameraResultType.Base64,
+      resultType: CameraResultType.DataUrl,
       source: CameraSource.Camera,
-      quality: 80,
+      quality: 50,
     })
-    if (!photo.base64String) {
+    if (!photo.dataUrl) {
       throw new Error('Nessuna foto')
     }
     loadingMsg.value = 'Analisi codice a barre...'
-    const byteChars = atob(photo.base64String)
-    const byteNums = new Uint8Array(byteChars.length)
-    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i)
-    const blob = new Blob([byteNums], { type: 'image/jpeg' })
+    const blobRes = await fetch(photo.dataUrl)
+    const blob = await blobRes.blob()
     const fileId = SCANNER_ID + '-native'
     let fileDiv = document.getElementById(fileId)
     if (!fileDiv) {
@@ -293,8 +291,6 @@ function mapScannerFormat(libFormat) {
   return scannerFormatMap[name] || ''
 }
 
-// Known EAN-13 country-code prefixes (first 2 digits) that are uncommon for UPC.
-// When the library returns 12-digit UPC but the prefix suggests EAN-13, treat as EAN-13 with leading 0.
 const eanPrefixes = new Set([
   '30','31','32','33','34','35','36','37','38','39',
   '40','41','42','43','44','45','46','47','48','49',
@@ -314,7 +310,6 @@ function onScanSuccess(decodedText, decodedResult) {
     type = mapScannerFormat(raw)
   } catch {}
   if (!type) type = detectBarcodeType(code)
-  // Library returned UPC for what is likely EAN-13 (leading 0 dropped)
   if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
     type = 'EAN13'
     code = '0' + code
@@ -325,7 +320,6 @@ function onScanSuccess(decodedText, decodedResult) {
 }
 
 function onScanFailure() {
-  // Silently continue scanning
 }
 
 async function onFileUpload(e) {

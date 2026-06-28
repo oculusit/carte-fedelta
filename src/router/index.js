@@ -27,41 +27,9 @@ const routes = [
     component: () => import('../views/SettingsView.vue'),
   },
   {
-    path: '/login',
-    name: 'login',
-    component: () => import('../views/LoginView.vue'),
-  },
-  {
-    path: '/admin/users',
-    redirect: '/settings',
-  },
-  {
-    path: '/admin/stores',
-    redirect: '/settings',
-  },
-  {
-    path: '/admin/settings',
-    redirect: '/settings',
-  },
-  {
-    path: '/family',
-    name: 'family',
-    component: () => import('../views/FamilyView.vue'),
-  },
-  {
     path: '/supabase-setup',
     name: 'supabase-setup',
     component: () => import('../views/SupabaseSetupView.vue'),
-  },
-  {
-    path: '/reset-password/:token',
-    name: 'reset-password',
-    component: () => import('../views/ResetPasswordView.vue'),
-  },
-  {
-    path: '/confirm-email/:token',
-    name: 'confirm-email',
-    component: () => import('../views/ConfirmEmailView.vue'),
   },
   {
     path: '/privacy',
@@ -77,16 +45,6 @@ const routes = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
-})
-
-function fetchWithTimeout(url, ms = 3000) {
-  const ctrl = new AbortController()
-  const id = setTimeout(() => ctrl.abort(), ms)
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id))
-}
-
-router.beforeEach(async (to, from, next) => {
-  next()
 })
 
 export default router

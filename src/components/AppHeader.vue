@@ -29,7 +29,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
-import { toast } from '../services/toast.js'
 import { isSupabaseConfigured } from '../services/supabase.js'
 
 const route = useRoute()
@@ -60,14 +59,12 @@ const title = computed(() => {
     'card-detail': 'Dettaglio Carta',
     'card-edit': 'Modifica Carta',
     settings: 'Impostazioni',
-    transfer: 'Trasferimento Dati',
-    login: 'Accedi',
   }
   return specific[route.name] || store.appName || 'Carte Fedeltà'
 })
 
 const showBack = computed(() => {
-  return !['dashboard', 'login'].includes(route.name)
+  return route.name !== 'dashboard'
 })
 
 const syncConfigured = computed(() => isSupabaseConfigured())
@@ -174,24 +171,16 @@ function goBack() {
   white-space: nowrap;
 }
 
-.sync-spinner {
-  animation: spin 1s linear infinite;
-}
-
-.clickable {
-  cursor: pointer;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .header-reload-icon {
   display: inline-block;
 }
 
 .header-reload-icon.spinning {
   animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .offline-banner {

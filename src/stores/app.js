@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { db, saveBackup, restoreBackup, settingsDb, logosDb } from '../services/db.js'
-import { api } from '../services/api.js'
-import { auth } from '../services/auth.js'
 import { toast } from '../services/toast.js'
 import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase.js'
 
@@ -13,16 +11,10 @@ export const useAppStore = defineStore('app', () => {
   const error = ref(null)
   const appName = ref('')
   const encryptionSeedSet = ref(false)
-  const isLoggedIn = ref(false)
-
-  function updateAuthState() {
-    isLoggedIn.value = auth.isLoggedIn()
-  }
 
   function handleOnline() {
     isOnline.value = true
-    updateAuthState()
-    if (isLoggedIn.value) {
+    if (isSupabaseConfigured()) {
       processSyncQueue()
       pullFromSupabase()
     }
@@ -120,7 +112,7 @@ export const useAppStore = defineStore('app', () => {
       const localCards = await db.getAll()
       cards.value = localCards
       saveBackup(localCards)
-      if (isLoggedIn.value && isOnline.value) {
+      if (isSupabaseConfigured() && isOnline.value) {
         const supabase = getSupabase()
         if (supabase) {
           try {
@@ -173,7 +165,6 @@ export const useAppStore = defineStore('app', () => {
       const card = {
         ...data,
         id: crypto.randomUUID(),
-        user_id: isLoggedIn.value ? auth.getUserId() : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -274,8 +265,8 @@ export const useAppStore = defineStore('app', () => {
   }
 
   return {
-    isOnline, isLoggedIn, cards, loading, error, appName, encryptionSeedSet,
+    isOnline, cards, loading, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
-    loadLogo, loadMissingLogos, processSyncQueue, updateAuthState,
+    loadLogo, loadMissingLogos, processSyncQueue,
   }
 })

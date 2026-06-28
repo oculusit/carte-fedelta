@@ -23,15 +23,7 @@
         <div class="card-preview-info">
           <h2>{{ card.store_name }}</h2>
           <p class="holder" v-if="card.holder_name">{{ card.holder_name }}</p>
-          <span v-if="isShared && card.owner_email" class="shared-badge">Da: {{ card.owner_email.split('@')[0] }}</span>
         </div>
-        <span
-          v-if="isLoggedIn"
-          class="star"
-          :class="{ starred: card.is_favorite }"
-          @click="toggleFavorite"
-          title="Preferiti"
-        >{{ card.is_favorite ? '★' : '☆' }}</span>
       </div>
 
       <div class="detail-section" style="cursor:pointer" @click="copyNumber">
@@ -60,14 +52,9 @@
           <span class="data-label">Note</span>
           <span class="data-value">{{ card.notes }}</span>
         </div>
-        <div class="data-row" v-if="!isShared">
-          <span class="data-label">Visibilità</span>
-          <span class="data-value">{{ card.is_private ? 'Privata' : 'Condivisa con la famiglia' }}</span>
-        </div>
       </div>
 
-      <div class="detail-actions" v-if="!isShared">
-        <button v-if="canManageStores" class="btn btn-outline btn-sm" @click="$router.push(`/admin/stores?edit=${encodeURIComponent(card.store_name)}`)" title="Amministra negozio">Amministra negozio</button>
+      <div class="detail-actions">
         <button class="btn-icon" title="Modifica" @click="$router.push(`/card/${card.id}/edit`)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
@@ -83,7 +70,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
-import { auth } from '../services/auth.js'
 import { toast } from '../services/toast.js'
 import { predefinedLogos } from '../utils/logoStore.js'
 import BarcodeDisplay from '../components/BarcodeDisplay.vue'
@@ -94,7 +80,6 @@ const store = useAppStore()
 
 const card = ref(null)
 const loading = ref(true)
-const isLoggedIn = auth.isLoggedIn()
 const WAKE_LOCK_TIMEOUT = 120000
 let wakeLockSentinel = null
 let wakeLockTimer = null
@@ -130,11 +115,6 @@ const logoColor = computed(() => {
   const key = card.value.store_name?.toLowerCase().replace(/\s+/g, '')
   return predefinedLogos[key]?.color || '#1a73e8'
 })
-
-const isShared = computed(() => {
-  return card.value && card.value.user_id && card.value.user_id !== Number(auth.getUserId())
-})
-const canManageStores = computed(() => auth.canManageStores())
 
 function startCountdown() {
   stopCountdown()
@@ -191,13 +171,6 @@ async function loadCard() {
   loading.value = false
 }
 
-async function toggleFavorite() {
-  if (!card.value) return
-  await store.updateCard(card.value.id, { is_favorite: card.value.is_favorite ? 0 : 1 })
-  await loadCard()
-  toast.show(card.value.is_favorite ? 'Aggiunta ai preferiti' : 'Rimossa dai preferiti', 'success')
-}
-
 async function confirmDelete() {
   if (!confirm(`Eliminare la carta di ${card.value.store_name}? Verrà cancellata definitivamente.`)) return
   await store.deleteCard(card.value.id)
@@ -223,7 +196,8 @@ onMounted(async () => {
       const { brightness: current } = await brightness.getBrightness()
       previousBrightness = current
       await brightness.setBrightness({ brightness: 1 })
-    } catch {
+    } catch (e) {
+      console.warn('Brightness error:', e)
     }
   }
 })
@@ -234,7 +208,8 @@ onUnmounted(async () => {
   if (brightness) {
     try {
       await brightness.setBrightness({ brightness: previousBrightness })
-    } catch {
+    } catch (e) {
+      console.warn('Brightness restore error:', e)
     }
   }
 })
@@ -248,27 +223,31 @@ onUnmounted(async () => {
 }
 
 .card-preview {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 20px;
-  background: var(--card-bg);
-  border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border-left: 4px solid var(--primary);
-  margin-bottom: 16px;
+}
+
+.card-preview-logo {
+  flex-shrink: 0;
 }
 
 .logo-badge-lg {
-  width: 96px;
-  height: 66px;
-  border-radius: 12px;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
   color: white;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .logo-badge-default {
@@ -276,26 +255,21 @@ onUnmounted(async () => {
 }
 
 .logo-image-lg {
-  width: 96px;
-  height: 66px;
-  border-radius: 12px;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
   overflow: hidden;
-  isolation: isolate;
 }
 
 .logo-image-lg img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: 12px;
-}
-
-.card-preview-info {
-  flex: 1;
 }
 
 .card-preview-info h2 {
   font-size: 20px;
+  font-weight: 600;
   margin-bottom: 4px;
 }
 
@@ -304,19 +278,47 @@ onUnmounted(async () => {
   color: var(--text-secondary);
 }
 
+.star {
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s, transform 0.15s;
+  user-select: none;
+  line-height: 1;
+}
+
+.star:hover {
+  transform: scale(1.2);
+}
+
+.star.starred {
+  color: #f5a623;
+}
+
+.shared-badge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: #e3f2fd;
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
 .detail-section {
+  margin-top: 16px;
   background: var(--card-bg);
   border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px;
   box-shadow: var(--shadow);
-  padding: 16px;
-  margin-bottom: 16px;
 }
 
 .barcode-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-align: center;
-  margin-top: 12px;
+  margin-top: 8px;
   line-height: 1.4;
 }
 
@@ -326,31 +328,24 @@ onUnmounted(async () => {
   justify-content: center;
   gap: 6px;
   margin-top: 12px;
+  font-size: 14px;
+  color: var(--primary);
   cursor: pointer;
   user-select: none;
-  color: var(--primary);
-  opacity: 0.8;
-  transition: opacity 0.15s;
 }
 
 .screen-timer:hover {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .screen-timer-icon {
-  font-size: 14px;
-}
-
-.screen-timer-text {
-  font-size: 14px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-size: 16px;
 }
 
 .data-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -371,68 +366,43 @@ onUnmounted(async () => {
   word-break: break-all;
 }
 
-.mono {
+.data-value.mono {
   font-family: monospace;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
 }
 
 .detail-actions {
   display: flex;
-  gap: 8px;
-  justify-content: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0 4px;
 }
 
 .btn-icon {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 6px 8px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
   color: var(--text);
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .btn-icon:hover {
-  background: #f0f0f0;
+  background: var(--bg);
 }
 
 .btn-icon-danger {
   color: var(--danger);
+  border-color: var(--danger);
 }
 
 .btn-icon-danger:hover {
-  background: #fde8e8;
-}
-
-.shared-badge {
-  display: inline-block;
-  font-size: 11px;
-  background: #e3f2fd;
-  color: #1565c0;
-  padding: 3px 10px;
-  border-radius: 10px;
-  margin-top: 6px;
-}
-
-.star {
-  font-size: 32px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: color 0.15s, transform 0.15s;
-  user-select: none;
-  line-height: 1;
-  padding: 4px;
-  flex-shrink: 0;
-}
-
-.star:hover {
-  transform: scale(1.2);
-}
-
-.star.starred {
-  color: #f5a623;
+  background: #fff5f5;
 }
 </style>

@@ -160,22 +160,12 @@
     </div>
   </div>
 
-  <div v-if="newStoreName" class="modal-overlay" @click.self="dismissNewStore">
-    <div class="modal">
-      <h3>Nuovo negozio</h3>
-      <p>Il negozio <strong>{{ newStoreName }}</strong> che hai inserito non esiste nel nostro server. Un amministratore provvederà ad inserirne il logo prima possibile.</p>
-      <div class="modal-actions">
-        <button class="btn btn-success" @click="confirmNewStore">Ho capito!</button>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
-import { auth } from '../services/auth.js'
 import { api } from '../services/api.js'
 import { toast } from '../services/toast.js'
 import { detectBarcodeType, validateChecksum } from '../utils/barcodeUtils.js'
@@ -215,7 +205,6 @@ let blurTimeout = null
 const scanGuard = ref(false)
 const scanConfirm = ref(null)
 const scanZeroConfirm = ref(null)
-const newStoreName = ref('')
 const initializing = ref(true)
 const firstInputRef = ref(null)
 
@@ -246,14 +235,6 @@ onMounted(async () => {
     }
   }
 
-  if (auth.isLoggedIn()) {
-    try {
-      const stores = await api.stores.listBrief()
-      allStores.value = Array.isArray(stores) ? stores : []
-    } catch {
-      allStores.value = []
-    }
-  }
   initializing.value = false
 })
 
@@ -414,7 +395,6 @@ async function save() {
     } else {
       await store.createCard(data)
     }
-    checkNewStore(data.store_name)
   } catch (e) {
     toast.show('Errore: ' + e.message, 'error')
   } finally {
@@ -422,32 +402,6 @@ async function save() {
   }
 }
 
-function checkNewStore(storeName) {
-  if (!auth.isLoggedIn()) return
-  if (allStores.value.some(s => s.name.toLowerCase() === storeName.toLowerCase().trim())) {
-    router.push('/')
-    return
-  }
-  newStoreName.value = storeName.trim()
-}
-
-function confirmNewStore() {
-  const name = newStoreName.value
-  newStoreName.value = ''
-  if (name) {
-    api.stores.create({ name }).catch(() => {})
-  }
-  router.push('/')
-}
-
-function dismissNewStore() {
-  const name = newStoreName.value
-  newStoreName.value = ''
-  if (name) {
-    api.stores.create({ name }).catch(() => {})
-  }
-  router.push('/')
-}
 </script>
 
 <style scoped>

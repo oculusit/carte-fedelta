@@ -1,2 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-KBJo3gM5.js","./index-BzOvdiRd.js","./index-fLbfOukZ.js","./index-DbI8JgbM.css"])))=>i.map(i=>d[i]);
-import{x as o}from"./index-fLbfOukZ.js";import{r as A}from"./index-BzOvdiRd.js";var t;(function(r){r[r.UNKNOWN=0]="UNKNOWN",r[r.AUTOMATIC=1]="AUTOMATIC",r[r.MANUAL=2]="MANUAL"})(t||(t={}));const p=A("CapgoBrightness",{web:()=>o(()=>import("./web-KBJo3gM5.js"),__vite__mapDeps([0,1,2,3]),import.meta.url).then(r=>new r.CapgoBrightnessWeb)});export{t as BrightnessMode,p as CapgoBrightness};
