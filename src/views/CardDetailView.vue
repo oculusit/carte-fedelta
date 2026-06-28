@@ -93,17 +93,7 @@ let countdownInterval = null
 const countdown = ref(0)
 
 let previousBrightness = 1
-
-async function getBrightness() {
-  if (!window.Capacitor?.isNativePlatform?.()) return null
-  try {
-    const { CapacitorBrightness } = await import('@capgo/capacitor-brightness')
-    return CapacitorBrightness
-  } catch (e) {
-    console.warn('Brightness import error:', e)
-    return null
-  }
-}
+let brightnessPlugin = null
 
 const formattedCountdown = computed(() => {
   const mins = Math.floor(countdown.value / 60)
@@ -204,27 +194,23 @@ function copyNumber() {
 onMounted(async () => {
   loadCard()
   acquireWakeLock()
-  const brightness = await getBrightness()
-  if (brightness) {
-    try {
-      const { brightness: current } = await brightness.getBrightness()
-      previousBrightness = current
-      await brightness.setBrightness({ brightness: 1 })
-      console.log('Brightness set to 1, previous was', current)
-    } catch (e) {
-      console.warn('Brightness error:', e)
-    }
-  } else {
-    console.warn('Brightness plugin not available')
+  try {
+    const { CapacitorBrightness } = await import('@capgo/capacitor-brightness')
+    brightnessPlugin = CapacitorBrightness
+    const { brightness: current } = await CapacitorBrightness.getBrightness()
+    previousBrightness = current
+    await CapacitorBrightness.setBrightness({ brightness: 1 })
+    console.log('Brightness set to 1, previous was', current)
+  } catch (e) {
+    console.log('Brightness not available:', e?.message || e)
   }
 })
 
 onUnmounted(async () => {
   releaseWakeLock()
-  const brightness = await getBrightness()
-  if (brightness) {
+  if (brightnessPlugin) {
     try {
-      await brightness.setBrightness({ brightness: previousBrightness })
+      brightnessPlugin.setBrightness({ brightness: previousBrightness })
       console.log('Brightness restored to', previousBrightness)
     } catch (e) {
       console.warn('Brightness restore error:', e)
