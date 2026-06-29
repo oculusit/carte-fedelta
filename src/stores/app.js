@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { db, saveBackup, restoreBackup, settingsDb, logosDb } from '../services/db.js'
 import { toast } from '../services/toast.js'
 import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase.js'
+import { httpFetch } from '../services/http.js'
 
 export const useAppStore = defineStore('app', () => {
   const isOnline = ref(navigator.onLine)
@@ -269,7 +270,7 @@ export const useAppStore = defineStore('app', () => {
     if (cached) return cached
     const base = getServerUrl()
     try {
-      const res = await fetch(`${base}/logos/${encodeURIComponent(storeName)}`)
+      const res = await httpFetch(`${base}/logos/${encodeURIComponent(storeName)}`)
       if (res.ok) {
         const data = await res.json()
         if (data && data.logo_data) {
@@ -285,7 +286,7 @@ export const useAppStore = defineStore('app', () => {
     } catch {}
     if (!cached) {
       try {
-        await fetch(`${base}/logos/report-missing`, {
+        await httpFetch(`${base}/logos/report-missing`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

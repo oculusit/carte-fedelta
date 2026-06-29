@@ -9,6 +9,8 @@ class ApiError extends Error {
   }
 }
 
+import { httpFetch } from './http.js'
+
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('auth_token')
   const headers = {
@@ -19,16 +21,11 @@ async function request(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30000)
-
-  const res = await fetch(`${getApiBase()}${endpoint}`, {
+  const res = await httpFetch(`${getApiBase()}${endpoint}`, {
     ...options,
     headers,
-    signal: controller.signal,
+    timeout: 30000,
   })
-
-  clearTimeout(timeout)
 
   const data = await res.json().catch(() => null)
 
@@ -143,7 +140,7 @@ export const api = {
       formData.append('logo', file)
       formData.append('store_name', storeName)
 
-      const res = await fetch(`${getApiBase()}/logos`, {
+      const res = await httpFetch(`${getApiBase()}/logos`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,

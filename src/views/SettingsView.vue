@@ -89,6 +89,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
+import { httpFetch } from '../services/http.js'
 
 const store = useAppStore()
 
@@ -122,11 +123,8 @@ async function discoverServer() {
   const errors = []
   for (const host of ['https://fidappti.altervista.org', 'https://fidappti.altervista.org/api']) {
     const url = host + '/discover'
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10000)
     try {
-      const res = await fetch(url, { signal: controller.signal })
-      clearTimeout(timer)
+      const res = await httpFetch(url, { timeout: 10000 })
       if (!res.ok) {
         const body = await res.text().catch(() => '')
         errors.push(url + ' → HTTP ' + res.status + ': ' + body.slice(0, 200))
