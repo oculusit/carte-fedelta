@@ -61,6 +61,9 @@ export async function testSupabaseConnection(url, anonKey) {
       if (insErr.code === '42501') {
         return { ok: false, error: 'La policy RLS blocca le scritture. Assicurati di aver eseguito lo script SQL di setup (include "create policy ... for all using (true) with check (true)").' }
       }
+      if (insErr.code === '23502') {
+        return { ok: false, error: 'La tabella ha una colonna "user_id" obbligatoria non prevista. Esegui lo script SQL aggiornato che la rimuove (alter table cards drop column if exists user_id).' }
+      }
       throw insErr
     }
     await testClient.from('cards').delete().eq('id', testId)
@@ -77,6 +80,9 @@ export const SUPABASE_SETUP_SQL = `-- ==========================================
 
 -- Estensioni
 create extension if not exists "pgcrypto";
+
+-- Rimuovi colonna user_id se presente (template default Supabase)
+alter table cards drop column if exists user_id;
 
 -- 1. Tabella carte fedeltà
 create table if not exists cards (

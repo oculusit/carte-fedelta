@@ -281,8 +281,9 @@ async function autoFixRls() {
     if (!config?.url) throw new Error('Configurazione Supabase mancante')
     const ref = extractProjectRef(config.url)
     if (!ref) throw new Error('Impossibile estrarre il project ref dalla URL')
-    const rlsSql = `
-      create policy "Enable all access for cards"
+    const fixSql = `
+      alter table cards drop column if exists user_id;
+      create policy if not exists "Enable all access for cards"
         on cards for all
         using (true)
         with check (true);
@@ -293,7 +294,7 @@ async function autoFixRls() {
         'Authorization': `Bearer ${fixPat.value}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query: rlsSql }),
+      body: JSON.stringify({ query: fixSql }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({ error: response.statusText }))
