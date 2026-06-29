@@ -8,6 +8,7 @@ export const useAppStore = defineStore('app', () => {
   const isOnline = ref(navigator.onLine)
   const cards = ref([])
   const loading = ref(false)
+  const syncing = ref(false)
   const error = ref(null)
   const appName = ref('')
   const encryptionSeedSet = ref(false)
@@ -37,6 +38,7 @@ export const useAppStore = defineStore('app', () => {
   async function syncMerge() {
     const supabase = getSupabase()
     if (!supabase || !isOnline.value) return
+    syncing.value = true
     try {
       const localCards = await db.getAll()
 
@@ -60,6 +62,8 @@ export const useAppStore = defineStore('app', () => {
       saveBackup(cards.value)
     } catch (e) {
       console.warn('syncMerge error:', e)
+    } finally {
+      syncing.value = false
     }
   }
 
@@ -68,6 +72,7 @@ export const useAppStore = defineStore('app', () => {
     if (!queue.length) return
     const supabase = getSupabase()
     if (!supabase) return
+    syncing.value = true
     const remaining = []
     for (const entry of queue) {
       try {
@@ -83,7 +88,7 @@ export const useAppStore = defineStore('app', () => {
           const { error } = await supabase.from('cards').delete().eq('id', card.id)
           if (error) throw error
         }
-        await settingsDb.removeFromQueue(entry.id)
+        await settingsDb.removeFromQueue(entry._qid)
       } catch {
         remaining.push(entry)
       }
@@ -93,6 +98,7 @@ export const useAppStore = defineStore('app', () => {
     } else {
       await settingsDb.clearQueue()
     }
+    syncing.value = false
   }
 
   async function pullFromSupabase() {
@@ -305,7 +311,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   return {
-    isOnline, cards, loading, error, appName, encryptionSeedSet,
+    isOnline, cards, loading, syncing, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
     loadLogo, loadMissingLogos, processSyncQueue, getCloudCardCount,
   }

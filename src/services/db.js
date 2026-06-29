@@ -236,13 +236,13 @@ export const settingsDb = {
 
   async addToQueue(entry) {
     const queue = await this.getQueue()
-    queue.push({ ...entry, ts: Date.now() })
+    queue.push({ ...entry, _qid: crypto.randomUUID(), ts: Date.now() })
     await this.set('sync_queue', queue)
   },
 
-  async removeFromQueue(id) {
+  async removeFromQueue(qid) {
     const queue = await this.getQueue()
-    const filtered = queue.filter(e => e.id !== id)
+    const filtered = queue.filter(e => e._qid !== qid)
     await this.set('sync_queue', filtered)
   },
 

@@ -20,6 +20,7 @@
           </span>
         </div>
         <button class="btn btn-primary btn-block" @click="syncNow" :disabled="syncing" style="margin-top:12px">
+          <span v-if="syncing" class="sync-spinner">↻</span>
           {{ syncing ? 'Sincronizzazione...' : 'Sincronizza ora' }}
         </button>
         <button class="btn btn-outline btn-block" @click="testWrite" :disabled="testing" style="margin-top:8px">
@@ -213,4 +214,6 @@ async function clearCache() {
 .input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
 .test-ok { margin-top: 8px; font-size: 13px; color: var(--success); word-break: break-all; }
 .test-err { margin-top: 8px; font-size: 13px; color: var(--danger); word-break: break-all; }
+.sync-spinner { display: inline-block; animation: spin 0.8s linear infinite; margin-right: 6px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

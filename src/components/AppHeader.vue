@@ -10,7 +10,10 @@
       </button>
       <h1 class="header-title">{{ title }}</h1>
       <div class="header-actions">
-        <span v-if="syncConfigured" class="sync-indicator" :title="syncTitle">{{ syncLabel }}</span>
+        <span v-if="syncConfigured" class="sync-indicator" :class="{ syncing: store.syncing }" :title="syncTitle">
+          <span v-if="store.syncing" class="sync-spinner">↻</span>
+          <span v-else>{{ syncLabel }}</span>
+        </span>
         <button class="header-btn" @click="clearAndReload" title="Ricarica" :disabled="reloading">
           <span class="icon header-reload-icon" :class="{ spinning: reloading }">↻</span>
         </button>
@@ -169,6 +172,17 @@ function goBack() {
   padding: 2px 8px;
   border-radius: 10px;
   white-space: nowrap;
+}
+.sync-indicator.syncing {
+  background: rgba(255,255,255,0.35);
+}
+.sync-spinner {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .header-reload-icon {
