@@ -122,8 +122,11 @@ async function discoverServer() {
   const errors = []
   for (const host of ['https://fidappti.altervista.org', 'https://fidappti.altervista.org/api']) {
     const url = host + '/discover'
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      const res = await fetch(url, { signal: controller.signal })
+      clearTimeout(timer)
       if (!res.ok) {
         const body = await res.text().catch(() => '')
         errors.push(url + ' → HTTP ' + res.status + ': ' + body.slice(0, 200))
@@ -139,7 +142,7 @@ async function discoverServer() {
       }
       errors.push(url + ' → JSON senza server_url: ' + JSON.stringify(data))
     } catch (e) {
-      errors.push(url + ' → ' + (e.message || e))
+      errors.push(url + ' → ' + (e.name || 'Error') + ': ' + (e.message || e))
     }
   }
   discoverResult.value = { ok: false, msg: 'Server non trovato.\n' + errors.join('\n') }
