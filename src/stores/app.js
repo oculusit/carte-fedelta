@@ -314,16 +314,17 @@ export const useAppStore = defineStore('app', () => {
   async function updateCardsLogosFromServer() {
     const base = getServerUrl()
     if (!base || base === './api') return
+    const lastCheck = parseInt(localStorage.getItem('last_logo_check') || '0', 10)
+    if (Date.now() - lastCheck < 86400000) return
     const allCards = await db.getAll()
-    const candidates = allCards.filter(c => !c.logo_data || c.logo_type !== 'upload')
-    if (!candidates.length) return
-    for (let i = 0; i < candidates.length; i++) {
-      const card = candidates[i]
+    if (!allCards.length) return
+    for (let i = 0; i < allCards.length; i++) {
+      const card = allCards[i]
       try {
         const res = await httpFetch(`${base}/logos/${encodeURIComponent(card.store_name)}`)
         if (res.ok) {
           const data = await res.json()
-          if (data?.logo_data) {
+          if (data?.logo_data && data.logo_data !== card.logo_data) {
             await updateCard(card.id, {
               logo_type: 'upload',
               logo_data: data.logo_data,
@@ -332,6 +333,7 @@ export const useAppStore = defineStore('app', () => {
         }
       } catch {}
     }
+    localStorage.setItem('last_logo_check', String(Date.now()))
   }
 
   return {
