@@ -311,9 +311,33 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  async function updateCardsLogosFromServer() {
+    const base = getServerUrl()
+    if (!base || base === './api') return
+    const allCards = await db.getAll()
+    const candidates = allCards.filter(c => !c.logo_data || c.logo_type !== 'upload')
+    if (!candidates.length) return
+    for (let i = 0; i < candidates.length; i++) {
+      const card = candidates[i]
+      try {
+        const res = await httpFetch(`${base}/logos/${encodeURIComponent(card.store_name)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.logo_data) {
+            await updateCard(card.id, {
+              logo_type: 'upload',
+              logo_data: data.logo_data,
+            })
+          }
+        }
+      } catch {}
+    }
+  }
+
   return {
     isOnline, cards, loading, syncing, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
     loadLogo, loadMissingLogos, processSyncQueue, getCloudCardCount,
+    updateCardsLogosFromServer,
   }
 })

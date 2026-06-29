@@ -113,6 +113,11 @@ function goToDetail(id) {
 onMounted(() => {
   store.loadCards()
   store.loadMissingLogos()
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => { store.updateCardsLogosFromServer() }, { timeout: 10000 })
+  } else {
+    setTimeout(() => { store.updateCardsLogosFromServer() }, 3000)
+  }
 })
 </script>
 
