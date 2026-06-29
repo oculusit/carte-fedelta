@@ -102,6 +102,7 @@ create table if not exists cards (
 
 alter table cards enable row level security;
 
+drop policy if exists "Enable all access for cards" on cards;
 create policy "Enable all access for cards"
   on cards for all
   using (true)

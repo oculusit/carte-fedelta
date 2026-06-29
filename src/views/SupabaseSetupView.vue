@@ -282,8 +282,9 @@ async function autoFixRls() {
     const ref = extractProjectRef(config.url)
     if (!ref) throw new Error('Impossibile estrarre il project ref dalla URL')
     const fixSql = `
+      drop policy if exists "Enable all access for cards" on cards;
       alter table cards drop column if exists user_id;
-      create policy if not exists "Enable all access for cards"
+      create policy "Enable all access for cards"
         on cards for all
         using (true)
         with check (true);
