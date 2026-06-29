@@ -33,13 +33,22 @@
     <!-- 2) Server backend loghi -->
     <div class="card settings-card">
       <h3>Server backend</h3>
-      <p class="section-desc">URL del server web (versione PHP) per caricare i loghi personalizzati. Lascia vuoto per usare il percorso relativo ./api</p>
-      <div class="input-group">
-        <input v-model="serverUrl" type="url" placeholder="https://mioserver.com/carte" class="input" />
-        <button class="btn btn-primary btn-block" @click="saveServerUrl" style="margin-top:8px">
-          Salva
-        </button>
-      </div>
+      <p class="section-desc">Collegati al server che fornisce i loghi personalizzati per i negozi.</p>
+      <button class="btn btn-outline btn-block" @click="discoverServer" :disabled="discovering">
+        {{ discovering ? 'Ricerca in corso...' : 'Collegati al server backend di default' }}
+      </button>
+      <p v-if="serverUrl" class="info-row" style="margin-top:8px">
+        <span>Server:</span>
+        <span class="tag">{{ serverUrl }}</span>
+      </p>
+      <p v-if="discoverResult" :class="discoverResult.ok ? 'test-ok' : 'test-err'">{{ discoverResult.msg }}</p>
+      <details style="margin-top:8px">
+        <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer">Inserisci manualmente</summary>
+        <div class="input-group" style="margin-top:8px">
+          <input v-model="manualUrl" type="url" placeholder="https://mioserver.com/carte" class="input" />
+          <button class="btn btn-primary btn-block" @click="saveManualUrl" style="margin-top:8px">Salva</button>
+        </div>
+      </details>
     </div>
 
     <!-- 3) Cache applicazione -->
@@ -90,16 +99,42 @@ const testResult = ref(null)
 const cloudCount = ref(-1)
 const syncConfigured = computed(() => isSupabaseConfigured())
 const serverUrl = ref(localStorage.getItem('server_url') || '')
+const discovering = ref(false)
+const discoverResult = ref(null)
+const manualUrl = ref('')
 
-function saveServerUrl() {
-  const val = serverUrl.value.replace(/\/+$/, '')
+function saveManualUrl() {
+  const val = manualUrl.value.replace(/\/+$/, '')
   if (val) {
     localStorage.setItem('server_url', val)
+    serverUrl.value = val
     toast.show('URL server salvato', 'success')
   } else {
     localStorage.removeItem('server_url')
+    serverUrl.value = ''
     toast.show('URL rimosso, uso percorso relativo', 'info')
   }
+}
+
+async function discoverServer() {
+  discovering.value = true
+  discoverResult.value = null
+  for (const host of ['https://fidappti.altervista.org', 'https://fidappti.altervista.org/api']) {
+    try {
+      const res = await fetch(host + '/discover', { signal: AbortSignal.timeout(5000) })
+      if (!res.ok) continue
+      const data = await res.json()
+      if (data?.server_url) {
+        localStorage.setItem('server_url', data.server_url)
+        serverUrl.value = data.server_url
+        discoverResult.value = { ok: true, msg: 'Server trovato: ' + data.server_url }
+        discovering.value = false
+        return
+      }
+    } catch {}
+  }
+  discoverResult.value = { ok: false, msg: 'Server non trovato. Verifica la connessione o inserisci manualmente.' }
+  discovering.value = false
 }
 
 onMounted(async () => {
