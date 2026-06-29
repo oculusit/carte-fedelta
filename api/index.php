@@ -84,7 +84,7 @@ if (in_array($uri, $setupRoutes, true)) {
 
 // Handle public routes (no config needed for GET)
 if (in_array($uri, $publicRoutes, true) && $method === 'GET') {
-  if ($uri === '/discover') {
+  if ($uri === '/discover' || $uri === '/discover.php') {
     require_once __DIR__ . '/discover.php';
     exit;
   }
