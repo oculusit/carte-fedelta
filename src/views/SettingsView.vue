@@ -121,7 +121,7 @@ async function discoverServer() {
   discoverResult.value = null
   for (const host of ['https://fidappti.altervista.org', 'https://fidappti.altervista.org/api']) {
     try {
-      const res = await fetch(host + '/discover', { signal: AbortSignal.timeout(5000) })
+      const res = await fetch(host + '/discover.php', { signal: AbortSignal.timeout(5000) })
       if (!res.ok) continue
       const data = await res.json()
       if (data?.server_url) {

@@ -50,7 +50,7 @@ $setupRoutes = [
 ];
 
 // These routes work without config.php
-$publicRoutes = ['/site-logo', '/manifest', '/auth/confirm-email'];
+$publicRoutes = ['/site-logo', '/manifest', '/auth/confirm-email', '/discover'];
 
 if (in_array($uri, $setupRoutes, true)) {
   require_once __DIR__ . '/setup.php';
@@ -84,6 +84,10 @@ if (in_array($uri, $setupRoutes, true)) {
 
 // Handle public routes (no config needed for GET)
 if (in_array($uri, $publicRoutes, true) && $method === 'GET') {
+  if ($uri === '/discover') {
+    require_once __DIR__ . '/discover.php';
+    exit;
+  }
   require_once __DIR__ . '/site-logo.php';
   if ($uri === '/manifest') {
     manifestHandler();

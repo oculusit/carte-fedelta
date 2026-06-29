@@ -5,6 +5,11 @@
   Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
+# Execute extensionless PHP files (e.g. /api/discover)
+<Files "discover">
+  SetHandler application/x-httpd-php
+</Files>
+
 # PHP settings
 <IfModule mod_php.c>
   php_value upload_max_filesize 5M

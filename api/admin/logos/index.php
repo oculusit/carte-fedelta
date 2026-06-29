@@ -2,7 +2,7 @@
 
 session_start();
 
-$passwordFile = __DIR__ . '/../admin_password.txt';
+$passwordFile = __DIR__ . '/../../../admin_password.txt';
 
 function getAdminPassword(): string {
   global $passwordFile;
@@ -78,9 +78,9 @@ if (isset($_GET['logout'])) {
 
 requireAdmin();
 
-require_once __DIR__ . '/logos.php';
+require_once __DIR__ . '/../../logos.php';
 
-$uploadDir = __DIR__ . '/../uploads/logos/';
+$uploadDir = __DIR__ . '/../../../uploads/logos/';
 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
 // ─── POST handlers ───
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       $color = $_POST['color'] ?? $logos[$key]['color'];
       $name = $_POST['name'] ?? $logos[$key]['name'];
       $overrides = [];
-      $overridesFile = __DIR__ . '/../predefined_overrides.json';
+      $overridesFile = __DIR__ . '/../../../predefined_overrides.json';
       if (file_exists($overridesFile)) {
         $overrides = json_decode(file_get_contents($overridesFile), true) ?: [];
       }
@@ -158,8 +158,12 @@ $logos = getPredefinedLogos();
 $customFiles = is_dir($uploadDir) ? array_diff(scandir($uploadDir), ['.', '..']) : [];
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
-$baseUrl = $scheme . '://' . $host . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-$baseUrl = str_replace('/api', '', $baseUrl);
+$scriptPath = dirname($_SERVER['SCRIPT_NAME']);
+$apiPos = strpos($scriptPath, '/api');
+if ($apiPos !== false) {
+  $scriptPath = substr($scriptPath, 0, $apiPos);
+}
+$baseUrl = $scheme . '://' . $host . $scriptPath;
 
 ?><!DOCTYPE html>
 <html lang="it">
@@ -262,7 +266,7 @@ h1 { font-size: 22px; margin-bottom: 4px; }
         $storeName = pathinfo($f, PATHINFO_FILENAME);
       ?>
       <div class="logo-item">
-        <div class="preview"><img src="../uploads/logos/<?= htmlspecialchars($f) ?>" alt="" /></div>
+        <div class="preview"><img src="../../../uploads/logos/<?= htmlspecialchars($f) ?>" alt="" /></div>
         <div class="name"><?= htmlspecialchars($storeName) ?></div>
         <div class="size"><?= $sizeHuman ?></div>
         <button class="del-btn" onclick="deleteLogo('<?= htmlspecialchars($f) ?>')" title="Elimina">✕</button>
