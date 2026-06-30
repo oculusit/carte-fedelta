@@ -100,6 +100,18 @@ if (in_array($uri, $publicRoutes, true) && $method === 'GET') {
   exit;
 }
 
+// Admin logos panel (standalone HTML/PHP page, before config check)
+if (strpos($uri, '/admin/logos') === 0) {
+  $adminFile = __DIR__ . '/admin/logos/index.php';
+  if (file_exists($adminFile)) {
+    require $adminFile;
+    exit;
+  }
+  http_response_code(404);
+  echo json_encode(['error' => 'Admin panel non trovato']);
+  exit;
+}
+
 // Load config with friendly error if missing
 $configPath = __DIR__ . '/config.php';
 if (!file_exists($configPath)) {

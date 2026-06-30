@@ -4,7 +4,7 @@ RewriteEngine On
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|webp)$ [NC]
 RewriteRule ^ - [L]
 
-# API routes: passa a api/index.php (anche se il file non esiste)
+# API routes: passa a api/index.php
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
 # SPA: tutto il resto va a index.html
