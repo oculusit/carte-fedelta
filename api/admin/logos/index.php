@@ -100,9 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       echo json_encode(['error' => 'Immagine non valida']);
       exit;
     }
-    $sanitized = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
-    $sanitized = preg_replace('/_+/', '_', $sanitized);
-    $filename = $sanitized . '.webp';
+    // Use store name as filename (only strip null byte and slash)
+    $filename = str_replace(['/', '\\', "\0"], '_', $storeName) . '.webp';
     file_put_contents($uploadDir . $filename, $data);
     echo json_encode(['success' => true, 'filename' => $filename, 'store_name' => $storeName]);
     exit;
@@ -140,6 +139,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
   }
 
+  if ($_POST['action'] === 'toggle_hidden') {
+    $key = trim($_POST['key'] ?? '');
+    if (empty($key)) {
+      echo json_encode(['error' => 'Chiave mancante']);
+      exit;
+    }
+    $hiddenFile = $uploadDir . $key . '.hidden';
+    if (file_exists($hiddenFile)) {
+      unlink($hiddenFile);
+      echo json_encode(['success' => true, 'hidden' => false]);
+    } else {
+      file_put_contents($hiddenFile, '');
+      echo json_encode(['success' => true, 'hidden' => true]);
+    }
+    exit;
+  }
+
   if ($_POST['action'] === 'change_password') {
     $newPass = $_POST['new_password'] ?? '';
     if (strlen($newPass) < 4) {
@@ -158,6 +174,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // ─── HTML Admin Page ───
 $logos = getPredefinedLogos();
 $customFiles = is_dir($uploadDir) ? array_diff(scandir($uploadDir), ['.', '..']) : [];
+// Check which predefined logos are hidden
+$hiddenLogos = [];
+if (is_dir($uploadDir)) {
+  foreach (scandir($uploadDir) as $f) {
+    if (preg_match('/^(.+)\.hidden$/', $f, $m)) {
+      $hiddenLogos[$m[1]] = true;
+    }
+  }
+}
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'];
 $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
@@ -294,6 +319,7 @@ h1 { font-size: 22px; margin-bottom: 4px; }
           <input type="color" name="color" value="<?= htmlspecialchars($logo['color']) ?>" style="flex:1;height:28px;padding:2px;border:1px solid #ddd;border-radius:4px;cursor:pointer" />
           <button type="submit" class="btn btn-outline btn-sm">Salva</button>
         </form>
+        <button class="btn btn-sm <?= isset($hiddenLogos[$key]) ? 'btn-success' : 'btn-warning' ?>" style="margin-top:4px" onclick="toggleHidden('<?= htmlspecialchars($key) ?>')"><?= isset($hiddenLogos[$key]) ? 'Mostra' : 'Nascondi' ?></button>
       </div>
       <?php endforeach; ?>
     </div>
@@ -451,6 +477,16 @@ async function updateColor(e, key) {
   const data = await res.json();
   toast(data.success ? 'Colore aggiornato!' : 'Errore');
   return false;
+}
+
+async function toggleHidden(key) {
+  const fd = new FormData();
+  fd.append('action', 'toggle_hidden');
+  fd.append('key', key);
+  const res = await fetch('', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+  else { toast('Errore'); }
 }
 
 async function changePass() {

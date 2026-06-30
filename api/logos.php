@@ -157,9 +157,24 @@ function getStoreLogoHandler(string $method, string $uri): void {
 
   // Check filesystem first (admin panel saves here)
   $uploadDir = __DIR__ . '/../uploads/logos/';
-  $safeName = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
-  $safeName = preg_replace('/_+/', '_', $safeName);
+  $safeName = str_replace(['/', '\\', "\0"], '_', $storeName);
   $fsPath = $uploadDir . $safeName . '.webp';
+  if (!file_exists($fsPath)) {
+    // Case-insensitive fallback: scan for matching filename
+    if (is_dir($uploadDir)) {
+      $dh = opendir($uploadDir);
+      if ($dh) {
+        $lower = strtolower($safeName . '.webp');
+        while (($f = readdir($dh)) !== false) {
+          if (strtolower($f) === $lower) {
+            $fsPath = $uploadDir . $f;
+            break;
+          }
+        }
+        closedir($dh);
+      }
+    }
+  }
   if (file_exists($fsPath)) {
     $data = file_get_contents($fsPath);
     $logoData = 'data:image/webp;base64,' . base64_encode($data);
@@ -176,9 +191,9 @@ function getStoreLogoHandler(string $method, string $uri): void {
   $normalized = strtolower(preg_replace('/\s+/', '', $storeName));
   $predefined = getPredefinedLogos();
   if (isset($predefined[$normalized])) {
-    // Check if user disabled this predefined logo (file with _disabled suffix)
-    $disabledFile = $uploadDir . $normalized . '.webp_disabled';
-    if (!file_exists($disabledFile)) {
+    // Check if user hidden this predefined logo
+    $hiddenFile = $uploadDir . $normalized . '.hidden';
+    if (!file_exists($hiddenFile)) {
       echo json_encode([
         'store_name' => $storeName,
         'color' => $predefined[$normalized]['color'],
