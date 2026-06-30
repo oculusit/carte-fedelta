@@ -155,19 +155,40 @@ function getStoreLogoHandler(string $method, string $uri): void {
     return;
   }
 
-  $normalized = strtolower(preg_replace('/\s+/', '', $storeName));
-  $predefined = getPredefinedLogos();
-
-  if (isset($predefined[$normalized])) {
+  // Check filesystem first (admin panel saves here)
+  $uploadDir = __DIR__ . '/../uploads/logos/';
+  $safeName = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
+  $fsPath = $uploadDir . $safeName . '.webp';
+  if (file_exists($fsPath)) {
+    $data = file_get_contents($fsPath);
+    $logoData = 'data:image/webp;base64,' . base64_encode($data);
     echo json_encode([
       'store_name' => $storeName,
-      'color' => $predefined[$normalized]['color'],
-      'logo_type' => 'predefined',
-      'logo_data' => null,
+      'color' => null,
+      'logo_type' => 'upload',
+      'logo_data' => $logoData,
     ]);
     return;
   }
 
+  // Then check predefined logos
+  $normalized = strtolower(preg_replace('/\s+/', '', $storeName));
+  $predefined = getPredefinedLogos();
+  if (isset($predefined[$normalized])) {
+    // Check if user disabled this predefined logo (file with _disabled suffix)
+    $disabledFile = $uploadDir . $normalized . '.webp_disabled';
+    if (!file_exists($disabledFile)) {
+      echo json_encode([
+        'store_name' => $storeName,
+        'color' => $predefined[$normalized]['color'],
+        'logo_type' => 'predefined',
+        'logo_data' => null,
+      ]);
+      return;
+    }
+  }
+
+  // Then check database
   try {
     $db = logosGetDb();
     $stmt = $db->prepare('SELECT store_name, filename FROM ' . TABLE_CUSTOM_LOGOS . ' WHERE store_name = ? LIMIT 1');

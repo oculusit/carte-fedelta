@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       echo json_encode(['error' => 'Immagine non valida']);
       exit;
     }
-    $sanitized = preg_replace('/[^a-zA-Z0-9_-]/', '_', $storeName);
+    $sanitized = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
     $filename = $sanitized . '.webp';
     file_put_contents($uploadDir . $filename, $data);
     echo json_encode(['success' => true, 'filename' => $filename, 'store_name' => $storeName]);
