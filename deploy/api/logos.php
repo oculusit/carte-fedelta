@@ -158,6 +158,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
   // Check filesystem first (admin panel saves here)
   $uploadDir = __DIR__ . '/../uploads/logos/';
   $safeName = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
+  $safeName = preg_replace('/_+/', '_', $safeName);
   $fsPath = $uploadDir . $safeName . '.webp';
   if (file_exists($fsPath)) {
     $data = file_get_contents($fsPath);

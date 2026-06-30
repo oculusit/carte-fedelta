@@ -101,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       exit;
     }
     $sanitized = preg_replace('/[^a-zA-Z0-9_. -]/', '_', $storeName);
+    $sanitized = preg_replace('/_+/', '_', $sanitized);
     $filename = $sanitized . '.webp';
     file_put_contents($uploadDir . $filename, $data);
     echo json_encode(['success' => true, 'filename' => $filename, 'store_name' => $storeName]);
