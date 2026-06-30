@@ -3,6 +3,7 @@
 session_start();
 
 $passwordFile = __DIR__ . '/../../../admin_password.txt';
+$scriptUrl = strtok($_SERVER['REQUEST_URI'], '?');
 
 function getAdminPassword(): string {
   global $passwordFile;
@@ -63,16 +64,16 @@ button:hover { background: #1557b0; }
 if (isset($_POST['login'])) {
   if ($_POST['password'] === getAdminPassword()) {
     $_SESSION['logos_admin'] = true;
-    header('Location: ' . $_SERVER['PHP_SELF']);
+    header('Location: ' . $scriptUrl);
     exit;
   }
-  header('Location: ' . $_SERVER['PHP_SELF'] . '?error=1');
+  header('Location: ' . $scriptUrl . '?error=1');
   exit;
 }
 
 if (isset($_GET['logout'])) {
   session_destroy();
-  header('Location: ' . $_SERVER['PHP_SELF']);
+  header('Location: ' . $scriptUrl);
   exit;
 }
 
