@@ -271,13 +271,13 @@ h1 { font-size: 22px; margin-bottom: 4px; }
   <div class="card">
     <h2>Carica logo personalizzato</h2>
     <p style="font-size:13px;color:#666;margin-bottom:12px">I loghi verranno automaticamente compressi in WebP (formato 8:5, max 320×200 px) per occupare poco spazio e caricare velocemente.</p>
+    <div style="margin-bottom:12px">
+      <input type="text" id="storeNameInput" placeholder="Nome negozio (es. Conad)" style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:8px;font-size:14px" />
+    </div>
     <div class="upload-area" id="dropArea">
       <div class="icon">🖼</div>
       <p>Clicca o trascina un'immagine qui<br><small>PNG, JPG, SVG, WebP</small></p>
       <input type="file" id="fileInput" accept="image/*" />
-    </div>
-    <div style="margin-top:12px">
-      <input type="text" id="storeNameInput" placeholder="Nome negozio (es. Conad)" style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:8px;font-size:14px" />
     </div>
   </div>
 

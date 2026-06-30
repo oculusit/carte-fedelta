@@ -170,6 +170,7 @@ import { api } from '../services/api.js'
 import { toast } from '../services/toast.js'
 import { detectBarcodeType, validateChecksum } from '../utils/barcodeUtils.js'
 import { predefinedLogos, placeholderSvg, barcodeTypeDefaultLogo } from '../utils/logoStore.js'
+import { httpFetch } from '../services/http.js'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
 
 const route = useRoute()
@@ -252,10 +253,27 @@ async function onStoreNameChange() {
     const exact = allStores.value.find(s => s.name.toLowerCase() === form.value.store_name.toLowerCase().trim())
     if (exact) {
       await applyStoreLogo(exact)
-    } else {
-      selectedStoreLogo.value = ''
+      return
     }
   }
+  // Check backend server for custom logo
+  const base = localStorage.getItem('server_url')
+  if (base && form.value.store_name.trim()) {
+    try {
+      const res = await httpFetch(`${base}/logos/${encodeURIComponent(form.value.store_name.trim())}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.logo_data) {
+          selectedStoreLogo.value = data.logo_data
+          form.value.logo_type = 'upload'
+          form.value.logo_data = data.logo_data
+          form.value.logo_path = ''
+          return
+        }
+      }
+    } catch {}
+  }
+  selectedStoreLogo.value = ''
 }
 
 function onStoreFocus() {
