@@ -104,6 +104,7 @@ if (in_array($uri, $publicRoutes, true) && $method === 'GET') {
 if (strpos($uri, '/admin/logos') === 0) {
   $adminFile = __DIR__ . '/admin/logos/index.php';
   if (file_exists($adminFile)) {
+    header('Content-Type: text/html; charset=utf-8');
     require $adminFile;
     exit;
   }
