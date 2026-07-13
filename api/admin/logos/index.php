@@ -166,10 +166,30 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     $uploadDir = __DIR__ . '/../../../uploads/logos/';
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
     $safeName = str_replace(['/', '\\', "\0"], '_', $logo['store_name']) . '.webp';
-    $imageData = $logo['image_data'];
-    if (strpos($imageData, 'base64,') !== false) $imageData = substr($imageData, strpos($imageData, 'base64,') + 7);
-    $decoded = base64_decode($imageData, true);
-    if ($decoded !== false) file_put_contents($uploadDir . $safeName, $decoded);
+    $logoData = null;
+    $imageData = $logo['image_data'] ?? '';
+    if (!empty($imageData)) {
+      $raw = $imageData;
+      if (strpos($raw, 'base64,') !== false) $raw = substr($raw, strpos($raw, 'base64,') + 7);
+      $decoded = base64_decode($raw, true);
+      if ($decoded !== false && strlen($decoded) > 100) {
+        file_put_contents($uploadDir . $safeName, $decoded);
+        $logoData = $imageData;
+      }
+    }
+    // Upsert into cards_stores so "Negozi con Logo" shows it
+    $stmt = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE LOWER(name) = LOWER(?)');
+    $stmt->execute([$logo['store_name']]);
+    $existing = $stmt->fetch();
+    if ($existing) {
+      $fields = ['logo_type = ?', 'logo_path = ?'];
+      $params = ['upload', $safeName];
+      if ($logoData) { $fields[] = 'logo_data = ?'; $params[] = $logoData; }
+      $params[] = $existing['id'];
+      $db->prepare('UPDATE ' . TABLE_STORES . ' SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
+    } else {
+      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$logo['store_name'], $safeName, $logoData]);
+    }
     $db->prepare('UPDATE ' . TABLE_PENDING_LOGOS . ' SET status = \'approved\', reviewed_at = NOW() WHERE id = ?')->execute([$id]);
     echo json_encode(['success' => true]);
     exit;
@@ -499,7 +519,11 @@ tr:hover td{background:#f8f9fa}
         <td><?= htmlspecialchars($p['user_email'] ?? 'Anonimo') ?></td>
         <td><?= date('d/m/Y H:i', strtotime($p['created_at'])) ?></td>
         <td class="flex-row">
-          <img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" />
+          <?php if (!empty($p['image_data']) && preg_match('/^data:image\//', $p['image_data'])): ?>
+            <img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" />
+          <?php else: ?>
+            <span style="font-size:12px;color:#999">nessuna immagine</span>
+          <?php endif; ?>
           <button class="btn btn-success btn-sm" onclick="approveLogo(<?= $p['id'] ?>)">Approva</button>
           <button class="btn btn-danger btn-sm" onclick="rejectLogo(<?= $p['id'] ?>)">Rifiuta</button>
         </td>
@@ -520,8 +544,14 @@ tr:hover td{background:#f8f9fa}
     <table>
       <tr><th>Anteprima</th><th>Negozio</th><th>Utente</th><th>Data</th><th>Azioni</th></tr>
       <?php foreach ($pendingLogos as $p): ?>
-      <tr id="pending-<?= $p['id'] ?>">
-        <td><img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" /></td>
+      <tr>
+        <td>
+          <?php if (!empty($p['image_data']) && preg_match('/^data:image\//', $p['image_data'])): ?>
+            <img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" />
+          <?php else: ?>
+            <span style="font-size:12px;color:#999">nessuna immagine</span>
+          <?php endif; ?>
+        </td>
         <td><strong><?= htmlspecialchars($p['store_name']) ?></strong></td>
         <td><?= htmlspecialchars($p['user_email'] ?? 'Anonimo') ?></td>
         <td><?= date('d/m/Y H:i', strtotime($p['created_at'])) ?></td>
@@ -532,8 +562,9 @@ tr:hover td{background:#f8f9fa}
       </tr>
       <?php endforeach; ?>
     </table>
-    <?php endif; ?>
   </div>
+  <?php endif; ?>
+</div>
 </div>
 
 <!-- Custom logos + Stores -->
