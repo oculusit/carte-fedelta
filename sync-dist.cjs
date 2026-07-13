@@ -45,9 +45,7 @@ function cleanAssets() {
   }
 }
 
-// Remove old assets and dist files (keep api, .htaccess, etc.)
-const dstIndex = path.join(DST, 'index.html')
-if (fs.existsSync(dstIndex)) fs.unlinkSync(dstIndex)
+// Remove old assets (keep api, .htaccess, index.html landing page, etc.)
 cleanAssets()
 
 // Remove files not needed in production
@@ -59,8 +57,18 @@ for (const file of REMOVE_FILES) {
 const rmDir = path.join(DST, 'database')
 if (fs.existsSync(rmDir)) removeDir(rmDir)
 
-// Copy new build output
-copyRecursive(SRC, DST)
+// Copy new build output (skip index.html - deploy keeps its own landing page)
+for (const entry of fs.readdirSync(SRC, { withFileTypes: true })) {
+  if (entry.isDirectory() || entry.name !== 'index.html') {
+    const s = path.join(SRC, entry.name)
+    const d = path.join(DST, entry.name)
+    if (entry.isDirectory()) {
+      copyRecursive(s, d)
+    } else {
+      fs.copyFileSync(s, d)
+    }
+  }
+}
 
 // Copy API PHP files (not processed by Vite)
 const API_SRC = path.resolve('api')
