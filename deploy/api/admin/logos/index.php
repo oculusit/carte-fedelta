@@ -206,7 +206,14 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
     $safeName = str_replace(['/', '\\', "\0"], '_', $name) . '.' . $ext;
     move_uploaded_file($f['tmp_name'], $uploadDir . $safeName);
-    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, aliases, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$name, $safeName, $aliases]);
+    // Also store base64 in logo_data so logos.php lookup works
+    $logoData = null;
+    $fileData = file_get_contents($uploadDir . $safeName);
+    if ($fileData !== false) {
+      $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
+      $logoData = 'data:' . $mime . ';base64,' . base64_encode($fileData);
+    }
+    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, aliases, status) VALUES (?, \'upload\', ?, ?, ?, \'approved\')')->execute([$name, $safeName, $logoData, $aliases]);
     echo json_encode(['success' => true]);
     exit;
   }
@@ -230,6 +237,13 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
         $params[] = 'upload';
         $fields[] = 'logo_path = ?';
         $params[] = $safeName;
+        // Update logo_data with base64
+        $fileData = file_get_contents($uploadDir . $safeName);
+        if ($fileData !== false) {
+          $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
+          $fields[] = 'logo_data = ?';
+          $params[] = 'data:' . $mime . ';base64,' . base64_encode($fileData);
+        }
       }
     }
     $params[] = $id;
@@ -382,7 +396,7 @@ foreach ($customFiles as $f) { if (preg_match('/^(.+)\.hidden$/', $f, $m)) $hidd
 $predefined = getPredefinedLogos();
 
 $stores = [];
-try { $stores = $db->query('SELECT id, name, aliases, logo_type, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
+try { $stores = $db->query('SELECT id, name, aliases, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -529,9 +543,10 @@ tr:hover td{background:#f8f9fa}
     <form onsubmit="uploadStore(event)" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
       <div class="field" style="flex:1;min-width:180px"><label>Nome negozio</label><input type="text" id="new-store-name" required placeholder="es. NaturaSì" /></div>
       <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><textarea id="new-store-aliases" rows="2" placeholder="natura si&#10;naturasi&#10;natura sì" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
-      <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required /></div>
+      <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required onchange="previewAndCrop(this, 'new')" /></div>
       <button type="submit" class="btn btn-primary">Carica</button>
     </form>
+    <div id="crop-preview-new" style="margin-top:12px;display:none"></div>
   </div>
 
   <div class="card">
@@ -539,11 +554,27 @@ tr:hover td{background:#f8f9fa}
     <?php if (empty($stores)): ?>
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
-    <table>
+      <table>
       <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th>Stato</th><th></th></tr>
       <?php foreach ($stores as $s):
         $logoFile = $s['logo_path'] ?? '';
         $logoExists = $logoFile && file_exists($uploadDir . $logoFile);
+        // Fallback: check if a logo file exists matching store name (various extensions)
+        if (!$logoExists && is_dir($uploadDir)) {
+          $safeCheck = str_replace(['/', '\\', "\0"], '_', $s['name']);
+          foreach (['webp','png','jpg','jpeg','svg'] as $ext) {
+            if (file_exists($uploadDir . $safeCheck . '.' . $ext)) {
+              $logoFile = $safeCheck . '.' . $ext;
+              $logoExists = true;
+              break;
+            }
+          }
+        }
+        // Also check logo_data (base64)
+        $logoDataSrc = null;
+        if (!$logoExists && !empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
+          $logoDataSrc = $s['logo_data'];
+        }
         $aliasList = array_filter(array_map('trim', explode("\n", $s['aliases'] ?? '')));
       ?>
       <tr id="store-<?= $s['id'] ?>">
@@ -551,6 +582,8 @@ tr:hover td{background:#f8f9fa}
         <td>
           <?php if ($logoExists): ?>
             <img src="../../../uploads/logos/<?= htmlspecialchars($logoFile) ?>" style="width:40px;height:40px;object-fit:contain;border-radius:4px;background:#f5f5f5;padding:2px" />
+          <?php elseif ($logoDataSrc): ?>
+            <img src="<?= htmlspecialchars($logoDataSrc) ?>" style="width:40px;height:40px;object-fit:contain;border-radius:4px;background:#f5f5f5;padding:2px" />
           <?php else: ?>
             <span style="color:#ccc;font-size:12px">nessuno</span>
           <?php endif; ?>
@@ -606,10 +639,30 @@ tr:hover td{background:#f8f9fa}
       <input type="hidden" id="edit-store-id" />
       <div class="field"><label>Nome negozio</label><input type="text" id="edit-store-name" required /></div>
       <div class="field"><label>Alias (uno per riga)</label><textarea id="edit-store-aliases" rows="3" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
-      <div class="field"><label>Logo (lascia vuoto per non cambiare)</label><input type="file" id="edit-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" /></div>
+      <div class="field"><label>Logo (lascia vuoto per non cambiare)</label><input type="file" id="edit-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" onchange="previewAndCrop(this, 'edit')" /></div>
       <div id="edit-store-preview" style="margin-bottom:12px"></div>
+      <div id="crop-preview-edit" style="margin-top:8px;display:none"></div>
       <button type="submit" class="btn btn-primary">Salva Modifiche</button>
     </form>
+  </div>
+</div>
+
+<!-- Crop Modal -->
+<div id="crop-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:20px;max-width:520px;width:95vw;position:relative">
+    <h3 style="margin-bottom:12px">Ritaglia Logo (8:5.5)</h3>
+    <div style="position:relative;overflow:hidden;background:#1a1a2e;border-radius:8px;touch-action:none" id="crop-viewport">
+      <canvas id="crop-canvas" style="display:block;width:100%"></canvas>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
+      <span style="font-size:12px;color:#666">Zoom</span>
+      <input type="range" id="crop-zoom" min="0.2" max="4" step="0.01" value="1" style="flex:1" oninput="cropZoomChanged()" />
+      <span id="crop-zoom-pct" style="font-size:12px;color:#666">100%</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="closeCropModal()">Annulla</button>
+      <button class="btn btn-primary btn-sm" onclick="applyCropModal()">Applica Ritaglio</button>
+    </div>
   </div>
 </div>
 
@@ -800,9 +853,12 @@ function editStore(store) {
   if (store.logo_path) {
     preview.innerHTML = '<img src="../../../uploads/logos/' + escapeHtml(store.logo_path) + '" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#f5f5f5;padding:4px" />';
   } else {
-    preview.innerHTML = '';
+    preview.innerHTML = '<span style="font-size:12px;color:#999">Nessun logo caricato</span>';
   }
   document.getElementById('edit-store-file').value = '';
+  document.getElementById('crop-preview-edit').style.display = 'none';
+  croppedBlob = null;
+  cropTarget = null;
   const modal = document.getElementById('edit-store-modal');
   modal.style.display = 'flex';
 }
@@ -824,8 +880,12 @@ async function saveStore(e) {
   fd.append('id', document.getElementById('edit-store-id').value);
   fd.append('name', document.getElementById('edit-store-name').value);
   fd.append('aliases', document.getElementById('edit-store-aliases').value);
-  const file = document.getElementById('edit-store-file').files[0];
-  if (file) fd.append('logo_file', file);
+  if (croppedBlob && cropTarget === 'edit') {
+    fd.append('logo_file', croppedBlob, 'logo.webp');
+  } else {
+    const file = document.getElementById('edit-store-file').files[0];
+    if (file) fd.append('logo_file', file);
+  }
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
   if (r.success) { toast('Negozio aggiornato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
@@ -852,5 +912,208 @@ async function resetUserPassword(userId, email) {
   const r = await res.json();
   if (r.success) { toast('Password aggiornata!'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
+
+// ── Crop logic ──
+const CROP_ASPECT = 8 / 5.5;
+let cropCtx = null, cropCanvas = null, cropImg = null;
+let cropZoom = 1, cropPanX = 0, cropPanY = 0;
+let cropDrag = null;
+let cropTarget = null; // 'new' or 'edit'
+let cropFileInput = null;
+let croppedBlob = null;
+
+function previewAndCrop(input, target) {
+  const file = input.files?.[0];
+  if (!file) return;
+  cropTarget = target;
+  cropFileInput = input;
+  croppedBlob = null;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      cropImg = img;
+      openCropModal();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function openCropModal() {
+  cropCanvas = document.getElementById('crop-canvas');
+  const vp = document.getElementById('crop-viewport');
+  const vpW = Math.min(480, window.innerWidth - 60);
+  const vpH = Math.round(vpW / CROP_ASPECT);
+  vp.style.width = vpW + 'px';
+  vp.style.height = vpH + 'px';
+  cropCanvas.width = vpW * 2; // 2x for quality
+  cropCanvas.height = vpH * 2;
+  cropCanvas.style.width = vpW + 'px';
+  cropCanvas.style.height = vpH + 'px';
+  cropCtx = cropCanvas.getContext('2d');
+  cropZoom = 1; cropPanX = 0; cropPanY = 0;
+  document.getElementById('crop-zoom').value = 1;
+  document.getElementById('crop-zoom-pct').textContent = '100%';
+  drawCrop();
+  // Event listeners
+  vp.addEventListener('mousedown', cropPointerDown);
+  vp.addEventListener('touchstart', cropTouchStart, { passive: false });
+  window.addEventListener('mousemove', cropPointerMove);
+  window.addEventListener('mouseup', cropPointerUp);
+  window.addEventListener('touchmove', cropTouchMove, { passive: false });
+  window.addEventListener('touchend', cropTouchEnd);
+  document.getElementById('crop-modal').style.display = 'flex';
+}
+
+function closeCropModal() {
+  document.getElementById('crop-modal').style.display = 'none';
+  const vp = document.getElementById('crop-viewport');
+  vp.removeEventListener('mousedown', cropPointerDown);
+  vp.removeEventListener('touchstart', cropTouchStart);
+  window.removeEventListener('mousemove', cropPointerMove);
+  window.removeEventListener('mouseup', cropPointerUp);
+  window.removeEventListener('touchmove', cropTouchMove);
+  window.removeEventListener('touchend', cropTouchEnd);
+}
+
+function drawCrop() {
+  if (!cropCtx || !cropImg) return;
+  const cw = cropCanvas.width, ch = cropCanvas.height;
+  cropCtx.clearRect(0, 0, cw, ch);
+  // Draw dark background
+  cropCtx.fillStyle = '#1a1a2e';
+  cropCtx.fillRect(0, 0, cw, ch);
+  // Draw image centered + pan + zoom
+  const imgW = cropImg.naturalWidth * cropZoom * 2;
+  const imgH = cropImg.naturalHeight * cropZoom * 2;
+  const x = (cw - imgW) / 2 + cropPanX * 2;
+  const y = (ch - imgH) / 2 + cropPanY * 2;
+  cropCtx.drawImage(cropImg, x, y, imgW, imgH);
+  // Draw mask overlay (darken outside crop box)
+  const boxW = cw * 0.85;
+  const boxH = boxW / CROP_ASPECT;
+  const boxX = (cw - boxW) / 2;
+  const boxY = (ch - boxH) / 2;
+  cropCtx.fillStyle = 'rgba(0,0,0,0.5)';
+  // Top
+  cropCtx.fillRect(0, 0, cw, boxY);
+  // Bottom
+  cropCtx.fillRect(0, boxY + boxH, cw, ch - boxY - boxH);
+  // Left
+  cropCtx.fillRect(0, boxY, boxX, boxH);
+  // Right
+  cropCtx.fillRect(boxX + boxW, boxY, cw - boxX - boxW, boxH);
+  // Draw crop box border
+  cropCtx.strokeStyle = '#fff';
+  cropCtx.lineWidth = 3;
+  cropCtx.strokeRect(boxX, boxY, boxW, boxH);
+}
+
+function cropZoomChanged() {
+  cropZoom = parseFloat(document.getElementById('crop-zoom').value);
+  document.getElementById('crop-zoom-pct').textContent = Math.round(cropZoom * 100) + '%';
+  drawCrop();
+}
+
+function cropPointerDown(e) {
+  cropDrag = { sx: e.clientX, sy: e.clientY, px: cropPanX, py: cropPanY };
+}
+function cropPointerMove(e) {
+  if (!cropDrag) return;
+  cropPanX = cropDrag.px + (e.clientX - cropDrag.sx);
+  cropPanY = cropDrag.py + (e.clientY - cropDrag.sy);
+  drawCrop();
+}
+function cropPointerUp() { cropDrag = null; }
+
+let cropTouchDist0 = null;
+function cropTouchStart(e) {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    cropTouchDist0 = Math.sqrt(dx*dx + dy*dy);
+    cropDrag = { type: 'pinch', zoom: cropZoom, px: cropPanX, py: cropPanY,
+      mx: (e.touches[0].clientX + e.touches[1].clientX)/2,
+      my: (e.touches[0].clientY + e.touches[1].clientY)/2 };
+  } else if (e.touches.length === 1) {
+    cropDrag = { sx: e.touches[0].clientX, sy: e.touches[0].clientY, px: cropPanX, py: cropPanY };
+  }
+}
+function cropTouchMove(e) {
+  e.preventDefault();
+  if (!cropDrag) return;
+  if (cropDrag.type === 'pinch' && e.touches.length === 2 && cropTouchDist0) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const newDist = Math.sqrt(dx*dx + dy*dy);
+    cropZoom = Math.min(4, Math.max(0.1, cropDrag.zoom * (newDist / cropTouchDist0)));
+    const mx = (e.touches[0].clientX + e.touches[1].clientX)/2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY)/2;
+    cropPanX = cropDrag.px + (mx - cropDrag.mx);
+    cropPanY = cropDrag.py + (my - cropDrag.my);
+    document.getElementById('crop-zoom').value = cropZoom;
+    document.getElementById('crop-zoom-pct').textContent = Math.round(cropZoom * 100) + '%';
+    drawCrop();
+  } else if (e.touches.length === 1) {
+    cropPanX = cropDrag.px + (e.touches[0].clientX - cropDrag.sx);
+    cropPanY = cropDrag.py + (e.touches[0].clientY - cropDrag.sy);
+    drawCrop();
+  }
+}
+function cropTouchEnd() { cropDrag = null; cropTouchDist0 = null; }
+
+function applyCropModal() {
+  const cw = cropCanvas.width, ch = cropCanvas.height;
+  const boxW = cw * 0.85;
+  const boxH = boxW / CROP_ASPECT;
+  const boxX = (cw - boxW) / 2;
+  const boxY = (ch - boxH) / 2;
+  // Create output canvas
+  const outW = 400;
+  const outH = Math.round(outW / CROP_ASPECT);
+  const out = document.createElement('canvas');
+  out.width = outW; out.height = outH;
+  const ctx = out.getContext('2d');
+  // Map crop box to original image coordinates
+  const imgW = cropImg.naturalWidth * cropZoom * 2;
+  const imgH = cropImg.naturalHeight * cropZoom * 2;
+  const imgX = (cw - imgW) / 2 + cropPanX * 2;
+  const imgY = (ch - imgH) / 2 + cropPanY * 2;
+  const sx = (boxX - imgX) / (imgW / cropImg.naturalWidth);
+  const sy = (boxY - imgY) / (imgH / cropImg.naturalHeight);
+  const sw = boxW / (imgW / cropImg.naturalWidth);
+  const sh = boxH / (imgH / cropImg.naturalHeight);
+  ctx.drawImage(cropImg, sx, sy, sw, sh, 0, 0, outW, outH);
+  out.toBlob((blob) => {
+    croppedBlob = blob;
+    // Show preview
+    const previewDiv = document.getElementById('crop-preview-' + cropTarget);
+    const url = URL.createObjectURL(blob);
+    previewDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><img src="' + url + '" style="width:64px;height:auto;border-radius:6px;border:1px solid #eee" /><span style="font-size:12px;color:#16a34a">Logo ritagliato</span></div>';
+    previewDiv.style.display = 'block';
+    closeCropModal();
+    toast('Logo ritagliato!');
+  }, 'image/webp', 0.9);
+}
+
+// Override uploadStore to use cropped blob if available
+const origUploadStore = uploadStore;
+uploadStore = async function(e) {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('action', 'upload_store_logo');
+  fd.append('store_name', document.getElementById('new-store-name').value);
+  fd.append('aliases', document.getElementById('new-store-aliases').value);
+  if (croppedBlob) {
+    fd.append('logo_file', croppedBlob, 'logo.webp');
+  } else {
+    fd.append('logo_file', document.getElementById('new-store-file').files[0]);
+  }
+  const res = await fetch('', { method: 'POST', body: fd });
+  const r = await res.json();
+  if (r.success) { toast('Negozio creato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+};
 </script>
 </body></html>

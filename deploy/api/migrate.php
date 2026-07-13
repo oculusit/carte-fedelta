@@ -110,6 +110,13 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN aliases TEXT AFTER logo_data");
   }
 
+  // ── logo_path column on stores ──
+  $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}stores` LIKE 'logo_path'");
+  $stmt->execute();
+  if (!$stmt->fetch()) {
+    $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN logo_path VARCHAR(255) DEFAULT NULL AFTER logo_type");
+  }
+
   // ── Ensure group owners have a family_group_members entry ──
   $db->exec("
     INSERT IGNORE INTO `{$p}family_group_members` (group_id, user_id, status, invited_by)

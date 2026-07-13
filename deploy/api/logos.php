@@ -155,18 +155,22 @@ function getStoreLogoHandler(string $method, string $uri): void {
     return;
   }
 
-  // Check filesystem first (admin panel saves here)
+  // Check filesystem first (admin panel saves here) — try multiple extensions
   $uploadDir = __DIR__ . '/../uploads/logos/';
   $safeName = str_replace(['/', '\\', "\0"], '_', $storeName);
-  $fsPath = $uploadDir . $safeName . '.webp';
-  if (!file_exists($fsPath)) {
-    // Case-insensitive fallback: scan for matching filename
-    if (is_dir($uploadDir)) {
+  $fsPath = null;
+  if (is_dir($uploadDir)) {
+    foreach (['webp','png','jpg','jpeg','svg'] as $ext) {
+      $candidate = $uploadDir . $safeName . '.' . $ext;
+      if (file_exists($candidate)) { $fsPath = $candidate; break; }
+    }
+    // Case-insensitive fallback
+    if (!$fsPath) {
       $dh = opendir($uploadDir);
       if ($dh) {
-        $lower = strtolower($safeName . '.webp');
+        $lower = strtolower($safeName);
         while (($f = readdir($dh)) !== false) {
-          if (strtolower($f) === $lower) {
+          if (strtolower(pathinfo($f, PATHINFO_FILENAME)) === $lower && preg_match('/\.(webp|png|jpe?g|svg)$/i', $f)) {
             $fsPath = $uploadDir . $f;
             break;
           }
@@ -175,9 +179,11 @@ function getStoreLogoHandler(string $method, string $uri): void {
       }
     }
   }
-  if (file_exists($fsPath)) {
+  if ($fsPath && file_exists($fsPath)) {
     $data = file_get_contents($fsPath);
-    $logoData = 'data:image/webp;base64,' . base64_encode($data);
+    $ext = strtolower(pathinfo($fsPath, PATHINFO_EXTENSION));
+    $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));
+    $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
     echo json_encode([
       'store_name' => $storeName,
       'color' => null,
@@ -233,7 +239,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
   try {
     $db = logosGetDb();
     $lowerName = strtolower($storeName);
-    $stmt = $db->prepare('SELECT name, aliases, logo_type, logo_data FROM ' . TABLE_STORES . ' WHERE status = ?');
+    $stmt = $db->prepare('SELECT name, aliases, logo_type, logo_data, logo_path FROM ' . TABLE_STORES . ' WHERE status = ?');
     $stmt->execute(['approved']);
     $stores = $stmt->fetchAll();
     foreach ($stores as $s) {
@@ -247,14 +253,33 @@ function getStoreLogoHandler(string $method, string $uri): void {
           }
         }
       }
-      if ($match && $s['logo_data']) {
-        echo json_encode([
-          'store_name' => $storeName,
-          'color' => null,
-          'logo_type' => $s['logo_type'] ?: 'upload',
-          'logo_data' => $s['logo_data'],
-        ]);
-        return;
+      if ($match) {
+        // Prefer logo_data (base64), fall back to logo_path file
+        if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
+          echo json_encode([
+            'store_name' => $storeName,
+            'color' => null,
+            'logo_type' => $s['logo_type'] ?: 'upload',
+            'logo_data' => $s['logo_data'],
+          ]);
+          return;
+        }
+        if (!empty($s['logo_path'])) {
+          $lp = __DIR__ . '/../uploads/logos/' . $s['logo_path'];
+          if (file_exists($lp)) {
+            $data = file_get_contents($lp);
+            $ext = strtolower(pathinfo($lp, PATHINFO_EXTENSION));
+            $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));
+            $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
+            echo json_encode([
+              'store_name' => $storeName,
+              'color' => null,
+              'logo_type' => $s['logo_type'] ?: 'upload',
+              'logo_data' => $logoData,
+            ]);
+            return;
+          }
+        }
       }
     }
   } catch (Exception $e) {}
