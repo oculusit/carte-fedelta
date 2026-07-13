@@ -30,9 +30,10 @@ function render() {
       .then(url => { qrDataUrl.value = url })
       .catch(e => console.warn('QR render error:', e.message))
   } else if (barcodeSvg.value) {
+    const jsFormat = props.type === 'FISCALCODE' ? 'CODE39' : props.type
     try {
       JsBarcode(barcodeSvg.value, props.code, {
-        format: props.type,
+        format: jsFormat,
         width: props.width,
         height: props.height,
         displayValue: true,
