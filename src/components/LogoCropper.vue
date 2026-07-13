@@ -28,18 +28,14 @@
           <img :src="imageSrc" draggable="false" ref="imgRef" @load="onImgLoad" />
         </div>
         <div class="cropper-mask" :style="maskStyle"></div>
-        <div class="crop-box" :style="cropBoxStyle">
-          <div class="crop-handle nw" @mousedown.stop.prevent="onHandleDown('nw', $event)" @touchstart.stop.prevent="onHandleTouchStart('nw', $event)"></div>
-          <div class="crop-handle ne" @mousedown.stop.prevent="onHandleDown('ne', $event)" @touchstart.stop.prevent="onHandleTouchStart('ne', $event)"></div>
-          <div class="crop-handle sw" @mousedown.stop.prevent="onHandleDown('sw', $event)" @touchstart.stop.prevent="onHandleTouchStart('sw', $event)"></div>
-          <div class="crop-handle se" @mousedown.stop.prevent="onHandleDown('se', $event)" @touchstart.stop.prevent="onHandleTouchStart('se', $event)"></div>
-        </div>
+        <div class="crop-box" :style="cropBoxStyle"></div>
       </div>
 
       <div class="cropper-controls">
         <div class="zoom-slider">
-          <span class="zoom-label">Zoom</span>
-          <input type="range" min="0.2" max="4" step="0.01" :value="zoom" @input="zoom = +$event.target.value" />
+          <button class="zoom-btn" @click="zoomBy(-0.1)">−</button>
+          <input type="range" min="0.2" max="4" step="0.05" :value="zoom" @input="zoom = +$event.target.value" />
+          <button class="zoom-btn" @click="zoomBy(0.1)">+</button>
           <span class="zoom-pct">{{ Math.round(zoom * 100) }}%</span>
         </div>
         <div class="cropper-actions">
@@ -77,7 +73,6 @@ const panY = ref(0)
 const croppedDataUrl = ref('')
 const isReplacing = ref(false)
 
-// Crop box sizing (fixed aspect, centered)
 const cropW = ref(300)
 const cropH = ref(206)
 
@@ -112,23 +107,23 @@ const imageLayerStyle = computed(() => ({
   transform: `translate(${panX.value}px, ${panY.value}px) scale(${zoom.value})`,
 }))
 
+function zoomBy(delta) {
+  zoom.value = Math.min(4, Math.max(0.1, Math.round((zoom.value + delta) * 100) / 100))
+}
+
 // ── Image drag (mouse) ──
 let _dragData = null
 
 function onImageMouseDown(e) {
-  _dragData = { type: 'pan', sx: e.clientX, sy: e.clientY, px: panX.value, py: panY.value }
+  _dragData = { sx: e.clientX, sy: e.clientY, px: panX.value, py: panY.value }
   window.addEventListener('mousemove', onGlobalMouseMove)
   window.addEventListener('mouseup', onGlobalMouseUp)
 }
 
 function onGlobalMouseMove(e) {
   if (!_dragData) return
-  if (_dragData.type === 'pan') {
-    panX.value = _dragData.px + (e.clientX - _dragData.sx)
-    panY.value = _dragData.py + (e.clientY - _dragData.sy)
-  } else {
-    resizeFromMouse(e.clientX, e.clientY)
-  }
+  panX.value = _dragData.px + (e.clientX - _dragData.sx)
+  panY.value = _dragData.py + (e.clientY - _dragData.sy)
 }
 
 function onGlobalMouseUp() {
@@ -167,7 +162,7 @@ function onViewportTouchMove(e) {
   }
 }
 
-function onViewportTouchEnd(e) {
+function onViewportTouchEnd() {
   _touchData = null
 }
 
@@ -182,69 +177,6 @@ function getTouchMid(touches) {
     x: (touches[0].clientX + touches[1].clientX) / 2,
     y: (touches[0].clientY + touches[1].clientY) / 2,
   }
-}
-
-// ── Crop handle resize ──
-let _handleData = null
-
-function onHandleDown(handle, e) {
-  const cw = cropW.value, ch = cropH.value
-  const cx = (vpW.value - cw) / 2, cy = (vpH.value - ch) / 2
-  _handleData = { handle, sx: e.clientX, sy: e.clientY, origCW: cw, origCH: ch, origCX: cx, origCY: cy }
-  window.addEventListener('mousemove', onHandleMove)
-  window.addEventListener('mouseup', onHandleUp)
-}
-
-function onHandleTouchStart(handle, e) {
-  const t = e.touches[0]
-  const cw = cropW.value, ch = cropH.value
-  const cx = (vpW.value - cw) / 2, cy = (vpH.value - ch) / 2
-  _handleData = { handle, sx: t.clientX, sy: t.clientY, origCW: cw, origCH: ch, origCX: cx, origCY: cy }
-}
-
-function onHandleMove(e) {
-  if (!_handleData) return
-  resizeFromMouse(e.clientX, e.clientY)
-}
-
-function onHandleUp() {
-  _handleData = null
-  window.removeEventListener('mousemove', onHandleMove)
-  window.removeEventListener('mouseup', onHandleUp)
-}
-
-function resizeFromMouse(clientX, clientY) {
-  if (!_handleData) return
-  const { handle, sx, sy, origCW, origCH } = _handleData
-  const dx = clientX - sx
-  const dy = clientY - sy
-  let newW = origCW
-  let newH = origCH
-
-  if (handle === 'se' || handle === 'ne') newW = origCW + dx
-  if (handle === 'sw' || handle === 'nw') newW = origCW - dx
-  if (handle === 'se' || handle === 'sw') newH = origCH + dy
-  if (handle === 'ne' || handle === 'nw') newH = origCH - dy
-
-  // Keep aspect ratio
-  if (newW / newH > ASPECT) {
-    newW = newH * ASPECT
-  } else {
-    newH = newW / ASPECT
-  }
-
-  // Clamp
-  newW = Math.max(60, Math.min(newW, vpW.value * 0.95))
-  newH = Math.max(60 / ASPECT, Math.min(newH, vpH.value * 0.95))
-
-  cropW.value = Math.round(newW)
-  cropH.value = Math.round(newH)
-}
-
-// Touch handle drag — redirect to viewport touch so it re-enters as pan
-function onHandleTouchStartRedirect(handle, e) {
-  // On touch, we handle crop resize via two-finger pinch on the viewport
-  // Single finger on handle does nothing special (prevents confusion)
 }
 
 // ── File select ──
@@ -347,7 +279,6 @@ function cancelReplace() {
 .cropper-image-layer {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center; z-index: 1;
-  transition: none;
 }
 .cropper-image-layer img {
   max-width: none; width: auto; height: auto; display: block;
@@ -359,20 +290,17 @@ function cancelReplace() {
   box-shadow: 0 0 0 1px rgba(0,0,0,.3); pointer-events: none;
   top: 50%; left: 50%; transform: translate(-50%,-50%);
 }
-.crop-handle {
-  position: absolute; width: 20px; height: 20px;
-  border: 2px solid white; background: rgba(26,115,232,.85);
-  border-radius: 3px; z-index: 4; pointer-events: auto;
-  touch-action: none;
-}
-.crop-handle.nw { top: -10px; left: -10px; cursor: nw-resize; }
-.crop-handle.ne { top: -10px; right: -10px; cursor: ne-resize; }
-.crop-handle.sw { bottom: -10px; left: -10px; cursor: sw-resize; }
-.crop-handle.se { bottom: -10px; right: -10px; cursor: se-resize; }
 .cropper-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.zoom-slider { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 160px; }
-.zoom-slider input[type="range"] { flex: 1; }
-.zoom-label, .zoom-pct { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.zoom-slider { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 180px; }
+.zoom-slider input[type="range"] { flex: 1; min-width: 0; }
+.zoom-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border);
+  background: var(--card-bg); color: var(--text); font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  flex-shrink: 0; line-height: 1;
+}
+.zoom-btn:active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.zoom-pct { font-size: 12px; color: var(--text-secondary); white-space: nowrap; min-width: 36px; text-align: right; }
 .cropper-actions { display: flex; gap: 8px; }
 .cropped-result { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border); }
 .cropped-preview { width: 80px; height: auto; border-radius: 6px; object-fit: contain; }

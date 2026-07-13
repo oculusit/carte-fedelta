@@ -239,6 +239,13 @@ const form = ref({
 
 onMounted(async () => {
   nextTick(() => firstInputRef.value?.focus())
+
+  // Load stores from API for autocomplete
+  try {
+    const stores = await api.stores.getAll()
+    if (Array.isArray(stores)) allStores.value = stores
+  } catch {}
+
   if (isEdit.value) {
     const card = await store.getCard(route.params.id)
     if (card) {
@@ -275,10 +282,9 @@ async function onStoreNameChange() {
     }
   }
   // Check backend server for custom logo
-  const base = localStorage.getItem('server_url')
-  if (base && form.value.store_name.trim()) {
+  if (form.value.store_name.trim()) {
     try {
-      const res = await httpFetch(`${base}/logos/${encodeURIComponent(form.value.store_name.trim())}`)
+      const res = await httpFetch(`./api/logos/${encodeURIComponent(form.value.store_name.trim())}`)
       if (res.ok) {
         const data = await res.json()
         if (data?.logo_data) {
@@ -344,12 +350,10 @@ async function submitLogoForApproval() {
   submittingLogo.value = true
   logoSubmitResult.value = null
   try {
-    const base = localStorage.getItem('server_url')
-    const apiBase = base || './api'
     const imageData = proposedLogoData.value.includes('base64,')
       ? proposedLogoData.value.split('base64,')[1]
       : proposedLogoData.value
-    const res = await httpFetch(`${apiBase}/logos/submit`, {
+    const res = await httpFetch(`./api/logos/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -366,7 +370,7 @@ async function submitLogoForApproval() {
       logoSubmitResult.value = { ok: false, msg: data.error || 'Errore durante l\'invio' }
     }
   } catch (e) {
-    logoSubmitResult.value = { ok: false, msg: 'Errore di rete' }
+    logoSubmitResult.value = { ok: false, msg: 'Errore di rete: ' + (e.message || e) }
   } finally {
     submittingLogo.value = false
   }

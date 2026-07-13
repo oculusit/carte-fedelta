@@ -1,5 +1,13 @@
 <?php
 
+if (!function_exists('jsonBody')) {
+  function jsonBody(): array {
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+  }
+}
+
 function logosGetDb(): PDO {
   static $pdo = null;
   if ($pdo === null) {
