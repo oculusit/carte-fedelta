@@ -103,6 +103,13 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}users` ADD COLUMN admin_role ENUM('superadmin','admin') DEFAULT NULL AFTER is_moderator");
   }
 
+  // ── aliases column on stores ──
+  $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}stores` LIKE 'aliases'");
+  $stmt->execute();
+  if (!$stmt->fetch()) {
+    $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN aliases TEXT AFTER logo_data");
+  }
+
   // ── Ensure group owners have a family_group_members entry ──
   $db->exec("
     INSERT IGNORE INTO `{$p}family_group_members` (group_id, user_id, status, invited_by)

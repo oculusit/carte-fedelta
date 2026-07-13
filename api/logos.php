@@ -229,6 +229,36 @@ function getStoreLogoHandler(string $method, string $uri): void {
     }
   } catch (Exception $e) {}
 
+  // Then check stores table (match by name or aliases)
+  try {
+    $db = logosGetDb();
+    $lowerName = strtolower($storeName);
+    $stmt = $db->prepare('SELECT name, aliases, logo_type, logo_data FROM ' . TABLE_STORES . ' WHERE status = ?');
+    $stmt->execute(['approved']);
+    $stores = $stmt->fetchAll();
+    foreach ($stores as $s) {
+      $match = strtolower($s['name']) === $lowerName;
+      if (!$match && !empty($s['aliases'])) {
+        $aliasList = array_map('trim', explode("\n", $s['aliases']));
+        foreach ($aliasList as $alias) {
+          if (strtolower($alias) === $lowerName) {
+            $match = true;
+            break;
+          }
+        }
+      }
+      if ($match && $s['logo_data']) {
+        echo json_encode([
+          'store_name' => $storeName,
+          'color' => null,
+          'logo_type' => $s['logo_type'] ?: 'upload',
+          'logo_data' => $s['logo_data'],
+        ]);
+        return;
+      }
+    }
+  } catch (Exception $e) {}
+
   http_response_code(404);
   echo json_encode(['error' => 'Logo non trovato']);
 }

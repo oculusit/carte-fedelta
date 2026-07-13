@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FidAPPti - Le tue carte fedeltà, sempre con te</title>
+<meta name="description" content="FidAPPti raccoglie tutte le tue carte fedeltà in un unico posto. Scanner barcode nativo, offline, zero registrazione.">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<style>
+:root{
+  --c1:#1a73e8;--c2:#6c5ce7;--c3:#e84393;--c4:#00b894;
+  --text:#f0f0f0;--text-muted:#b0b8c8;--bg-card:rgba(255,255,255,.06);
+  --bg-card-border:rgba(255,255,255,.1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  color:var(--text);min-height:100vh;overflow-x:hidden;
+  animation:bgShift 20s ease-in-out infinite alternate;
+}
+@keyframes bgShift{
+  0%  {background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)}
+  25% {background:linear-gradient(135deg,#1a237e,#283593,#1565c0)}
+  50% {background:linear-gradient(135deg,#4a148c,#6a1b9a,#ad1457)}
+  75% {background:linear-gradient(135deg,#004d40,#00695c,#2e7d32)}
+  100%{background:linear-gradient(135deg,#1a1a2e,#1b2838,#0d1b2a)}
+}
+.hero{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:2rem 1rem;text-align:center;position:relative;
+}
+.hero::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:120px;
+  background:linear-gradient(to bottom,transparent,rgba(0,0,0,.3));pointer-events:none;
+}
+.logo-container{width:140px;height:140px;margin-bottom:2rem;animation:float 4s ease-in-out infinite}
+.logo-container svg{width:100%;height:100%;filter:drop-shadow(0 8px 32px rgba(26,115,232,.4))}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.hero h1{
+  font-size:clamp(2.4rem,6vw,4rem);font-weight:800;letter-spacing:-1px;margin-bottom:.5rem;
+  background:linear-gradient(90deg,#fff,#90caf9,#fff);background-size:200% 100%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:shimmer 4s ease-in-out infinite;
+}
+@keyframes shimmer{0%,100%{background-position:200% center}50%{background-position:-200% center}}
+.hero .tagline{font-size:clamp(1rem,2.5vw,1.35rem);color:var(--text-muted);max-width:500px;margin-bottom:2.5rem;line-height:1.6}
+.btn{
+  display:inline-flex;align-items:center;gap:.6rem;padding:.9rem 2.2rem;border-radius:50px;border:none;
+  font-size:1.05rem;font-weight:600;cursor:pointer;
+  background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;text-decoration:none;
+  box-shadow:0 4px 24px rgba(26,115,232,.35);transition:transform .25s,box-shadow .25s;
+}
+.btn:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 8px 32px rgba(26,115,232,.5)}
+.btn svg{width:22px;height:22px;fill:#fff}
+.scroll-hint{position:absolute;bottom:2.5rem;animation:bounce 2s infinite;color:var(--text-muted);font-size:.85rem}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+section{padding:5rem 1.5rem;max-width:800px;margin:0 auto}
+.section-title{
+  font-size:clamp(1.6rem,4vw,2.4rem);font-weight:700;margin-bottom:1.5rem;text-align:center;
+  background:linear-gradient(90deg,var(--c1),var(--c3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.section-text{color:var(--text-muted);line-height:1.7;font-size:1rem;text-align:center;max-width:600px;margin:0 auto}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.2rem;margin-top:2rem}
+.feature-card{
+  background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:16px;
+  padding:1.6rem 1.2rem;text-align:center;backdrop-filter:blur(8px);transition:transform .2s;
+}
+.feature-card:hover{transform:translateY(-4px)}
+.feature-card .icon{font-size:2rem;margin-bottom:.6rem}
+.feature-card h3{font-size:1.05rem;margin-bottom:.4rem}
+.feature-card p{font-size:.9rem;color:var(--text-muted);line-height:1.5}
+.download-card{
+  text-align:center;background:var(--bg-card);border:1px solid var(--bg-card-border);
+  border-radius:24px;padding:3rem 2rem;margin:0 auto 4rem;backdrop-filter:blur(10px);max-width:600px;
+}
+.download-card p{color:var(--text-muted);margin:1rem 0 1.5rem;line-height:1.6}
+.apk-info{font-size:.85rem;color:var(--text-muted);margin-top:1rem}
+footer{
+  text-align:center;padding:3rem 1.5rem;border-top:1px solid rgba(255,255,255,.08);
+  font-size:.85rem;color:var(--text-muted);line-height:1.8;
+}
+footer a{color:var(--c1);text-decoration:none}
+footer a:hover{text-decoration:underline}
+footer .brand{font-weight:700;font-size:1rem;color:var(--text);margin-bottom:.5rem}
+.policy-overlay{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+  justify-content:center;align-items:center;padding:1.5rem;
+}
+.policy-overlay.active{display:flex}
+.policy-box{
+  background:#1a1f2e;border:1px solid rgba(255,255,255,.12);border-radius:16px;
+  max-width:640px;width:100%;max-height:80vh;overflow-y:auto;padding:2rem;position:relative;
+}
+.policy-box h2{font-size:1.3rem;margin-bottom:1rem}
+.policy-box h3{font-size:1.05rem;margin:1.2rem 0 .6rem}
+.policy-box p,.policy-box li{font-size:.9rem;color:var(--text-muted);line-height:1.7;margin-bottom:.8rem}
+.policy-box ul{padding-left:1.2rem}
+.policy-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo-container">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="20" fill="#1a73e8"/>
+      <rect x="15" y="25" width="70" height="50" rx="8" fill="white" stroke="#1557b0" stroke-width="3"/>
+      <line x1="25" y1="42" x2="75" y2="42" stroke="#bbb" stroke-width="1.5"/>
+      <line x1="25" y1="50" x2="60" y2="50" stroke="#bbb" stroke-width="1.5"/>
+      <line x1="25" y1="58" x2="45" y2="58" stroke="#bbb" stroke-width="1.5"/>
+      <rect x="38" y="32" width="30" height="6" rx="2" fill="#1a73e8"/>
+    </svg>
+  </div>
+  <h1>FidAPPti</h1>
+  <p class="tagline">Tutte le tue carte fedeltà in un unico posto. Scanner nativo, offline, zero registrazione.</p>
+  <a href="#download" class="btn">
+    <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18v12.17l3.59-3.58L17 12l-5 5-5-5 1.41-1.41L12 14.17V2z"/></svg>
+    Scarica APK
+  </a>
+  <span class="scroll-hint">&#8964;</span>
+</div>
+
+<section id="funzionalita">
+  <h2 class="section-title">Perché FidAPPti?</h2>
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">&#x1F4F1;</div>
+      <h3>Scanner nativo</h3>
+      <p>Scansiona barcode e QR code in tempo reale con la telecamera del tuo telefono, senza scattare foto.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#x1F4BE;</div>
+      <h3>Funziona offline</h3>
+      <p>Zero dipendenza dalla rete. I dati restano sul tuo dispositivo, sincronizzati solo se vuoi tu.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#x1F510;</div>
+      <h3>Nessuna registrazione</h3>
+      <p>Apri e usa. Niente account, niente password, niente tracciamento. I tuoi dati sono tuoi.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#x2B50;</div>
+      <h3>Preferiti</h3>
+      <p>Metti stelle alle carte che usi di più e ritrovale subito nella dashboard.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#x2601;&#xFE0F;</div>
+      <h3>Backup cloud</h3>
+      <p>Backup automatico opzionale su Supabase. Vuoi usare il tuo? Basta inserire URL e chiave anonima.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#x1F3A8;</div>
+      <h3>Loghi reali</h3>
+      <p>Ogni carta mostra il logo del negozio. Proporne uno nuovo e gli admin lo approvano.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="download-card" id="download">
+    <h2 class="section-title">Scarica FidAPPti</h2>
+    <p>L'app è attualmente in fase di sviluppo attivo. Scarica l'APK per installarla manualmente sul tuo dispositivo Android.</p>
+    <a href="FidAPPti-latest.apk" class="btn" download>
+      <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18v12.17l3.59-3.58L17 12l-5 5-5-5 1.41-1.41L12 14.17V2z"/></svg>
+      Scarica APK
+    </a>
+    <p class="apk-info">Dimensione: ~5 MB · Android 8.0+ · Per installare, abilita "Sorgenti sconosciute" nelle impostazioni</p>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">FidAPPti</div>
+  <p>&copy; 2025 FidAPPti. Tutti i diritti riservati.</p>
+  <p>Progetto open source. Licenza MIT.</p>
+  <p style="margin-top:.8rem">
+    <a href="#" onclick="openPolicy('privacy');return false">Privacy Policy</a>
+    &nbsp;·&nbsp;
+    <a href="#" onclick="openPolicy('cookies');return false">Cookie Policy</a>
+    &nbsp;·&nbsp;
+    <a href="#" onclick="openPolicy('license');return false">Licenza</a>
+  </p>
+</footer>
+
+<div class="policy-overlay" id="policy-privacy">
+  <div class="policy-box">
+    <button class="policy-close" onclick="closePolicy('privacy')">&times;</button>
+    <h2>Privacy Policy</h2>
+    <p><strong>Ultimo aggiornamento:</strong> 2025</p>
+    <p>FidAPPti è concepita con la privacy come priorità fondamentale.</p>
+    <h3>Dati raccolti</h3>
+    <p>FidAPPti <strong>non raccoglie dati personali</strong>. Non esiste registrazione, non vengono inviati dati a server esterni senza il tuo consenso esplicito.</p>
+    <h3>Dati memorizzati localmente</h3>
+    <ul>
+      <li>Numero della carta fedeltà e nome del negozio</li>
+      <li>Nome del titolare (opzionale)</li>
+      <li>Note personali</li>
+    </ul>
+    <p>Tutti i dati restano esclusivamente sul tuo dispositivo.</p>
+    <h3>Backup opzionale (Supabase)</h3>
+    <p>Se scegli di attivare il backup cloud, i dati vengono criptati prima di essere inviati al tuo server Supabase personale.</p>
+    <h3>Contatti</h3>
+    <p>Per domande sulla privacy, contattaci all'indirizzo indicato nel repository GitHub del progetto.</p>
+  </div>
+</div>
+
+<div class="policy-overlay" id="policy-cookies">
+  <div class="policy-box">
+    <button class="policy-close" onclick="closePolicy('cookies')">&times;</button>
+    <h2>Cookie Policy</h2>
+    <p><strong>Ultimo aggiornamento:</strong> 2025</p>
+    <p>FidAPPti <strong>non utilizza cookie di tracciamento</strong>, fingerprinting, analytics o pubblicità.</p>
+    <p>L'unica memorizzazione avviene in locale (localStorage / IndexedDB) per le impostazioni dell'app e il funzionamento offline.</p>
+    <p>Questo sito web non utilizza cookie di alcun tipo.</p>
+  </div>
+</div>
+
+<div class="policy-overlay" id="policy-license">
+  <div class="policy-box">
+    <button class="policy-close" onclick="closePolicy('license')">&times;</button>
+    <h2>Licenza MIT</h2>
+    <p><strong>Copyright (c) 2025 FidAPPti</strong></p>
+    <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+    <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+    <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.</p>
+  </div>
+</div>
+
+<script>
+function openPolicy(n){var e=document.getElementById('policy-'+n);if(e)e.classList.add('active')}
+function closePolicy(n){var e=document.getElementById('policy-'+n);if(e)e.classList.remove('active')}
+document.querySelectorAll('.policy-overlay').forEach(function(el){el.addEventListener('click',function(e){if(e.target===el)el.classList.remove('active')})});
+</script>
+
+</body>
+</html>

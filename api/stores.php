@@ -79,9 +79,9 @@ function listOrphanStores(): void {
 function listStores(PDO $db, int $userId, bool $canManage): void {
   try {
     if ($canManage) {
-      $stmt = $db->query("SELECT s.id, s.name, s.logo_type, s.created_by, s.status, s.admin_notes, s.created_at, s.updated_at, u.email AS created_by_email, LENGTH(s.logo_data) AS logo_size_bytes FROM " . TABLE_STORES . " s LEFT JOIN " . TABLE_USERS . " u ON s.created_by = u.id ORDER BY s.status ASC, s.name ASC");
+      $stmt = $db->query("SELECT s.id, s.name, s.aliases, s.logo_type, s.created_by, s.status, s.admin_notes, s.created_at, s.updated_at, u.email AS created_by_email, LENGTH(s.logo_data) AS logo_size_bytes FROM " . TABLE_STORES . " s LEFT JOIN " . TABLE_USERS . " u ON s.created_by = u.id ORDER BY s.status ASC, s.name ASC");
     } else {
-      $stmt = $db->prepare('SELECT id, name, logo_type, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' WHERE status = ? ORDER BY name ASC');
+      $stmt = $db->prepare('SELECT id, name, aliases, logo_type, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' WHERE status = ? ORDER BY name ASC');
       $stmt->execute(['approved']);
     }
     $rows = $stmt->fetchAll();
@@ -122,9 +122,38 @@ function suggestStore(PDO $db, int $userId, bool $autoApprove): void {
   $name = trim($data['name'] ?? '');
   if (!$name) {
     http_response_code(400);
-    echo json_encode(['error' => 'Il nome del negozio � obbligatorio']);
+    echo json_encode(['error' => 'Il nome del negozio è obbligatorio']);
     return;
   }
+
+  $stmt = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE name = ?');
+  $stmt->execute([$name]);
+  if ($stmt->fetch()) {
+    http_response_code(409);
+    echo json_encode(['error' => 'Questo negozio esiste già']);
+    return;
+  }
+
+  $logoType = $data['logo_type'] ?? 'predefined';
+  $logoPath = $data['logo_path'] ?? '';
+  $logoData = $data['logo_data'] ?? '';
+  $aliases = $data['aliases'] ?? '';
+  $status = $autoApprove ? 'approved' : 'pending';
+
+  $stmt = $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, aliases, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  $stmt->execute([$name, $logoType, $logoPath, $logoData, $aliases, $userId, $status]);
+
+  $id = $db->lastInsertId();
+
+  http_response_code(201);
+  echo json_encode([
+    'success' => true,
+    'id' => $id,
+    'name' => $name,
+    'status' => $status,
+    'message' => $autoApprove ? 'Negozio creato con successo' : 'Negozio suggerito. In attesa di approvazione.',
+  ]);
+}
 
   $stmt = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE name = ?');
   $stmt->execute([$name]);
@@ -159,7 +188,7 @@ function updateStore(PDO $db, string $storeId): void {
   $fields = [];
   $params = [];
   $hasLogoUpdate = false;
-  foreach (['name', 'logo_type', 'logo_path', 'logo_data', 'admin_notes'] as $f) {
+  foreach (['name', 'logo_type', 'logo_path', 'logo_data', 'admin_notes', 'aliases'] as $f) {
     if (isset($data[$f])) {
       $fields[] = "$f = ?";
       $params[] = $data[$f];
@@ -176,14 +205,17 @@ function updateStore(PDO $db, string $storeId): void {
   $stmt = $db->prepare($sql);
   $stmt->execute($params);
 
-  // Propagate logo changes to all cards using this store
+  // Propagate logo changes to all cards using this store (check name + aliases)
   if ($hasLogoUpdate) {
-    $s = $db->prepare('SELECT name, logo_type, logo_data FROM ' . TABLE_STORES . ' WHERE id = ?');
+    $s = $db->prepare('SELECT name, aliases, logo_type, logo_data FROM ' . TABLE_STORES . ' WHERE id = ?');
     $s->execute([$storeId]);
     $store = $s->fetch();
     if ($store) {
-      $uc = $db->prepare('UPDATE ' . TABLE_CARDS . ' SET logo_type = ?, logo_data = ? WHERE store_name = ?');
-      $uc->execute([$store['logo_type'], $store['logo_data'], $store['name']]);
+      $allNames = array_merge([$store['name']], array_filter(array_map('trim', explode("\n", $store['aliases'] ?? ''))));
+      $placeholders = implode(',', array_fill(0, count($allNames), '?'));
+      $uc = $db->prepare('UPDATE ' . TABLE_CARDS . ' SET logo_type = ?, logo_data = ? WHERE LOWER(store_name) IN (' . $placeholders . ')');
+      $params = array_merge([$store['logo_type'], $store['logo_data']], array_map('strtolower', $allNames));
+      $uc->execute($params);
     }
   }
 

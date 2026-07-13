@@ -2,6 +2,7 @@
 session_start();
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../auth.php';
+require_once __DIR__ . '/../../logos.php';
 
 $scriptUrl = strtok($_SERVER['REQUEST_URI'], '?');
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -140,6 +141,9 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     if (!panelIsSuperAdmin()) { echo json_encode(['error' => 'Permesso negato']); exit; }
     $id = (int)($_POST['id'] ?? 0);
     if ($id === (int)$_SESSION['panel_user_id']) { echo json_encode(['error' => 'Non puoi eliminare te stesso']); exit; }
+    $stmt = $db->prepare('SELECT id FROM ' . TABLE_USERS . ' WHERE is_admin = 1 AND (admin_role IS NULL OR admin_role = \'superadmin\') AND id != ?');
+    $stmt->execute([$id]);
+    if (!$stmt->fetch()) { echo json_encode(['error' => 'Impossibile eliminare l\'ultimo superadmin']); exit; }
     $db->prepare('UPDATE ' . TABLE_USERS . ' SET is_admin = 0, admin_role = NULL WHERE id = ? AND is_admin = 1')->execute([$id]);
     echo json_encode(['success' => true]);
     exit;
@@ -176,6 +180,74 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     if (file_exists($path)) unlink($path);
     $hidden = __DIR__ . '/../../../uploads/logos/' . pathinfo($filename, PATHINFO_FILENAME) . '.hidden';
     if (file_exists($hidden)) unlink($hidden);
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
+  if ($action === 'upload_store_logo') {
+    if (!isset($_FILES['logo_file']) || $_FILES['logo_file']['error'] !== UPLOAD_ERR_OK) {
+      echo json_encode(['error' => 'File non caricato']); exit;
+    }
+    $name = trim($_POST['store_name'] ?? '');
+    $aliases = trim($_POST['aliases'] ?? '');
+    if (!$name) { echo json_encode(['error' => 'Nome negozio obbligatorio']); exit; }
+    $f = $_FILES['logo_file'];
+    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, ['webp','png','jpg','jpeg','svg'])) { echo json_encode(['error' => 'Formato non supportato (webp, png, jpg, svg)']); exit; }
+    $uploadDir = __DIR__ . '/../../../uploads/logos/';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+    $safeName = str_replace(['/', '\\', "\0"], '_', $name) . '.' . $ext;
+    move_uploaded_file($f['tmp_name'], $uploadDir . $safeName);
+    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, aliases, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$name, $safeName, $aliases]);
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
+  if ($action === 'update_store') {
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    $aliases = trim($_POST['aliases'] ?? '');
+    if (!$name || !$id) { echo json_encode(['error' => 'Dati mancanti']); exit; }
+    $fields = ['name = ?', 'aliases = ?'];
+    $params = [$name, $aliases];
+    if (isset($_FILES['logo_file']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
+      $f = $_FILES['logo_file'];
+      $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+      if (in_array($ext, ['webp','png','jpg','jpeg','svg'])) {
+        $uploadDir = __DIR__ . '/../../../uploads/logos/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+        $safeName = str_replace(['/', '\\', "\0"], '_', $name) . '.' . $ext;
+        move_uploaded_file($f['tmp_name'], $uploadDir . $safeName);
+        $fields[] = 'logo_type = ?';
+        $params[] = 'upload';
+        $fields[] = 'logo_path = ?';
+        $params[] = $safeName;
+      }
+    }
+    $params[] = $id;
+    $db->prepare('UPDATE ' . TABLE_STORES . ' SET ' . implode(', ', $fields) . ' WHERE id = ?')->execute($params);
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
+  if ($action === 'delete_store') {
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) { echo json_encode(['error' => 'ID mancante']); exit; }
+    $db->prepare('DELETE FROM ' . TABLE_STORES . ' WHERE id = ?')->execute([$id]);
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
+  if ($action === 'reset_user_password') {
+    if (!panelIsSuperAdmin()) { echo json_encode(['error' => 'Permesso negato']); exit; }
+    $uid = (int)($_POST['user_id'] ?? 0);
+    $newPass = trim($_POST['new_password'] ?? '');
+    if (!$uid || strlen($newPass) < 6) { echo json_encode(['error' => 'Dati non validi (min 6 caratteri)']); exit; }
+    $stmt = $db->prepare('SELECT id FROM ' . TABLE_USERS . ' WHERE id = ?');
+    $stmt->execute([$uid]);
+    if (!$stmt->fetch()) { echo json_encode(['error' => 'Utente non trovato']); exit; }
+    $hash = password_hash($newPass, PASSWORD_BCRYPT);
+    $db->prepare('UPDATE ' . TABLE_USERS . ' SET password_hash = ? WHERE id = ?')->execute([$hash, $uid]);
     echo json_encode(['success' => true]);
     exit;
   }
@@ -300,6 +372,9 @@ $hiddenLogos = [];
 foreach ($customFiles as $f) { if (preg_match('/^(.+)\.hidden$/', $f, $m)) $hiddenLogos[$m[1]] = true; }
 
 $predefined = getPredefinedLogos();
+
+$stores = [];
+try { $stores = $db->query('SELECT id, name, aliases, logo_type, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -439,12 +514,63 @@ tr:hover td{background:#f8f9fa}
   </div>
 </div>
 
-<!-- Custom logos -->
+<!-- Custom logos + Stores -->
 <div id="custom-logos" class="section">
   <div class="card">
-    <h2>Loghi Personalizzati sul Server</h2>
-    <?php $imgFiles = array_filter($customFiles, function($f) { return preg_match('/\.(webp|png|jpg|jpeg|svg)$/i', $f); });
-    if (!empty($imgFiles)): ?>
+    <h2>Carica Nuovo Logo</h2>
+    <form onsubmit="uploadStore(event)" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+      <div class="field" style="flex:1;min-width:180px"><label>Nome negozio</label><input type="text" id="new-store-name" required placeholder="es. NaturaSì" /></div>
+      <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><input type="text" id="new-store-aliases" placeholder="es. natura si&#10;naturasi&#10;natura sì" /></div>
+      <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required /></div>
+      <button type="submit" class="btn btn-primary">Carica</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Negozi con Logo (<?= count($stores) ?>)</h2>
+    <?php if (empty($stores)): ?>
+    <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
+    <?php else: ?>
+    <table>
+      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th>Stato</th><th></th></tr>
+      <?php foreach ($stores as $s):
+        $logoFile = $s['logo_path'] ?? '';
+        $logoExists = $logoFile && file_exists($uploadDir . $logoFile);
+        $aliasList = array_filter(array_map('trim', explode("\n", $s['aliases'] ?? '')));
+      ?>
+      <tr id="store-<?= $s['id'] ?>">
+        <td><strong><?= htmlspecialchars($s['name']) ?></strong></td>
+        <td>
+          <?php if ($logoExists): ?>
+            <img src="../../../uploads/logos/<?= htmlspecialchars($logoFile) ?>" style="width:40px;height:40px;object-fit:contain;border-radius:4px;background:#f5f5f5;padding:2px" />
+          <?php else: ?>
+            <span style="color:#ccc;font-size:12px">nessuno</span>
+          <?php endif; ?>
+        </td>
+        <td style="max-width:260px">
+          <?php if ($aliasList): ?>
+            <?php foreach ($aliasList as $a): ?>
+              <span class="tag tag-approved" style="margin:1px"><?= htmlspecialchars($a) ?></span>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <span style="color:#ccc">-</span>
+          <?php endif; ?>
+        </td>
+        <td><span class="tag <?= $s['status'] === 'approved' ? 'tag-approved' : 'tag-pending' ?>"><?= $s['status'] ?></span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick='editStore(<?= json_encode($s) ?>)'>Modifica</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+    <?php endif; ?>
+  </div>
+
+  <?php $imgFiles = array_filter($customFiles ?? [], function($f) { return preg_match('/\.(webp|png|jpg|jpeg|svg)$/i', $f); });
+  if (!empty($imgFiles)): ?>
+  <div class="card">
+    <h2>File Logo sul Server (vecchio sistema)</h2>
     <div class="logo-grid">
       <?php foreach ($imgFiles as $f):
         $storeName = pathinfo($f, PATHINFO_FILENAME);
@@ -459,9 +585,23 @@ tr:hover td{background:#f8f9fa}
       </div>
       <?php endforeach; ?>
     </div>
-    <?php else: ?>
-    <p style="color:#999;font-size:14px">Nessun logo personalizzato.</p>
-    <?php endif; ?>
+  </div>
+  <?php endif; ?>
+</div>
+
+<!-- Edit Store Modal -->
+<div id="edit-store-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw;max-height:85vh;overflow-y:auto;position:relative">
+    <button onclick="closeEditStore()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer">&times;</button>
+    <h2 style="margin-bottom:16px">Modifica Negozio</h2>
+    <form onsubmit="saveStore(event)" enctype="multipart/form-data">
+      <input type="hidden" id="edit-store-id" />
+      <div class="field"><label>Nome negozio</label><input type="text" id="edit-store-name" required /></div>
+      <div class="field"><label>Alias (uno per riga)</label><textarea id="edit-store-aliases" rows="3" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
+      <div class="field"><label>Logo (lascia vuoto per non cambiare)</label><input type="file" id="edit-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" /></div>
+      <div id="edit-store-preview" style="margin-bottom:12px"></div>
+      <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+    </form>
   </div>
 </div>
 
@@ -478,7 +618,8 @@ tr:hover td{background:#f8f9fa}
         <td><span class="tag <?= $a['admin_role'] === 'superadmin' ? 'tag-super' : 'tag-approved' ?>"><?= $a['admin_role'] ?: 'superadmin' ?></span></td>
         <td><span class="tag <?= $a['is_active'] ? 'tag-approved' : 'tag-rejected' ?>"><?= $a['is_active'] ? 'Attivo' : 'Disattivo' ?></span></td>
         <td><?= date('d/m/Y', strtotime($a['created_at'])) ?></td>
-        <td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick="resetUserPassword(<?= $a['id'] ?>, '<?= htmlspecialchars($a['email']) ?>')">Reset Password</button>
           <?php if ($a['id'] !== $_SESSION['panel_user_id']): ?>
           <button class="btn btn-danger btn-sm" onclick="if(confirm('Rimuovere i privilegi di amministratore?'))deleteAdmin(<?= $a['id'] ?>)">Rimuovi</button>
           <?php endif; ?>
@@ -629,6 +770,79 @@ async function changePassword(e) {
   });
   if (r.success) { toast('Password aggiornata!'); document.getElementById('cur-pass').value = ''; document.getElementById('new-pass').value = ''; }
   else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+}
+
+async function uploadStore(e) {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('action', 'upload_store_logo');
+  fd.append('store_name', document.getElementById('new-store-name').value);
+  fd.append('aliases', document.getElementById('new-store-aliases').value);
+  fd.append('logo_file', document.getElementById('new-store-file').files[0]);
+  const res = await fetch('', { method: 'POST', body: fd });
+  const r = await res.json();
+  if (r.success) { toast('Negozio creato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+}
+
+function editStore(store) {
+  document.getElementById('edit-store-id').value = store.id;
+  document.getElementById('edit-store-name').value = store.name;
+  document.getElementById('edit-store-aliases').value = (store.aliases || '').replace(/\n/g, '\n');
+  const preview = document.getElementById('edit-store-preview');
+  if (store.logo_path) {
+    preview.innerHTML = '<img src="../../../uploads/logos/' + escapeHtml(store.logo_path) + '" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#f5f5f5;padding:4px" />';
+  } else {
+    preview.innerHTML = '';
+  }
+  document.getElementById('edit-store-file').value = '';
+  const modal = document.getElementById('edit-store-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditStore() {
+  document.getElementById('edit-store-modal').style.display = 'none';
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function saveStore(e) {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('action', 'update_store');
+  fd.append('id', document.getElementById('edit-store-id').value);
+  fd.append('name', document.getElementById('edit-store-name').value);
+  fd.append('aliases', document.getElementById('edit-store-aliases').value);
+  const file = document.getElementById('edit-store-file').files[0];
+  if (file) fd.append('logo_file', file);
+  const res = await fetch('', { method: 'POST', body: fd });
+  const r = await res.json();
+  if (r.success) { toast('Negozio aggiornato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+}
+
+async function deleteStore(id) {
+  if (!confirm('Eliminare questo negozio e il suo logo?')) return;
+  const fd = new FormData();
+  fd.append('action', 'delete_store');
+  fd.append('id', id);
+  const res = await fetch('', { method: 'POST', body: fd });
+  const r = await res.json();
+  if (r.success) { document.getElementById('store-' + id)?.remove(); toast('Negozio eliminato'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+}
+
+async function resetUserPassword(userId, email) {
+  const newPass = prompt('Inserisci la nuova password per ' + email + ' (min 6 caratteri):');
+  if (!newPass || newPass.length < 6) { if (newPass !== null) toast('Minimo 6 caratteri'); return; }
+  const fd = new FormData();
+  fd.append('action', 'reset_user_password');
+  fd.append('user_id', userId);
+  fd.append('new_password', newPass);
+  const res = await fetch('', { method: 'POST', body: fd });
+  const r = await res.json();
+  if (r.success) { toast('Password aggiornata!'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 </script>
 </body></html>
