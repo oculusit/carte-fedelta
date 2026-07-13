@@ -47,6 +47,15 @@ function panelIsSuperAdmin(): bool {
   return $u && ($u['admin_role'] === 'superadmin' || $u['admin_role'] === null);
 }
 
+function toDataUrl($imageData): string {
+  if (empty($imageData)) return '';
+  if (preg_match('/^data:image\//', $imageData)) return $imageData;
+  if (preg_match('/^[A-Za-z0-9+\/]/', $imageData) && strlen($imageData) > 100) {
+    return 'data:image/webp;base64,' . $imageData;
+  }
+  return '';
+}
+
 // ── Handle login ──
 if (isset($_POST['login'])) {
   $email = trim($_POST['email'] ?? '');
@@ -535,8 +544,9 @@ tr:hover td{background:#f8f9fa}
         <td><?= htmlspecialchars($p['user_email'] ?? 'Anonimo') ?></td>
         <td><?= date('d/m/Y H:i', strtotime($p['created_at'])) ?></td>
         <td class="flex-row">
-          <?php if (!empty($p['image_data']) && preg_match('/^data:image\//', $p['image_data'])): ?>
-            <img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" />
+          <?php $imgSrc = toDataUrl($p['image_data']); ?>
+          <?php if ($imgSrc): ?>
+            <img src="<?= htmlspecialchars($imgSrc) ?>" class="pending-img" />
           <?php else: ?>
             <span style="font-size:12px;color:#999">nessuna immagine</span>
           <?php endif; ?>
@@ -562,8 +572,9 @@ tr:hover td{background:#f8f9fa}
       <?php foreach ($pendingLogos as $p): ?>
       <tr>
         <td>
-          <?php if (!empty($p['image_data']) && preg_match('/^data:image\//', $p['image_data'])): ?>
-            <img src="<?= htmlspecialchars($p['image_data']) ?>" class="pending-img" />
+          <?php $imgSrc = toDataUrl($p['image_data']); ?>
+          <?php if ($imgSrc): ?>
+            <img src="<?= htmlspecialchars($imgSrc) ?>" class="pending-img" />
           <?php else: ?>
             <span style="font-size:12px;color:#999">nessuna immagine</span>
           <?php endif; ?>
@@ -602,7 +613,7 @@ tr:hover td{background:#f8f9fa}
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
       <table>
-      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th>Stato</th><th></th></tr>
+      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th></th></tr>
       <?php foreach ($stores as $s):
         $logoFile = $s['logo_path'] ?? '';
         $logoExists = $logoFile && file_exists($uploadDir . $logoFile);
@@ -644,7 +655,6 @@ tr:hover td{background:#f8f9fa}
             <span style="color:#ccc">-</span>
           <?php endif; ?>
         </td>
-        <td><span class="tag <?= $s['status'] === 'approved' ? 'tag-approved' : 'tag-pending' ?>"><?= $s['status'] ?></span></td>
         <td style="white-space:nowrap">
           <button class="btn btn-outline btn-sm" onclick='editStore(<?= json_encode($s) ?>)'>Modifica</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
@@ -654,27 +664,6 @@ tr:hover td{background:#f8f9fa}
     </table>
     <?php endif; ?>
   </div>
-
-  <?php $imgFiles = array_filter($customFiles ?? [], function($f) { return preg_match('/\.(webp|png|jpg|jpeg|svg)$/i', $f); });
-  if (!empty($imgFiles)): ?>
-  <div class="card">
-    <h2>File Logo sul Server</h2>
-    <div class="logo-grid">
-      <?php foreach ($imgFiles as $f):
-        $storeName = pathinfo($f, PATHINFO_FILENAME);
-        $size = filesize($uploadDir . $f);
-        $sizeH = $size < 1024 ? $size . ' B' : round($size/1024, 1) . ' KB';
-      ?>
-      <div class="logo-item" id="logo-<?= htmlspecialchars($f) ?>">
-        <div class="preview"><img src="../../../uploads/logos/<?= htmlspecialchars($f) ?>" alt="" /></div>
-        <div class="name"><?= htmlspecialchars($storeName) ?></div>
-        <div class="sub"><?= $sizeH ?></div>
-        <button class="del-btn" onclick="deleteLogo('<?= htmlspecialchars($f) ?>')" title="Elimina">✕</button>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-  <?php endif; ?>
 </div>
 
 <!-- Edit Store Modal -->
@@ -842,12 +831,6 @@ async function rejectLogo(id) {
   if (!confirm('Rifiutare questo logo?')) return;
   const r = await postAction('reject_logo', { id });
   if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { toast('Errore'); }
-}
-
-async function deleteLogo(filename) {
-  if (!confirm('Eliminare questo logo?')) return;
-  const r = await postAction('delete_custom_logo', { filename });
-  if (r.success) { document.getElementById('logo-' + filename)?.remove(); toast('Eliminato'); } else { toast('Errore'); }
 }
 
 async function createAdmin(e) {

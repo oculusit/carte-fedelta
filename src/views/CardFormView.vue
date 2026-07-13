@@ -378,9 +378,7 @@ async function submitLogoForApproval() {
   submittingLogo.value = true
   logoSubmitResult.value = null
   try {
-    const imageData = proposedLogoData.value.includes('base64,')
-      ? proposedLogoData.value.split('base64,')[1]
-      : proposedLogoData.value
+    const imageData = proposedLogoData.value
     const res = await httpFetch(`./api/logos/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

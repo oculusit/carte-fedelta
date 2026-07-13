@@ -204,7 +204,7 @@ export const useAppStore = defineStore('app', () => {
       await db.update(id, data)
       await syncToSupabase(updated, 'update')
       const idx = cards.value.findIndex(c => c.id === id)
-      if (idx !== -1) cards.value[idx] = updated
+      if (idx !== -1) cards.value.splice(idx, 1, updated)
       return updated
     } catch (e) {
       error.value = e.message
