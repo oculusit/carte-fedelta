@@ -3,8 +3,12 @@
 if (!function_exists('jsonBody')) {
   function jsonBody(): array {
     $raw = file_get_contents('php://input');
-    $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
+    if ($raw) {
+      $data = json_decode($raw, true);
+      if (is_array($data) && count($data) > 0) return $data;
+    }
+    if (!empty($_POST)) return $_POST;
+    return [];
   }
 }
 

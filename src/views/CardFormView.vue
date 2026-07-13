@@ -363,7 +363,12 @@ async function submitLogoForApproval() {
     })
     const data = await res.json()
     if (data.success) {
-      logoSubmitResult.value = { ok: true, msg: data.message || 'Logo inviato per approvazione!' }
+      // Save logo locally on the card too
+      form.value.logo_type = 'upload'
+      form.value.logo_data = proposedLogoData.value
+      form.value.logo_path = ''
+      selectedStoreLogo.value = proposedLogoData.value
+      logoSubmitResult.value = { ok: true, msg: data.message || 'Logo inviato per approvazione e salvato localmente!' }
       proposedLogoData.value = ''
       showLogoProposal.value = false
     } else {
@@ -425,20 +430,6 @@ async function autoDetectType() {
       form.value.logo_data = ''
       selectedStoreLogo.value = placeholderSvg(logo.color, logo.name.charAt(0).toUpperCase())
     }
-  } else if (form.value.logo_type === 'none') {
-    if (form.value.store_name) {
-      const dbStore = allStores.value.find(s => s.name.toLowerCase() === form.value.store_name.toLowerCase().trim())
-      if (dbStore) {
-        await applyStoreLogo(dbStore)
-        return
-      }
-    }
-    const letter = (form.value.store_name || detected).charAt(0).toUpperCase()
-    const svg = placeholderSvg('#1a73e8', letter)
-    form.value.logo_type = 'upload'
-    form.value.logo_path = ''
-    form.value.logo_data = svg
-    selectedStoreLogo.value = svg
   }
 }
 

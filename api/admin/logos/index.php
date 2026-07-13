@@ -748,10 +748,29 @@ tr:hover td{background:#f8f9fa}
 <script>
 function showSection(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
-  event.target.closest('a').classList.add('active');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('onclick') && a.getAttribute('onclick').includes("'" + id + "'")) {
+      a.classList.add('active');
+    }
+  });
 }
+
+function reloadToSection(id) {
+  sessionStorage.setItem('admin_section', id);
+  location.reload();
+}
+
+// Restore section after reload
+(function() {
+  const saved = sessionStorage.getItem('admin_section');
+  if (saved) {
+    sessionStorage.removeItem('admin_section');
+    showSection(saved);
+  }
+})();
 
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -769,13 +788,13 @@ async function postAction(action, data) {
 
 async function approveLogo(id) {
   const r = await postAction('approve_logo', { id });
-  if (r.success) { toast('Logo approvato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Logo approvato!'); reloadToSection('logos-queue'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 async function rejectLogo(id) {
   if (!confirm('Rifiutare questo logo?')) return;
   const r = await postAction('reject_logo', { id });
-  if (r.success) { toast('Logo rifiutato'); location.reload(); } else { toast('Errore'); }
+  if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { toast('Errore'); }
 }
 
 async function deleteLogo(filename) {
@@ -791,12 +810,12 @@ async function createAdmin(e) {
     password: document.getElementById('new-admin-pass').value,
     role: document.getElementById('new-admin-role').value,
   });
-  if (r.success) { toast('Amministratore creato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Amministratore creato!'); reloadToSection('admins'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 async function deleteAdmin(id) {
   const r = await postAction('delete_admin', { id });
-  if (r.success) { toast('Amministratore rimosso'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Amministratore rimosso'); reloadToSection('admins'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 async function saveMailConfig(e) {
@@ -842,7 +861,7 @@ async function uploadStore(e) {
   fd.append('logo_file', document.getElementById('new-store-file').files[0]);
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio creato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Negozio creato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 function editStore(store) {
@@ -888,7 +907,7 @@ async function saveStore(e) {
   }
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio aggiornato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Negozio aggiornato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 async function deleteStore(id) {
@@ -1113,7 +1132,7 @@ uploadStore = async function(e) {
   }
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio creato!'); location.reload(); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Negozio creato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 };
 </script>
 </body></html>

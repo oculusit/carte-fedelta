@@ -14,6 +14,14 @@ async function nativeFetch(url, options = {}) {
   const headers = options.headers || {}
 
   let data = options.body
+  // If body is a JSON string and Content-Type is application/json, parse to object
+  // so CapacitorHttp sends it correctly with proper Content-Type
+  if (data && typeof data === 'string' && headers['Content-Type']?.includes('application/json')) {
+    try {
+      const parsed = JSON.parse(data)
+      if (parsed && typeof parsed === 'object') data = parsed
+    } catch {}
+  }
   if (data && typeof data === 'object' && !(data instanceof FormData) && !(data instanceof URLSearchParams)) {
     try { data = JSON.stringify(data) } catch {}
   }
