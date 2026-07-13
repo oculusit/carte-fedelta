@@ -1,13 +1,23 @@
 RewriteEngine On
 
-# Se l'URL richiede un file statico con estensione, servilo direttamente
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|webp)$ [NC]
+# Admin logos trailing slash fix
+RewriteRule ^api/admin/logos$ api/admin/logos/ [R=301,L,QSA]
+
+# Static files with extension: serve directly
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|webp|apk)$ [NC]
 RewriteRule ^ - [L]
 
-# API routes: passa a api/index.php
+# API routes: pass to api/index.php
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# SPA: tutto il resto va a index.html
+# /app → serve app.html (the SPA)
+RewriteRule ^app/?$ app.html [L]
+
+# SPA routes: /app/* → app.html (for Vue Router history mode)
+RewriteCond %{REQUEST_URI} ^/app/
+RewriteRule ^app/(.*)$ app.html [QSA,L]
+
+# Everything else → index.html (landing page)
 RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Security + cache headers
@@ -15,13 +25,13 @@ RewriteRule ^(.*)$ index.html [QSA,L]
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "DENY"
   Header set X-XSS-Protection "1; mode=block"
-  # Non cache mai l'HTML della SPA
+  # No cache on HTML
   <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "0"
   </FilesMatch>
-  # Cache assets statici (con hash Vite)
+  # Long cache on hashed assets
   <FilesMatch "\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>

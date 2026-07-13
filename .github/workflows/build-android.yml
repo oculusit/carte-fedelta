@@ -51,17 +51,39 @@ jobs:
             $SDKMANAGER "platforms;android-36" "build-tools;36.0.0"
           else
             echo "WARNING: sdkmanager not found at $SDKMANAGER"
-            ls -la $ANDROID_HOME/ 2>/dev/null || echo "ANDROID_HOME not found"
           fi
 
-      - name: Build debug APK
+      - name: Decode keystore
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        run: echo "$KEYSTORE_BASE64" | base64 -d > android/app/fidappti.keystore
+
+      - name: Build release APK
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Build debug APK (fallback)
+        if: ${{ env.KEYSTORE_BASE64 == '' }}
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload release APK
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: FidAPPti-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload debug APK
+        if: ${{ env.KEYSTORE_BASE64 == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: FidAPPti-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk

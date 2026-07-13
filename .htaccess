@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Admin logos trailing slash fix: prevent Apache DirectorySlash from redirecting to HTTP
+RewriteRule ^api/admin/logos$ api/admin/logos/ [R=301,L,QSA]
+
 # Se l'URL richiede un file statico con estensione, servilo direttamente
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|webp)$ [NC]
 RewriteRule ^ - [L]

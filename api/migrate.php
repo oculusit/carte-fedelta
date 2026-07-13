@@ -79,6 +79,30 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}cards` ADD COLUMN logo_data LONGTEXT AFTER logo_path");
   }
 
+  // ── pending_logos (user-submitted logos awaiting approval) ──
+  $db->exec("
+    CREATE TABLE IF NOT EXISTS `{$p}pending_logos` (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED DEFAULT NULL,
+      store_name VARCHAR(255) NOT NULL,
+      image_data LONGTEXT NOT NULL,
+      status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      admin_notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at TIMESTAMP NULL DEFAULT NULL,
+      FOREIGN KEY (user_id) REFERENCES `{$p}users`(id) ON DELETE SET NULL,
+      INDEX idx_status (status),
+      INDEX idx_store (store_name)
+    ) ENGINE=InnoDB
+  ");
+
+  // ── admin_role column on users ──
+  $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}users` LIKE 'admin_role'");
+  $stmt->execute();
+  if (!$stmt->fetch()) {
+    $db->exec("ALTER TABLE `{$p}users` ADD COLUMN admin_role ENUM('superadmin','admin') DEFAULT NULL AFTER is_moderator");
+  }
+
   // ── Ensure group owners have a family_group_members entry ──
   $db->exec("
     INSERT IGNORE INTO `{$p}family_group_members` (group_id, user_id, status, invited_by)

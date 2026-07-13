@@ -23,12 +23,19 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file('fidappti.keystore')
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ''
+            keyAlias 'fidappti'
+            keyPassword System.getenv("KEY_PASSWORD") ?: ''
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

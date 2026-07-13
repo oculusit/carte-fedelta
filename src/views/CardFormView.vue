@@ -115,6 +115,17 @@
         <textarea v-model="form.notes" rows="3" placeholder="Note opzionali..."></textarea>
       </div>
 
+      <div v-if="form.store_name.trim() && !selectedStoreLogo && showLogoProposal" class="input-group logo-proposal">
+        <label>Logo non trovato per "{{ form.store_name.trim() }}"</label>
+        <p class="proposal-hint">Puoi proporre un logo che verrà condiviso con la community dopo approvazione.</p>
+        <LogoCropper v-model="proposedLogoData" @change="onProposedLogoChange" />
+        <button v-if="proposedLogoData" class="btn btn-primary btn-sm mt-8" @click="submitLogoForApproval" :disabled="submittingLogo">
+          {{ submittingLogo ? 'Invio...' : 'Invia logo per approvazione' }}
+        </button>
+        <p v-if="logoSubmitResult" :class="logoSubmitResult.ok ? 'test-ok' : 'test-err'" class="mt-8">{{ logoSubmitResult.msg }}</p>
+        <button class="btn btn-outline btn-sm mt-8" @click="showLogoProposal = false">Non ora</button>
+      </div>
+
       <div class="input-group">
         <label class="checkbox-label">
           <input v-model="form.is_private" type="checkbox" />
@@ -172,6 +183,7 @@ import { detectBarcodeType, validateChecksum } from '../utils/barcodeUtils.js'
 import { predefinedLogos, placeholderSvg, barcodeTypeDefaultLogo } from '../utils/logoStore.js'
 import { httpFetch } from '../services/http.js'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
+import LogoCropper from '../components/LogoCropper.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -207,6 +219,10 @@ const scanConfirm = ref(null)
 const scanZeroConfirm = ref(null)
 const initializing = ref(true)
 const firstInputRef = ref(null)
+const showLogoProposal = ref(false)
+const proposedLogoData = ref('')
+const submittingLogo = ref(false)
+const logoSubmitResult = ref(null)
 
 const form = ref({
   store_name: '',
@@ -247,6 +263,8 @@ function filterStores(query) {
 }
 
 async function onStoreNameChange() {
+  showLogoProposal.value = false
+  logoSubmitResult.value = null
   if (allStores.value.length > 0) {
     filterStores(form.value.store_name)
     showDropdown.value = storeResults.value.length > 0
@@ -274,6 +292,7 @@ async function onStoreNameChange() {
     } catch {}
   }
   selectedStoreLogo.value = ''
+  showLogoProposal.value = true
 }
 
 function onStoreFocus() {
@@ -314,6 +333,43 @@ async function selectStore(s) {
 function onScanResult(result) {
   scanConfirm.value = result
   showScanner.value = false
+}
+
+function onProposedLogoChange(dataUrl) {
+  proposedLogoData.value = dataUrl
+}
+
+async function submitLogoForApproval() {
+  if (!proposedLogoData.value || !form.value.store_name.trim()) return
+  submittingLogo.value = true
+  logoSubmitResult.value = null
+  try {
+    const base = localStorage.getItem('server_url')
+    const apiBase = base || './api'
+    const imageData = proposedLogoData.value.includes('base64,')
+      ? proposedLogoData.value.split('base64,')[1]
+      : proposedLogoData.value
+    const res = await httpFetch(`${apiBase}/logos/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        store_name: form.value.store_name.trim(),
+        image_data: imageData,
+      }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      logoSubmitResult.value = { ok: true, msg: data.message || 'Logo inviato per approvazione!' }
+      proposedLogoData.value = ''
+      showLogoProposal.value = false
+    } else {
+      logoSubmitResult.value = { ok: false, msg: data.error || 'Errore durante l\'invio' }
+    }
+  } catch (e) {
+    logoSubmitResult.value = { ok: false, msg: 'Errore di rete' }
+  } finally {
+    submittingLogo.value = false
+  }
 }
 
 function confirmScanNumber(confirmed) {
@@ -594,6 +650,20 @@ textarea {
   height: 18px;
   cursor: pointer;
 }
+
+.logo-proposal {
+  background: #f0f6ff;
+  border: 1px solid #c8daf8;
+  border-radius: 12px;
+  padding: 16px;
+}
+.proposal-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.test-ok { font-size: 13px; color: var(--success); }
+.test-err { font-size: 13px; color: var(--danger); }
 
 .modal-overlay {
   position: fixed;

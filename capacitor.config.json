@@ -1,6 +1,6 @@
 {
   "appId": "it.oculus.carte",
-  "appName": "Carte Fedeltà",
+  "appName": "FidAPPti",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

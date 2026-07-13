@@ -233,6 +233,12 @@ export const useAppStore = defineStore('app', () => {
     await pullFromSupabase()
   }
 
+  async function importCardsFromBackup(importCards) {
+    await db.importCards(importCards)
+    cards.value = await db.getAll()
+    saveBackup(cards.value)
+  }
+
   async function getCloudCardCount() {
     const supabase = getSupabase()
     if (!supabase || !isOnline.value) return -1
@@ -340,6 +346,6 @@ export const useAppStore = defineStore('app', () => {
     isOnline, cards, loading, syncing, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
     loadLogo, loadMissingLogos, processSyncQueue, getCloudCardCount,
-    updateCardsLogosFromServer,
+    updateCardsLogosFromServer, importCardsFromBackup,
   }
 })

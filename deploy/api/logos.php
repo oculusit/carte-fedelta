@@ -233,6 +233,52 @@ function getStoreLogoHandler(string $method, string $uri): void {
   echo json_encode(['error' => 'Logo non trovato']);
 }
 
+function submitLogoHandler(string $method, string $uri): void {
+  if ($method !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Metodo non consentito']);
+    return;
+  }
+  $data = jsonBody();
+  $storeName = trim($data['store_name'] ?? '');
+  $imageData = $data['image_data'] ?? '';
+
+  if (empty($storeName) || empty($imageData)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Nome negozio e immagine obbligatori']);
+    return;
+  }
+
+  $decoded = base64_decode($imageData, true);
+  if ($decoded === false || strlen($decoded) < 100) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Immagine non valida']);
+    return;
+  }
+
+  $db = logosGetDb();
+  $userId = null;
+  try {
+    $headers = getallheaders();
+    $auth = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    if (strpos($auth, 'Bearer ') === 0) {
+      $token = substr($auth, 7);
+      $stmt = $db->prepare('SELECT user_id FROM ' . TABLE_AUTH_TOKENS . ' WHERE token = ?');
+      $stmt->execute([$token]);
+      $row = $stmt->fetch();
+      if ($row) $userId = (int)$row['user_id'];
+    }
+  } catch (Exception $e) {}
+
+  $stmt = $db->prepare('INSERT INTO ' . TABLE_PENDING_LOGOS . ' (user_id, store_name, image_data) VALUES (?, ?, ?)');
+  $stmt->execute([$userId, $storeName, $imageData]);
+
+  echo json_encode([
+    'success' => true,
+    'message' => 'Logo inviato per approvazione. Sarà disponibile dopo la revisione di un amministratore.',
+  ]);
+}
+
 function reportMissingHandler(string $method): void {
   if ($method !== 'POST') {
     http_response_code(405);

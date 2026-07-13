@@ -100,8 +100,8 @@ if (in_array($uri, $publicRoutes, true) && $method === 'GET') {
   exit;
 }
 
-// Admin logos panel (standalone HTML/PHP page, before config check)
-if (strpos($uri, '/admin/logos') === 0) {
+// Admin panel (standalone HTML/PHP page, before config check)
+if (strpos($uri, '/admin/logos') === 0 || $uri === '/admin' || $uri === '/admin/') {
   $adminFile = __DIR__ . '/admin/logos/index.php';
   if (file_exists($adminFile)) {
     header('Content-Type: text/html; charset=utf-8');
@@ -135,6 +135,9 @@ if (!defined('TABLE_FAMILY_MEMBERS')) {
 }
 if (!defined('TABLE_SETTINGS')) {
   define('TABLE_SETTINGS', DB_PREFIX . 'settings');
+}
+if (!defined('TABLE_PENDING_LOGOS')) {
+  define('TABLE_PENDING_LOGOS', DB_PREFIX . 'pending_logos');
 }
 if (!defined('TABLE_CARD_GROUP_SHARES')) {
   define('TABLE_CARD_GROUP_SHARES', DB_PREFIX . 'card_group_shares');
@@ -174,6 +177,7 @@ $routes = [
   '/logos'                 => 'logos.php@handleLogos',
   '/logos/predefined'      => 'logos.php@getPredefined',
   '/logos/report-missing'  => 'logos.php@reportMissing',
+  '/logos/submit'          => 'logos.php@submitLogo',
   '/logos/(.+)'            => 'logos.php@getStoreLogo',
   '/stores/brief'      => 'stores.php@listStoresBrief',
   '/stores/orphans'    => 'stores.php@listOrphanStores',
@@ -194,6 +198,11 @@ $routes = [
   '/admin/reveal-seed'  => 'admin.php@handleRevealSeed',
   '/admin/encryption/status' => 'admin.php@handleEncryptionStatus',
   '/admin/disable-encryption' => 'admin.php@handleDisableEncryption',
+  '/admin/users'            => 'admin.php@handleAdminUsers',
+  '/admin/users/(.+)'       => 'admin.php@handleAdminUsers',
+  '/admin/pending-logos'    => 'admin.php@handlePendingLogos',
+  '/admin/change-password'  => 'admin.php@handleAdminChangePassword',
+  '/admin/forgot-password'  => 'admin.php@handleAdminForgotPassword',
   '/settings/info'    => 'admin.php@handleInfo',
   '/cron'             => 'cron.php@cron',
 ];

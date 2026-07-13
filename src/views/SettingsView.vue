@@ -51,7 +51,23 @@
       </details>
     </div>
 
-    <!-- 3) Cache applicazione -->
+    <!-- 3) Backup locale -->
+    <div class="card settings-card">
+      <h3>Backup locale</h3>
+      <p class="section-desc">Esporta tutte le tue carte in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <div class="backup-row">
+        <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
+          {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
+        </button>
+        <button class="btn btn-outline btn-block" @click="$refs.importInput.click()">
+          Importa backup
+        </button>
+        <input ref="importInput" type="file" accept=".json" @change="importBackup" hidden />
+      </div>
+      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok' : 'test-err'">{{ backupResult.msg }}</p>
+    </div>
+
+    <!-- 4) Cache applicazione -->
     <div class="card settings-card">
       <h3>Cache applicazione</h3>
       <p class="section-desc">Cancella la cache senza eliminare le carte salvate localmente.</p>
@@ -103,6 +119,9 @@ const serverUrl = ref(localStorage.getItem('server_url') || '')
 const discovering = ref(false)
 const discoverResult = ref(null)
 const manualUrl = ref('')
+const exporting = ref(false)
+const backupResult = ref(null)
+const importInput = ref(null)
 
 function saveManualUrl() {
   const val = manualUrl.value.replace(/\/+$/, '')
@@ -216,6 +235,77 @@ async function clearCache() {
   clearing.value = false
   window.location.reload()
 }
+
+async function exportBackup() {
+  exporting.value = true
+  backupResult.value = null
+  try {
+    const allCards = await store.cards.map(c => ({
+      id: c.id,
+      store_name: c.store_name,
+      card_number: c.card_number,
+      holder_name: c.holder_name,
+      barcode_type: c.barcode_type,
+      logo_type: c.logo_type,
+      logo_path: c.logo_path,
+      logo_data: c.logo_data,
+      notes: c.notes,
+      color: c.color,
+      is_private: c.is_private,
+      is_favorite: c.is_favorite,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+    }))
+    const backup = {
+      version: '1.1.0',
+      exported_at: new Date().toISOString(),
+      cards_count: allCards.length,
+      cards: allCards,
+    }
+    const json = JSON.stringify(backup, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `carte-fedelta-backup-${new Date().toISOString().slice(0,10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([json], a.download, { type: 'application/json' })
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Backup Carte Fedeltà' })
+        } catch {}
+      }
+    }
+    backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte` }
+  } catch (e) {
+    backupResult.value = { ok: false, msg: 'Errore esportazione: ' + (e.message || e) }
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function importBackup(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  backupResult.value = null
+  try {
+    const text = await file.text()
+    const backup = JSON.parse(text)
+    if (!backup.cards || !Array.isArray(backup.cards)) {
+      backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
+      return
+    }
+    const validCards = backup.cards.filter(c => c.id && c.store_name && c.card_number)
+    await store.importCardsFromBackup(validCards)
+    backupResult.value = { ok: true, msg: `Importate ${validCards.length} carte da backup` }
+  } catch (e) {
+    backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
+  }
+  e.target.value = ''
+}
 </script>
 
 <style scoped>
@@ -261,4 +351,6 @@ async function clearCache() {
 .test-err { margin-top: 8px; font-size: 13px; color: var(--danger); word-break: break-all; }
 .sync-spinner { display: inline-block; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.backup-row { display: flex; gap: 8px; }
+.backup-row .btn { flex: 1; }
 </style>

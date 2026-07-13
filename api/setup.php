@@ -297,6 +297,7 @@ define('TABLE_PASSWORD_RESETS', DB_PREFIX . 'password_resets');
 define('TABLE_FAMILY_GROUPS', DB_PREFIX . 'family_groups');
 define('TABLE_FAMILY_MEMBERS', DB_PREFIX . 'family_group_members');
 define('TABLE_SETTINGS', DB_PREFIX . 'settings');
+define('TABLE_PENDING_LOGOS', DB_PREFIX . 'pending_logos');
 
 // ─── Mail ───
 define('MAIL_MODE', '{$mailMode}'); // 'mail' or 'smtp'

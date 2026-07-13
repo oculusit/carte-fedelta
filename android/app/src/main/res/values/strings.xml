@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">CarteFedelta</string>
-    <string name="title_activity_main">CarteFedelta</string>
+    <string name="app_name">FidAPPti</string>
+    <string name="title_activity_main">FidAPPti</string>
     <string name="package_name">it.oculus.carte</string>
     <string name="custom_url_scheme">it.oculus.carte</string>
 </resources>
