@@ -59,12 +59,17 @@
         <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
           {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
         </button>
+        <button class="btn btn-share btn-block" @click="shareBackup" :disabled="exporting" title="Condividi backup">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align:middle;margin-right:4px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="1.5"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="1.5"/></svg>
+          Condividi
+        </button>
         <button class="btn btn-outline btn-block" @click="$refs.importInput.click()">
           Importa backup
         </button>
         <input ref="importInput" type="file" accept=".json" @change="importBackup" hidden />
       </div>
-      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok' : 'test-err'">{{ backupResult.msg }}</p>
+      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok' : 'test-err'" v-html="backupResult.msg"></p>
+      <p class="backup-path" v-if="backupPath">Cartella download: <code>{{ backupPath }}</code></p>
     </div>
 
     <!-- 4) Cache applicazione -->
@@ -122,6 +127,7 @@ const manualUrl = ref('')
 const exporting = ref(false)
 const backupResult = ref(null)
 const importInput = ref(null)
+const backupPath = ref('')
 
 function saveManualUrl() {
   const val = manualUrl.value.replace(/\/+$/, '')
@@ -239,6 +245,7 @@ async function clearCache() {
 async function exportBackup() {
   exporting.value = true
   backupResult.value = null
+  backupPath.value = ''
   try {
     const allCards = await store.cards.map(c => ({
       id: c.id,
@@ -267,21 +274,59 @@ async function exportBackup() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `carte-fedelta-backup-${new Date().toISOString().slice(0,10)}.json`
+    a.download = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
     a.click()
     URL.revokeObjectURL(url)
 
-    if (navigator.share && navigator.canShare) {
-      const file = new File([json], a.download, { type: 'application/json' })
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Backup Carte Fedeltà' })
-        } catch {}
-      }
-    }
-    backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte` }
+    backupPath.value = 'Download'
+    backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File scaricato nella cartella <strong>Download</strong> del telefono.` }
   } catch (e) {
     backupResult.value = { ok: false, msg: 'Errore esportazione: ' + (e.message || e) }
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function shareBackup() {
+  exporting.value = true
+  backupResult.value = null
+  backupPath.value = ''
+  try {
+    const allCards = await store.cards.map(c => ({
+      id: c.id,
+      store_name: c.store_name,
+      card_number: c.card_number,
+      holder_name: c.holder_name,
+      barcode_type: c.barcode_type,
+      logo_type: c.logo_type,
+      logo_path: c.logo_path,
+      logo_data: c.logo_data,
+      notes: c.notes,
+      color: c.color,
+      is_private: c.is_private,
+      is_favorite: c.is_favorite,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+    }))
+    const backup = {
+      version: '1.1.0',
+      exported_at: new Date().toISOString(),
+      cards_count: allCards.length,
+      cards: allCards,
+    }
+    const json = JSON.stringify(backup, null, 2)
+    const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
+    const file = new File([json], filename, { type: 'application/json' })
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
+      backupResult.value = { ok: true, msg: 'Backup condiviso con successo!' }
+    } else {
+      backupResult.value = { ok: false, msg: 'Condivisione non disponibile su questo dispositivo' }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      backupResult.value = { ok: false, msg: 'Errore condivisione: ' + (e.message || e) }
+    }
   } finally {
     exporting.value = false
   }

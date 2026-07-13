@@ -3,6 +3,14 @@ session_start();
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../logos.php';
+require_once __DIR__ . '/../../migrate.php';
+
+// Run migration on admin panel too (separate entry point from api/index.php)
+try {
+  $mDb = new PDO('mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+  migrateRun($mDb);
+  $mDb = null;
+} catch (Exception $e) {}
 
 $scriptUrl = strtok($_SERVER['REQUEST_URI'], '?');
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -520,7 +528,7 @@ tr:hover td{background:#f8f9fa}
     <h2>Carica Nuovo Logo</h2>
     <form onsubmit="uploadStore(event)" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
       <div class="field" style="flex:1;min-width:180px"><label>Nome negozio</label><input type="text" id="new-store-name" required placeholder="es. NaturaSì" /></div>
-      <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><input type="text" id="new-store-aliases" placeholder="es. natura si&#10;naturasi&#10;natura sì" /></div>
+      <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><textarea id="new-store-aliases" rows="2" placeholder="natura si&#10;naturasi&#10;natura sì" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
       <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required /></div>
       <button type="submit" class="btn btn-primary">Carica</button>
     </form>

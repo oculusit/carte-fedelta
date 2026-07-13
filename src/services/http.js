@@ -2,6 +2,13 @@ import { CapacitorHttp, Capacitor } from '@capacitor/core'
 
 const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()
 
+function resolveAbsoluteUrl(url) {
+  if (isNative && !url.startsWith('http://') && !url.startsWith('https://')) {
+    return 'https://fidappti.altervista.org/' + url.replace(/^\.\//, '')
+  }
+  return url
+}
+
 async function nativeFetch(url, options = {}) {
   const method = options.method || 'GET'
   const headers = options.headers || {}
@@ -11,8 +18,10 @@ async function nativeFetch(url, options = {}) {
     try { data = JSON.stringify(data) } catch {}
   }
 
+  const resolvedUrl = resolveAbsoluteUrl(url)
+
   const res = await CapacitorHttp.request({
-    url,
+    url: resolvedUrl,
     method,
     headers,
     data,
