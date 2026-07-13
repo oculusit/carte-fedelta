@@ -265,8 +265,30 @@ function filterStores(query) {
   if (!query || query.length < 2) { storeResults.value = []; return }
   const q = query.toLowerCase()
   storeResults.value = allStores.value
-    .filter(s => s.name.toLowerCase().includes(q))
+    .filter(s => {
+      if (s.name.toLowerCase().includes(q)) return true
+      if (s.aliases) {
+        const aliases = s.aliases.split('\n').map(a => a.trim().toLowerCase()).filter(Boolean)
+        return aliases.some(a => a.includes(q))
+      }
+      return false
+    })
     .slice(0, 8)
+}
+
+function findStoreByAlias(query) {
+  if (!query || !allStores.value.length) return null
+  const q = query.toLowerCase().trim()
+  // Exact match on name
+  const byName = allStores.value.find(s => s.name.toLowerCase() === q)
+  if (byName) return byName
+  // Exact match on alias
+  for (const s of allStores.value) {
+    if (!s.aliases) continue
+    const aliases = s.aliases.split('\n').map(a => a.trim().toLowerCase()).filter(Boolean)
+    if (aliases.includes(q)) return s
+  }
+  return null
 }
 
 async function onStoreNameChange() {
@@ -275,9 +297,11 @@ async function onStoreNameChange() {
   if (allStores.value.length > 0) {
     filterStores(form.value.store_name)
     showDropdown.value = storeResults.value.length > 0
-    const exact = allStores.value.find(s => s.name.toLowerCase() === form.value.store_name.toLowerCase().trim())
-    if (exact) {
-      await applyStoreLogo(exact)
+    // Check exact match on name or alias
+    const match = findStoreByAlias(form.value.store_name)
+    if (match) {
+      form.value.store_name = match.name
+      await applyStoreLogo(match)
       return
     }
   }
