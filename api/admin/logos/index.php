@@ -413,6 +413,22 @@ $customFiles = is_dir($uploadDir) ? array_diff(scandir($uploadDir), ['.', '..'])
 $hiddenLogos = [];
 foreach ($customFiles as $f) { if (preg_match('/^(.+)\.hidden$/', $f, $m)) $hiddenLogos[$m[1]] = true; }
 
+// Sync: create cards_stores entries for logo files missing from the table
+$imgExts = ['webp','png','jpg','jpeg','svg'];
+$imgFiles = array_filter($customFiles, function($f) use ($imgExts) { return in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), $imgExts); });
+if ($imgFiles) {
+  $existingNames = [];
+  try { $rows = $db->query('SELECT name FROM ' . TABLE_STORES)->fetchAll(); $existingNames = array_map('strtolower', array_column($rows, 'name')); } catch(Exception $e) {}
+  foreach ($imgFiles as $f) {
+    $storeName = pathinfo($f, PATHINFO_FILENAME);
+    if (in_array(strtolower($storeName), $existingNames)) continue;
+    $mime = mime_content_type($uploadDir . $f) ?: 'image/' . pathinfo($f, PATHINFO_EXTENSION);
+    $b64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($uploadDir . $f));
+    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$storeName, $f, $b64]);
+    $existingNames[] = strtolower($storeName);
+  }
+}
+
 $predefined = getPredefinedLogos();
 
 $stores = [];
@@ -642,7 +658,7 @@ tr:hover td{background:#f8f9fa}
   <?php $imgFiles = array_filter($customFiles ?? [], function($f) { return preg_match('/\.(webp|png|jpg|jpeg|svg)$/i', $f); });
   if (!empty($imgFiles)): ?>
   <div class="card">
-    <h2>File Logo sul Server (vecchio sistema)</h2>
+    <h2>File Logo sul Server</h2>
     <div class="logo-grid">
       <?php foreach ($imgFiles as $f):
         $storeName = pathinfo($f, PATHINFO_FILENAME);
