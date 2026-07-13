@@ -319,22 +319,32 @@ export const useAppStore = defineStore('app', () => {
 
   async function updateCardsLogosFromServer() {
     const base = getServerUrl()
-    if (!base || base === './api') return
+    if (!base) return
     const lastCheck = parseInt(localStorage.getItem('last_logo_check') || '0', 10)
     if (Date.now() - lastCheck < 86400000) return
     const allCards = await db.getAll()
     if (!allCards.length) return
-    for (let i = 0; i < allCards.length; i++) {
-      const card = allCards[i]
+    const storeNames = [...new Set(allCards.map(c => c.store_name))]
+    for (const name of storeNames) {
       try {
-        const res = await httpFetch(`${base}/logos/${encodeURIComponent(card.store_name)}`)
+        const res = await httpFetch(`${base}/logos/${encodeURIComponent(name)}`)
         if (res.ok) {
           const data = await res.json()
-          if (data?.logo_data && data.logo_data !== card.logo_data) {
-            await updateCard(card.id, {
-              logo_type: 'upload',
-              logo_data: data.logo_data,
+          if (data?.logo_data) {
+            await logosDb.set(name, {
+              logoData: data.logo_data,
+              logoType: data.logo_type || 'predefined',
+              color: data.color || '#1a73e8',
             })
+            const cardsForStore = allCards.filter(c => c.store_name === name)
+            for (const card of cardsForStore) {
+              if (data.logo_data !== card.logo_data) {
+                await updateCard(card.id, {
+                  logo_type: 'upload',
+                  logo_data: data.logo_data,
+                })
+              }
+            }
           }
         }
       } catch {}

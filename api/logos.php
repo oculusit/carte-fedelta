@@ -269,7 +269,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
         // Prefer logo_data (base64), fall back to logo_path file
         if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
           echo json_encode([
-            'store_name' => $storeName,
+            'store_name' => $s['name'],
             'color' => null,
             'logo_type' => $s['logo_type'] ?: 'upload',
             'logo_data' => $s['logo_data'],
@@ -284,7 +284,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
             $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));
             $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
             echo json_encode([
-              'store_name' => $storeName,
+              'store_name' => $s['name'],
               'color' => null,
               'logo_type' => $s['logo_type'] ?: 'upload',
               'logo_data' => $logoData,

@@ -312,6 +312,10 @@ async function onStoreNameChange() {
       if (res.ok) {
         const data = await res.json()
         if (data?.logo_data) {
+          // If backend returned official name (different from input), use it
+          if (data.store_name && data.store_name !== form.value.store_name.trim()) {
+            form.value.store_name = data.store_name
+          }
           selectedStoreLogo.value = data.logo_data
           form.value.logo_type = 'upload'
           form.value.logo_data = data.logo_data
