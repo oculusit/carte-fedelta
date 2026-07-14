@@ -276,30 +276,18 @@ async function exportBackup() {
     const isNative = Capacitor.isNativePlatform()
     if (isNative) {
       const file = new File([json], filename, { type: 'application/json' })
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (navigator.share) {
         await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
-        backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File condiviso con successo!` }
       } else {
-        const saved = await Filesystem.writeFile({
-          path: filename,
-          data: json,
-          directory: Directory.Data,
-          encoding: Encoding.UTF8,
-        })
-        const read = await Filesystem.readFile({
-          path: filename,
-          directory: Directory.Data,
-          encoding: Encoding.UTF8,
-        })
+        await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Data, encoding: Encoding.UTF8 })
+        const read = await Filesystem.readFile({ path: filename, directory: Directory.Data, encoding: Encoding.UTF8 })
         const blob = new Blob([read.data], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.click()
+        a.href = url; a.download = filename; a.click()
         URL.revokeObjectURL(url)
-        backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
       }
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
     } else {
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -351,17 +339,14 @@ async function shareBackup() {
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
     const file = new File([json], filename, { type: 'application/json' })
 
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (navigator.share) {
       await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
       backupResult.value = { ok: true, msg: 'Backup condiviso con successo!' }
     } else {
-      // Fallback: download link
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.click()
+      a.href = url; a.download = filename; a.click()
       URL.revokeObjectURL(url)
       backupResult.value = { ok: true, msg: `Backup salvato.` }
     }
