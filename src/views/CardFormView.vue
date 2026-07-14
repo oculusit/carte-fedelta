@@ -140,13 +140,6 @@
         <button class="btn btn-outline btn-sm mt-8" @click="showLogoEditor = false">Annulla</button>
       </div>
 
-      <div class="input-group">
-        <label class="checkbox-label">
-          <input v-model="form.is_private" type="checkbox" />
-          <span>Tessera privata - Non condivisa con il gruppo famiglia</span>
-        </label>
-      </div>
-
       <div class="form-actions">
         <button class="btn btn-outline" @click="$router.back()">Annulla</button>
         <button class="btn btn-primary" @click="save" :disabled="saving">
