@@ -1,0 +1,1 @@
+import{W as l}from"./index-Bwn-s3Ur.js";class i extends l{async saveFile(n){const{filename:c,data:o}=n,a=new Blob([o],{type:"application/json"}),e=URL.createObjectURL(a),t=document.createElement("a");return t.href=e,t.download=c,t.click(),URL.revokeObjectURL(e),{uri:e,filename:c}}}export{i as FilePickerWeb};

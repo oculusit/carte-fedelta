@@ -7,6 +7,7 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
+import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -40,7 +41,6 @@ public class FilePickerPlugin extends Plugin {
             fos.write(data.getBytes("UTF-8"));
             fos.flush();
             fos.close();
-            Log.d(TAG, "Temp file written: " + tempFile.getAbsolutePath() + " size=" + tempFile.length());
 
             Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -56,29 +56,23 @@ public class FilePickerPlugin extends Plugin {
 
     @ActivityCallback
     private void handleSaveResult(PluginCall call, ActivityResult result) {
-        Log.d(TAG, "handleSaveResult: resultCode=" + (result != null ? result.getResultCode() : "null"));
-
         if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) {
-            Log.d(TAG, "User cancelled");
             call.reject("Salvataggio annullato");
             return;
         }
 
-        Intent intent = result.getData();
-        Uri uri = intent.getData();
-        Log.d(TAG, "Selected URI: " + uri);
+        Uri uri = result.getData().getData();
+        Log.d(TAG, "Saved to URI: " + uri);
 
         try {
             File tempFile = new File(getContext().getCacheDir(), "export_temp.json");
             if (!tempFile.exists()) {
-                Log.e(TAG, "Temp file not found!");
                 call.reject("File temporaneo non trovato");
                 return;
             }
 
             InputStream is = new FileInputStream(tempFile);
             OutputStream os = getContext().getContentResolver().openOutputStream(uri);
-
             if (os == null) {
                 is.close();
                 call.reject("Impossibile aprire il file di destinazione");
@@ -95,27 +89,40 @@ public class FilePickerPlugin extends Plugin {
             os.flush();
             os.close();
             is.close();
-            Log.d(TAG, "Written " + totalWritten + " bytes to " + uri);
-
             tempFile.delete();
+            Log.d(TAG, "Written " + totalWritten + " bytes");
 
-            String displayName = "";
-            Cursor cursor = getContext().getContentResolver().query(uri, null, null, null, null);
-            if (cursor != null) {
-                int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                if (cursor.moveToFirst() && nameIndex >= 0) {
-                    displayName = cursor.getString(nameIndex);
-                }
-                cursor.close();
-            }
+            String displayName = getDisplayName(uri);
+
+            // Open share sheet
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("application/json");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Backup FidAPPti");
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getContext().startActivity(Intent.createChooser(shareIntent, "Condividi backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
 
             JSObject res = new JSObject();
             res.put("uri", uri.toString());
             res.put("filename", displayName);
             call.resolve(res);
         } catch (Exception e) {
-            Log.e(TAG, "Write error", e);
-            call.reject("Errore scrittura: " + e.getMessage());
+            Log.e(TAG, "handleSaveResult error", e);
+            call.reject("Errore: " + e.getMessage());
         }
+    }
+
+    private String getDisplayName(Uri uri) {
+        Cursor cursor = getContext().getContentResolver().query(uri, null, null, null, null);
+        if (cursor != null) {
+            int idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+            if (cursor.moveToFirst() && idx >= 0) {
+                String name = cursor.getString(idx);
+                cursor.close();
+                return name;
+            }
+            cursor.close();
+        }
+        return "";
     }
 }
