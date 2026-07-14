@@ -107,9 +107,6 @@ import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
 import { httpFetch } from '../services/http.js'
-import { Capacitor } from '@capacitor/core'
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
-import { saveFileWithDialog } from '../services/filePicker.js'
 
 const store = useAppStore()
 
@@ -270,31 +267,46 @@ async function exportBackup() {
     }
     const json = JSON.stringify(backup, null, 2)
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
+    const blob = new Blob([json], { type: 'application/json' })
+    const file = new File([blob], filename, { type: 'application/json' })
 
-    const isNative = Capacitor.isNativePlatform()
-    if (isNative) {
-      const result = await saveFileWithDialog({
-        filename,
-        data: json,
-        mimeType: 'application/json',
-      })
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.\nSalvato come: ${result.filename || filename}` }
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: filename, text: `Backup FidAPPti - ${allCards.length} carte`, files: [file] })
+        backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      } catch (err) {
+        if (err.name === 'AbortError') return
+        // files not supported, try without files
+        try {
+          await navigator.share({ title: filename, text: json })
+          backupResult.value = { ok: true, msg: `Backup esportato come testo: ${allCards.length} carte.` }
+        } catch (err2) {
+          if (err2.name === 'AbortError') return
+          downloadBlob(blob, filename, allCards.length)
+        }
+      }
     } else {
-      const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = filename; a.click()
-      URL.revokeObjectURL(url)
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      downloadBlob(blob, filename, allCards.length)
     }
   } catch (e) {
-    console.error('[BACKUP] error:', e)
-    if (e.name !== 'AbortError' && e.message !== 'Salvataggio annullato') {
+    if (e.name !== 'AbortError') {
       backupResult.value = { ok: false, msg: `Errore: ${e.message}` }
     }
   } finally {
     exporting.value = false
   }
+}
+
+function downloadBlob(blob, filename, count) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  backupResult.value = { ok: true, msg: `Backup esportato: ${count} carte. File scaricato.` }
 }
 
 async function importBackup(e) {
