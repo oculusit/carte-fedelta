@@ -112,6 +112,7 @@ import { toast } from '../services/toast.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
+import { saveFileWithDialog } from '../services/filePicker.js'
 
 const store = useAppStore()
 
@@ -272,42 +273,15 @@ async function exportBackup() {
     }
     const json = JSON.stringify(backup, null, 2)
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
-    console.log('[BACKUP] filename:', filename, 'size:', json.length, 'bytes')
 
     const isNative = Capacitor.isNativePlatform()
     if (isNative) {
-      // 1) Write to app data
-      const writeResult = await Filesystem.writeFile({
-        path: filename,
+      const result = await saveFileWithDialog({
+        filename,
         data: json,
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
+        mimeType: 'application/json',
       })
-      console.log('[BACKUP] writeFile uri:', writeResult.uri)
-
-      // 2) Verify: stat the file
-      const statResult = await Filesystem.stat({ path: filename, directory: Directory.Data })
-      console.log('[BACKUP] stat:', JSON.stringify(statResult))
-
-      // 3) List parent directory
-      const dirResult = await Filesystem.readdir({ path: '', directory: Directory.Data })
-      console.log('[BACKUP] readdir Data:', dirResult.files.map(f => f.name).join(', '))
-
-      // 4) Read back to confirm content
-      const readBack = await Filesystem.readFile({ path: filename, directory: Directory.Data, encoding: Encoding.UTF8 })
-      console.log('[BACKUP] readBack length:', readBack.data.length, 'matches:', readBack.data.length === json.length)
-
-      const debugInfo = `File: ${filename}\nDim: ${json.length}B\nPath: ${writeResult.uri}\nEsiste: ${statResult.size}B`
-
-      // 5) Try share
-      const file = new File([json], filename, { type: 'application/json' })
-      if (navigator.share) {
-        console.log('[BACKUP] navigator.share available, sharing...')
-        await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
-        backupResult.value = { ok: true, msg: `Backup condiviso!\n\n${debugInfo}` }
-      } else {
-        backupResult.value = { ok: true, msg: `Backup salvato (nessuna condivisione disponibile).\n\n${debugInfo}` }
-      }
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.\nSalvato come: ${result.filename || filename}` }
     } else {
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -318,8 +292,8 @@ async function exportBackup() {
     }
   } catch (e) {
     console.error('[BACKUP] error:', e)
-    if (e.name !== 'AbortError') {
-      backupResult.value = { ok: false, msg: `Errore: ${e.message}\n${e.stack || ''}` }
+    if (e.name !== 'AbortError' && e.message !== 'Salvataggio annullato') {
+      backupResult.value = { ok: false, msg: `Errore: ${e.message}` }
     }
   } finally {
     exporting.value = false

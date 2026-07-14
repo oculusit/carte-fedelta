@@ -22,6 +22,7 @@
     "@capacitor/core": "^8.4.1",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/ios": "^8.4.1",
+    "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-brightness": "^8.0.17",
     "@supabase/supabase-js": "^2.108.2",
     "html5-qrcode": "^2.3.8",
