@@ -316,7 +316,9 @@ function submitLogoHandler(string $method, string $uri): void {
     return;
   }
 
-  $decoded = base64_decode($imageData, true);
+  $raw = $imageData;
+  if (strpos($raw, 'base64,') !== false) $raw = substr($raw, strpos($raw, 'base64,') + 7);
+  $decoded = base64_decode($raw, true);
   if ($decoded === false || strlen($decoded) < 100) {
     http_response_code(400);
     echo json_encode(['error' => 'Immagine non valida']);

@@ -470,6 +470,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f2f5;color:#1a
 .stat .num{font-size:28px;font-weight:700;color:#1a73e8}
 .stat .label{font-size:12px;color:#888;margin-top:4px}
 input[type=text],input[type=email],input[type=password],input[type=number],input[type=url],select{padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;width:100%;background:#fff;color:#1a1a2e}
+textarea{padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;width:100%;background:#fff;color:#1a1a2e;min-height:90px;resize:vertical}
 input:focus,select:focus{outline:none;border-color:#1a73e8}
 label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:4px}
 .field{margin-bottom:14px}
@@ -601,7 +602,7 @@ tr:hover td{background:#f8f9fa}
     <h2>Carica Nuovo Logo</h2>
     <form onsubmit="uploadStore(event)" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
       <div class="field" style="flex:1;min-width:180px"><label>Nome negozio</label><input type="text" id="new-store-name" required placeholder="es. NaturaSì" /></div>
-      <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><textarea id="new-store-aliases" rows="4" placeholder="natura si&#10;naturasi&#10;natura sì" style="width:100%;height:160px;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
+      <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><textarea id="new-store-aliases" rows="4" placeholder="natura si&#10;naturasi&#10;natura sì" style="height:160px"></textarea></div>
       <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required onchange="previewAndCrop(this, 'new')" /></div>
       <button type="submit" class="btn btn-primary">Carica</button>
     </form>
@@ -675,7 +676,7 @@ tr:hover td{background:#f8f9fa}
     <form onsubmit="saveStore(event)" enctype="multipart/form-data">
       <input type="hidden" id="edit-store-id" />
       <div class="field"><label>Nome negozio</label><input type="text" id="edit-store-name" required /></div>
-      <div class="field"><label>Alias (uno per riga)</label><textarea id="edit-store-aliases" rows="3" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;resize:vertical"></textarea></div>
+      <div class="field"><label>Alias (uno per riga)</label><textarea id="edit-store-aliases" rows="4" style="height:160px"></textarea></div>
       <div class="field"><label>Logo (lascia vuoto per non cambiare)</label><input type="file" id="edit-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" onchange="previewAndCrop(this, 'edit')" /></div>
       <div id="edit-store-preview" style="margin-bottom:12px"></div>
       <div id="crop-preview-edit" style="margin-top:8px;display:none"></div>
