@@ -7,7 +7,6 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
-import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -26,6 +25,8 @@ import java.io.OutputStream;
 public class FilePickerPlugin extends Plugin {
 
     private static final String TAG = "FilePicker";
+    private static String sPendingData = "";
+    private static String sPendingMime = "";
 
     @PluginMethod
     public void saveFile(PluginCall call) {
@@ -35,64 +36,91 @@ public class FilePickerPlugin extends Plugin {
 
         Log.d(TAG, "saveFile: filename=" + filename + " dataLen=" + data.length());
 
+        // Store in static field (survives activity restart)
+        sPendingData = data;
+        sPendingMime = mimeType;
+
+        // Also write to temp file as backup
         try {
             File tempFile = new File(getContext().getCacheDir(), "export_temp.json");
             FileOutputStream fos = new FileOutputStream(tempFile);
             fos.write(data.getBytes("UTF-8"));
             fos.flush();
             fos.close();
-
-            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType(mimeType);
-            intent.putExtra(Intent.EXTRA_TITLE, filename);
-
-            startActivityForResult(call, intent, "handleSaveResult");
+            Log.d(TAG, "Temp file written, size=" + tempFile.length());
         } catch (Exception e) {
-            Log.e(TAG, "saveFile error", e);
-            call.reject("Errore preparazione: " + e.getMessage());
+            Log.e(TAG, "Temp write failed", e);
         }
+
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(mimeType);
+        intent.putExtra(Intent.EXTRA_TITLE, filename);
+
+        startActivityForResult(call, intent, "handleSaveResult");
     }
 
     @ActivityCallback
     private void handleSaveResult(PluginCall call, ActivityResult result) {
+        Log.d(TAG, "handleSaveResult: resultCode=" + (result != null ? result.getResultCode() : "null"));
+
         if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) {
+            Log.d(TAG, "Cancelled by user");
             call.reject("Salvataggio annullato");
             return;
         }
 
         Uri uri = result.getData().getData();
-        Log.d(TAG, "Saved to URI: " + uri);
+        Log.d(TAG, "Target URI: " + uri);
+
+        // Get data: try static field first, then temp file, then call
+        String data = sPendingData;
+        if (data == null || data.isEmpty()) {
+            Log.d(TAG, "Static field empty, trying call");
+            data = call.getString("data", "");
+        }
+        Log.d(TAG, "Data length from static: " + (sPendingData != null ? sPendingData.length() : "null"));
+
+        if (data == null || data.isEmpty()) {
+            // Last resort: read from temp file
+            try {
+                File tempFile = new File(getContext().getCacheDir(), "export_temp.json");
+                if (tempFile.exists()) {
+                    byte[] bytes = new byte[(int) tempFile.length()];
+                    FileInputStream fis = new FileInputStream(tempFile);
+                    fis.read(bytes);
+                    fis.close();
+                    data = new String(bytes, "UTF-8");
+                    Log.d(TAG, "Read from temp file: " + data.length() + " bytes");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Temp read failed", e);
+            }
+        }
+
+        if (data == null || data.isEmpty()) {
+            Log.e(TAG, "No data to write!");
+            call.reject("Nessun dato da salvare");
+            return;
+        }
 
         try {
-            File tempFile = new File(getContext().getCacheDir(), "export_temp.json");
-            if (!tempFile.exists()) {
-                call.reject("File temporaneo non trovato");
-                return;
-            }
-
-            InputStream is = new FileInputStream(tempFile);
-            OutputStream os = getContext().getContentResolver().openOutputStream(uri);
+            OutputStream os = getContext().getContentResolver().openOutputStream(uri, "wt");
             if (os == null) {
-                is.close();
                 call.reject("Impossibile aprire il file di destinazione");
                 return;
             }
 
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            long totalWritten = 0;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-                totalWritten += bytesRead;
-            }
+            byte[] bytes = data.getBytes("UTF-8");
+            os.write(bytes);
             os.flush();
             os.close();
-            is.close();
-            tempFile.delete();
-            Log.d(TAG, "Written " + totalWritten + " bytes");
+            Log.d(TAG, "Written " + bytes.length + " bytes to " + uri);
 
             String displayName = getDisplayName(uri);
+
+            // Clear static data
+            sPendingData = "";
 
             // Open share sheet
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
@@ -107,8 +135,8 @@ public class FilePickerPlugin extends Plugin {
             res.put("filename", displayName);
             call.resolve(res);
         } catch (Exception e) {
-            Log.e(TAG, "handleSaveResult error", e);
-            call.reject("Errore: " + e.getMessage());
+            Log.e(TAG, "Write error", e);
+            call.reject("Errore scrittura: " + e.getMessage());
         }
     }
 
