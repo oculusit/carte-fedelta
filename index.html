@@ -28,6 +28,17 @@
         console.log('PWA: SW ready', reg.active ? 'active' : 'inactive')
       })
     }
+    // Global error display — shows JS errors on screen (remove after debugging)
+    window.addEventListener('error', function(e) {
+      document.body.innerHTML = '<pre style="color:red;background:#fff;padding:16px;white-space:pre-wrap;word-break:break-all;font-size:14px;">' +
+        'ERROR: ' + (e.message || '') + '\n' +
+        'File: ' + (e.filename || '') + ':' + (e.lineno || '') + ':' + (e.colno || '') + '\n' +
+        (e.error && e.error.stack ? 'Stack:\n' + e.error.stack : '') + '</pre>'
+    })
+    window.addEventListener('unhandledrejection', function(e) {
+      document.body.innerHTML = '<pre style="color:red;background:#fff;padding:16px;white-space:pre-wrap;word-break:break-all;font-size:14px;">' +
+        'UNHANDLED PROMISE:\n' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason)) + '</pre>'
+    })
   </script>
 </head>
 <body>
