@@ -194,7 +194,7 @@ import { useAppStore } from '../stores/app.js'
 import { api } from '../services/api.js'
 import { toast } from '../services/toast.js'
 import { detectBarcodeType, validateChecksum } from '../utils/barcodeUtils.js'
-import { predefinedLogos, placeholderSvg, barcodeTypeDefaultLogo } from '../utils/logoStore.js'
+import { predefinedLogos, textPlaceholderSvg, barcodeTypeDefaultLogo } from '../utils/logoStore.js'
 import { httpFetch } from '../services/http.js'
 import BarcodeScanner from '../components/BarcodeScanner.vue'
 import LogoCropper from '../components/LogoCropper.vue'
@@ -270,7 +270,12 @@ onMounted(async () => {
         ...card,
         is_private: card.is_private ? true : false,
       }
-      if (card.logo_data) selectedStoreLogo.value = card.logo_data
+      if (card.logo_data) {
+        selectedStoreLogo.value = card.logo_data
+      } else {
+        // No logo on card → proactively check backend
+        await onStoreNameChange()
+      }
     }
   }
 
@@ -520,10 +525,11 @@ async function autoDetectType() {
         await applyStoreLogo(dbStore)
         return
       }
-      form.value.logo_type = 'predefined'
-      form.value.logo_path = logoKey
+      form.value.logo_type = 'none'
+      form.value.logo_path = ''
       form.value.logo_data = ''
-      selectedStoreLogo.value = placeholderSvg(logo.color, logo.name.charAt(0).toUpperCase())
+      selectedStoreLogo.value = ''
+      showLogoProposal.value = true
     }
   }
 }
@@ -554,6 +560,28 @@ async function save() {
     form.value.store_name = form.value.store_name.trim()
     form.value.card_number = form.value.card_number.trim()
     form.value.holder_name = form.value.holder_name.trim()
+
+    // No logo → generate text placeholder, save locally, submit for approval
+    if (!form.value.logo_data) {
+      const placeholder = textPlaceholderSvg(form.value.store_name)
+      form.value.logo_data = placeholder
+      form.value.logo_type = 'upload'
+      form.value.logo_path = ''
+      selectedStoreLogo.value = placeholder
+      // Submit placeholder to approval queue (fire-and-forget)
+      try {
+        await httpFetch('./api/logos/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            store_name: form.value.store_name,
+            image_data: placeholder,
+            notes: 'Logo testuale generato automaticamente dall\'app. Da sostituire con logo ufficiale.'
+          })
+        })
+      } catch {}
+    }
+
     const data = { ...form.value }
     if (!data.logo_data) delete data.logo_data
     if (isEdit.value) {

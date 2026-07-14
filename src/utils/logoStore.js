@@ -44,3 +44,25 @@ function hashColor(str) {
 export function placeholderSvg(color, letter) {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" rx="8" fill="${color}"/><text x="20" y="28" text-anchor="middle" font-size="18" fill="#fff" font-family="sans-serif">${letter}</text></svg>`)}`
 }
+
+export function textPlaceholderSvg(storeName) {
+  const name = (storeName || '?').trim()
+  const color = hashColor(name)
+  const W = 200, H = 136
+  let fontSize = 28
+  while (fontSize > 10 && name.length * fontSize * 0.6 > W - 20) fontSize -= 2
+  const lines = []
+  if (name.length * fontSize * 0.6 > W - 20) {
+    const mid = Math.ceil(name.length / 2)
+    const l1 = name.slice(0, mid), l2 = name.slice(mid)
+    let fs2 = fontSize
+    while (fs2 > 10 && (l1.length + l2.length) * fs2 * 0.6 > (W - 20) * 2) fs2 -= 2
+    lines.push(`<text x="${W/2}" y="${H/2 - fs2*0.3}" text-anchor="middle" font-size="${fs2}" fill="#fff" font-family="sans-serif" font-weight="bold">${escSvg(l1)}</text>`)
+    lines.push(`<text x="${W/2}" y="${H/2 + fs2*1.1}" text-anchor="middle" font-size="${fs2}" fill="#fff" font-family="sans-serif" font-weight="bold">${escSvg(l2)}</text>`)
+  } else {
+    lines.push(`<text x="${W/2}" y="${H/2 + fontSize*0.35}" text-anchor="middle" font-size="${fontSize}" fill="#fff" font-family="sans-serif" font-weight="bold">${escSvg(name)}</text>`)
+  }
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="${W}" height="${H}" rx="12" fill="${color}"/>${lines.join('')}</svg>`)}`
+}
+
+function escSvg(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }

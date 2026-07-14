@@ -65,7 +65,7 @@ const imgRef = ref(null)
 const viewportRef = ref(null)
 const imgNatural = ref({ w: 0, h: 0 })
 
-const vpW = ref(Math.min(360, window.innerWidth - 40))
+const vpW = ref(Math.min(300, window.innerWidth - 60))
 const vpH = ref(Math.round(vpW.value / ASPECT))
 const zoom = ref(1)
 const panX = ref(0)
