@@ -236,6 +236,10 @@ export const useAppStore = defineStore('app', () => {
     error.value = null
     try {
       await db.delete(id)
+      // Track deleted ID so syncMerge won't re-import it from server
+      const deleted = JSON.parse(localStorage.getItem('deleted_ids') || '{}')
+      deleted[id] = Date.now()
+      localStorage.setItem('deleted_ids', JSON.stringify(deleted))
       await syncToSupabase({ id }, 'delete')
       cards.value = cards.value.filter(c => c.id !== id)
     } catch (e) {

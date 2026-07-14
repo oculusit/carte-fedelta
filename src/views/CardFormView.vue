@@ -232,6 +232,7 @@ const submittingLogo = ref(false)
 const logoSubmitResult = ref(null)
 const showLogoEditor = ref(false)
 const editLogoData = ref('')
+let storeNameChanging = false
 
 const form = ref({
   store_name: '',
@@ -306,41 +307,46 @@ function findStoreByAlias(query) {
 }
 
 async function onStoreNameChange() {
-  showLogoProposal.value = false
-  logoSubmitResult.value = null
-  if (allStores.value.length > 0) {
-    filterStores(form.value.store_name)
-    showDropdown.value = storeResults.value.length > 0
-    // Check exact match on name or alias
-    const match = findStoreByAlias(form.value.store_name)
-    if (match) {
-      form.value.store_name = match.name
-      await applyStoreLogo(match)
-      return
-    }
-  }
-  // Check backend server for custom logo
-  if (form.value.store_name.trim()) {
-    try {
-      const res = await httpFetch(`./api/logos/${encodeURIComponent(form.value.store_name.trim())}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data?.logo_data) {
-          // If backend returned official name (different from input), use it
-          if (data.store_name && data.store_name !== form.value.store_name.trim()) {
-            form.value.store_name = data.store_name
-          }
-          selectedStoreLogo.value = data.logo_data
-          form.value.logo_type = 'upload'
-          form.value.logo_data = data.logo_data
-          form.value.logo_path = ''
-          return
-        }
+  if (storeNameChanging) return
+  storeNameChanging = true
+  try {
+    showLogoProposal.value = false
+    logoSubmitResult.value = null
+    if (allStores.value.length > 0) {
+      filterStores(form.value.store_name)
+      showDropdown.value = storeResults.value.length > 0
+      // Check exact match on name or alias
+      const match = findStoreByAlias(form.value.store_name)
+      if (match) {
+        form.value.store_name = match.name
+        await applyStoreLogo(match)
+        return
       }
-    } catch {}
+    }
+    // Check backend server for custom logo
+    if (form.value.store_name.trim()) {
+      try {
+        const res = await httpFetch(`./api/logos/${encodeURIComponent(form.value.store_name.trim())}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.logo_data) {
+            if (data.store_name && data.store_name !== form.value.store_name.trim()) {
+              form.value.store_name = data.store_name
+            }
+            selectedStoreLogo.value = data.logo_data
+            form.value.logo_type = 'upload'
+            form.value.logo_data = data.logo_data
+            form.value.logo_path = ''
+            return
+          }
+        }
+      } catch {}
+    }
+    selectedStoreLogo.value = ''
+    showLogoProposal.value = true
+  } finally {
+    storeNameChanging = false
   }
-  selectedStoreLogo.value = ''
-  showLogoProposal.value = true
 }
 
 function onStoreFocus() {
@@ -364,12 +370,28 @@ async function applyStoreLogo(s) {
     form.value.logo_type = 'upload'
     form.value.logo_data = storeData.logo_data
     form.value.logo_path = ''
-  } else {
-    selectedStoreLogo.value = ''
-    form.value.logo_type = 'none'
-    form.value.logo_data = ''
-    form.value.logo_path = ''
+    return
   }
+  // Fallback: try backend logo endpoint by store name
+  if (s.name) {
+    try {
+      const res = await httpFetch(`./api/logos/${encodeURIComponent(s.name)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.logo_data) {
+          selectedStoreLogo.value = data.logo_data
+          form.value.logo_type = 'upload'
+          form.value.logo_data = data.logo_data
+          form.value.logo_path = ''
+          return
+        }
+      }
+    } catch {}
+  }
+  selectedStoreLogo.value = ''
+  form.value.logo_type = 'none'
+  form.value.logo_data = ''
+  form.value.logo_path = ''
 }
 
 async function selectStore(s) {

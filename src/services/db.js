@@ -107,10 +107,21 @@ export const db = {
     const pendingIds = new Set(
       existingCards.filter(c => c.sync_status === 'pending').map(c => c.id)
     )
+    // Load deleted IDs and clean entries older than 30 days
+    const deletedRaw = JSON.parse(localStorage.getItem('deleted_ids') || '{}')
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+    const deletedIds = new Set()
+    for (const [id, ts] of Object.entries(deletedRaw)) {
+      if (ts > cutoff) deletedIds.add(id)
+    }
+    localStorage.setItem('deleted_ids', JSON.stringify(
+      Object.fromEntries([...deletedIds].map(id => [id, deletedRaw[id]]))
+    ))
     return withStore('readwrite', (store) => {
       let count = 0
       cards.forEach((card) => {
         if (pendingIds.has(card.id)) return
+        if (deletedIds.has(card.id)) return
         const data = {
           ...card,
           id: card.id || crypto.randomUUID(),
