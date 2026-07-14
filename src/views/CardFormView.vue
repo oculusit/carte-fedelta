@@ -5,8 +5,9 @@
 
       <div class="input-group" ref="storeInputRef">
         <label>Nome negozio *</label>
-        <div v-if="selectedStoreLogo" class="store-logo-preview">
+        <div v-if="selectedStoreLogo" class="store-logo-preview clickable-logo" @click="openLogoEditor" title="Clicca per modificare il logo">
           <img :src="selectedStoreLogo" alt="logo" />
+          <span class="logo-edit-badge">✎</span>
         </div>
         <div class="input-row store-input-row">
           <input
@@ -126,6 +127,19 @@
         <button class="btn btn-outline btn-sm mt-8" @click="showLogoProposal = false">Non ora</button>
       </div>
 
+      <div v-if="showLogoEditor" class="input-group logo-proposal">
+        <label>Modifica logo per "{{ form.store_name.trim() }}"</label>
+        <LogoCropper v-model="editLogoData" @change="onEditLogoChange" />
+        <div v-if="editLogoData" class="flex-row mt-8" style="gap:8px">
+          <button class="btn btn-primary btn-sm" @click="saveEditLogoLocal" :disabled="submittingLogo">Salva per me</button>
+          <button class="btn btn-outline btn-sm" @click="submitEditLogoForApproval" :disabled="submittingLogo">
+            {{ submittingLogo ? 'Invio...' : 'Invia per approvazione' }}
+          </button>
+        </div>
+        <p v-if="logoSubmitResult" :class="logoSubmitResult.ok ? 'test-ok' : 'test-err'" class="mt-8">{{ logoSubmitResult.msg }}</p>
+        <button class="btn btn-outline btn-sm mt-8" @click="showLogoEditor = false">Annulla</button>
+      </div>
+
       <div class="input-group">
         <label class="checkbox-label">
           <input v-model="form.is_private" type="checkbox" />
@@ -223,6 +237,8 @@ const showLogoProposal = ref(false)
 const proposedLogoData = ref('')
 const submittingLogo = ref(false)
 const logoSubmitResult = ref(null)
+const showLogoEditor = ref(false)
+const editLogoData = ref('')
 
 const form = ref({
   store_name: '',
@@ -397,6 +413,59 @@ async function submitLogoForApproval() {
       logoSubmitResult.value = { ok: true, msg: data.message || 'Logo inviato per approvazione e salvato localmente!' }
       proposedLogoData.value = ''
       showLogoProposal.value = false
+    } else {
+      logoSubmitResult.value = { ok: false, msg: data.error || 'Errore durante l\'invio' }
+    }
+  } catch (e) {
+    logoSubmitResult.value = { ok: false, msg: 'Errore di rete: ' + (e.message || e) }
+  } finally {
+    submittingLogo.value = false
+  }
+}
+
+function openLogoEditor() {
+  editLogoData.value = selectedStoreLogo.value || ''
+  showLogoEditor.value = true
+  showLogoProposal.value = false
+  logoSubmitResult.value = null
+}
+
+function onEditLogoChange(data) {
+  editLogoData.value = data
+}
+
+function saveEditLogoLocal() {
+  if (!editLogoData.value) return
+  form.value.logo_type = 'upload'
+  form.value.logo_data = editLogoData.value
+  form.value.logo_path = ''
+  selectedStoreLogo.value = editLogoData.value
+  showLogoEditor.value = false
+  editLogoData.value = ''
+}
+
+async function submitEditLogoForApproval() {
+  if (!editLogoData.value || !form.value.store_name.trim()) return
+  submittingLogo.value = true
+  logoSubmitResult.value = null
+  try {
+    const res = await httpFetch(`./api/logos/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        store_name: form.value.store_name.trim(),
+        image_data: editLogoData.value,
+      }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      form.value.logo_type = 'upload'
+      form.value.logo_data = editLogoData.value
+      form.value.logo_path = ''
+      selectedStoreLogo.value = editLogoData.value
+      logoSubmitResult.value = { ok: true, msg: 'Logo salvato e inviato per approvazione!' }
+      editLogoData.value = ''
+      showLogoEditor.value = false
     } else {
       logoSubmitResult.value = { ok: false, msg: data.error || 'Errore durante l\'invio' }
     }
@@ -611,6 +680,30 @@ textarea {
   object-fit: contain;
   border-radius: 12px;
 }
+.clickable-logo {
+  cursor: pointer;
+  position: relative;
+  transition: opacity .15s;
+}
+.clickable-logo:hover { opacity: .85; }
+.logo-edit-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.clickable-logo:hover .logo-edit-badge { opacity: 1; }
+.flex-row { display: flex; gap: 8px; align-items: center; }
 .store-autocomplete {
   position: absolute;
   top: 100%;
