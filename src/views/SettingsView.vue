@@ -59,9 +59,8 @@
         <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
           {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
         </button>
-        <button class="btn btn-share btn-block" @click="shareBackup" :disabled="exporting" title="Condividi backup">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align:middle;margin-right:4px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="1.5"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="1.5"/></svg>
-          Condividi
+        <button class="btn btn-share" @click="shareBackup" :disabled="exporting" title="Condividi backup" style="flex:0 0 auto;padding:10px 14px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="1.5"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="1.5"/></svg>
         </button>
         <button class="btn btn-outline btn-block" @click="$refs.importInput.click()">
           Importa backup
