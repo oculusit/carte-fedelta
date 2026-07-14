@@ -465,7 +465,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f0f2f5;color:#1a
 .card h2{font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .card h3{font-size:14px;margin-bottom:12px;color:#555}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-.stat{background:#f8f9fa;border-radius:10px;padding:16px;text-align:center}
+.stat{background:#f8f9fa;border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:background .15s,box-shadow .15s}
+.stat:hover{background:#e8f0fe;box-shadow:0 2px 8px rgba(26,115,232,.15)}
 .stat .num{font-size:28px;font-weight:700;color:#1a73e8}
 .stat .label{font-size:12px;color:#888;margin-top:4px}
 input[type=text],input[type=email],input[type=password],input[type=number],input[type=url],select{padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;width:100%;background:#fff;color:#1a1a2e}
@@ -514,7 +515,7 @@ tr:hover td{background:#f8f9fa}
 <div class="nav">
   <a class="active" onclick="showSection('dashboard')">Dashboard</a>
   <a onclick="showSection('logos-queue')">Coda Loghi<?php if ($pendingCount > 0): ?><span class="badge"><?= $pendingCount ?></span><?php endif; ?></a>
-  <a onclick="showSection('custom-logos')">Loghi Personalizzati</a>
+  <a onclick="showSection('custom-logos')">Loghi Approvati</a>
   <?php if ($isSuper): ?>
   <a onclick="showSection('admins')">Amministratori</a>
   <a onclick="showSection('email-config')">Email</a>
@@ -527,10 +528,10 @@ tr:hover td{background:#f8f9fa}
 <!-- Dashboard -->
 <div id="dashboard" class="section active">
   <div class="grid">
-    <div class="stat"><div class="num"><?= $pendingCount ?></div><div class="label">Loghi in attesa</div></div>
-    <div class="stat"><div class="num"><?= $customCount ?></div><div class="label">Loghi personalizzati</div></div>
+    <div class="stat" style="cursor:pointer" onclick="showSection('logos-queue')"><div class="num"><?= $pendingCount ?></div><div class="label">Loghi in attesa</div></div>
+    <div class="stat" style="cursor:pointer" onclick="showSection('custom-logos')"><div class="num"><?= $customCount ?></div><div class="label">Loghi approvati</div></div>
     <?php if ($isSuper): ?>
-    <div class="stat"><div class="num"><?= $adminCount ?></div><div class="label">Amministratori</div></div>
+    <div class="stat" style="cursor:pointer" onclick="showSection('admins')"><div class="num"><?= $adminCount ?></div><div class="label">Amministratori</div></div>
     <?php endif; ?>
   </div>
   <?php if ($pendingCount > 0): ?>
@@ -608,7 +609,7 @@ tr:hover td{background:#f8f9fa}
   </div>
 
   <div class="card">
-    <h2>Negozi con Logo (<?= count($stores) ?>)</h2>
+    <h2>Loghi Approvati (<?= count($stores) ?>)</h2>
     <?php if (empty($stores)): ?>
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
