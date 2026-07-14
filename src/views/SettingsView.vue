@@ -275,14 +275,31 @@ async function exportBackup() {
 
     const isNative = Capacitor.isNativePlatform()
     if (isNative) {
-      await Filesystem.writeFile({
-        path: filename,
-        data: json,
-        directory: Directory.Downloads,
-        encoding: Encoding.UTF8,
-      })
-      backupPath.value = 'Download'
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File salvato nella cartella <strong>Download</strong> del telefono.` }
+      const file = new File([json], filename, { type: 'application/json' })
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
+        backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File condiviso con successo!` }
+      } else {
+        const saved = await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.Data,
+          encoding: Encoding.UTF8,
+        })
+        const read = await Filesystem.readFile({
+          path: filename,
+          directory: Directory.Data,
+          encoding: Encoding.UTF8,
+        })
+        const blob = new Blob([read.data], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+        backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      }
     } else {
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -295,7 +312,9 @@ async function exportBackup() {
       backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File scaricato nella cartella <strong>Download</strong>.` }
     }
   } catch (e) {
-    backupResult.value = { ok: false, msg: 'Errore esportazione: ' + (e.message || e) }
+    if (e.name !== 'AbortError') {
+      backupResult.value = { ok: false, msg: 'Errore esportazione: ' + (e.message || e) }
+    }
   } finally {
     exporting.value = false
   }
@@ -336,26 +355,15 @@ async function shareBackup() {
       await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
       backupResult.value = { ok: true, msg: 'Backup condiviso con successo!' }
     } else {
-      // Fallback: save file then try to open file manager
-      const isNative = Capacitor.isNativePlatform()
-      if (isNative) {
-        await Filesystem.writeFile({
-          path: filename,
-          data: json,
-          directory: Directory.Downloads,
-          encoding: Encoding.UTF8,
-        })
-        backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.` }
-      } else {
-        const blob = new Blob([json], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.click()
-        URL.revokeObjectURL(url)
-        backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.` }
-      }
+      // Fallback: download link
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      backupResult.value = { ok: true, msg: `Backup salvato.` }
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
