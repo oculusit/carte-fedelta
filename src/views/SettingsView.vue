@@ -111,6 +111,7 @@ import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js
 import { toast } from '../services/toast.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 
 const store = useAppStore()
 
@@ -270,16 +271,29 @@ async function exportBackup() {
       cards: allCards,
     }
     const json = JSON.stringify(backup, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
 
-    backupPath.value = 'Download'
-    backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File scaricato nella cartella <strong>Download</strong> del telefono.` }
+    const isNative = Capacitor.isNativePlatform()
+    if (isNative) {
+      await Filesystem.writeFile({
+        path: filename,
+        data: json,
+        directory: Directory.Downloads,
+        encoding: Encoding.UTF8,
+      })
+      backupPath.value = 'Download'
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File salvato nella cartella <strong>Download</strong> del telefono.` }
+    } else {
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      backupPath.value = 'Download'
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. File scaricato nella cartella <strong>Download</strong>.` }
+    }
   } catch (e) {
     backupResult.value = { ok: false, msg: 'Errore esportazione: ' + (e.message || e) }
   } finally {
@@ -323,24 +337,25 @@ async function shareBackup() {
       backupResult.value = { ok: true, msg: 'Backup condiviso con successo!' }
     } else {
       // Fallback: save file then try to open file manager
-      const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.click()
-      URL.revokeObjectURL(url)
-
       const isNative = Capacitor.isNativePlatform()
       if (isNative) {
-        // On Android, try to open Downloads folder via intent
-        try {
-          const intent = 'content://com.android.externalstorage.documents/root/primary/Download'
-          window.open(intent, '_system')
-        } catch {}
+        await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.Downloads,
+          encoding: Encoding.UTF8,
+        })
+        backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.` }
+      } else {
+        const blob = new Blob([json], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+        backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.` }
       }
-
-      backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.${isNative ? ' Si aprirà la cartella: condividi il file dall\'app Gestione File.' : ''}` }
     }
   } catch (e) {
     if (e.name !== 'AbortError') {

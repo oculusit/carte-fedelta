@@ -20,6 +20,7 @@
     "@capacitor/camera": "^8.2.0",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
     "@capacitor/ios": "^8.4.1",
     "@capgo/capacitor-brightness": "^8.0.17",
     "@supabase/supabase-js": "^2.108.2",
