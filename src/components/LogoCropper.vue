@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits(['change'])
 const props = defineProps({ modelValue: { type: String, default: '' } })
@@ -84,6 +84,33 @@ const state = computed(() => {
   if (props.modelValue && !isReplacing.value) return 'preview'
   return 'empty'
 })
+
+let _orientationLocked = false
+
+async function lockLandscape() {
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape')
+      _orientationLocked = true
+    }
+  } catch {}
+}
+
+async function unlockOrientation() {
+  try {
+    if (_orientationLocked && screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock()
+      _orientationLocked = false
+    }
+  } catch {}
+}
+
+watch(state, (s) => {
+  if (s === 'cropping') lockLandscape()
+  else unlockOrientation()
+})
+
+onBeforeUnmount(() => { unlockOrientation() })
 
 const cropBoxStyle = computed(() => ({
   width: cropW.value + 'px',

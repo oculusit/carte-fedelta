@@ -138,6 +138,23 @@ export const useAppStore = defineStore('app', () => {
       const localCards = await db.getAll()
       cards.value = localCards
       saveBackup(localCards)
+      // One-time trim migration: clean store_name / holder_name / card_number
+      if (!localStorage.getItem('trim_migration_done')) {
+        let dirty = 0
+        for (const c of localCards) {
+          const ts = (c.store_name || '').trim()
+          const th = (c.holder_name || '').trim()
+          const tc = (c.card_number || '').trim()
+          if (ts !== c.store_name || th !== c.holder_name || tc !== c.card_number) {
+            dirty++
+            await db.update(c.id, { store_name: ts, holder_name: th, card_number: tc })
+            const idx = cards.value.findIndex(x => x.id === c.id)
+            if (idx !== -1) cards.value.splice(idx, 1, { ...c, store_name: ts, holder_name: th, card_number: tc })
+          }
+        }
+        localStorage.setItem('trim_migration_done', '1')
+        if (dirty) saveBackup(cards.value)
+      }
       if (isSupabaseConfigured() && isOnline.value) {
         await syncMerge()
       }

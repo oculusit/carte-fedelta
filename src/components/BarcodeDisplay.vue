@@ -1,7 +1,8 @@
 <template>
-  <div class="barcode-wrapper" ref="container">
-    <svg v-if="!isQr" ref="barcodeSvg"></svg>
+  <div class="barcode-wrapper">
+    <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg"></svg>
     <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display" />
+    <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below" />
   </div>
 </template>
 
@@ -21,7 +22,12 @@ const container = ref(null)
 const barcodeSvg = ref(null)
 const qrDataUrl = ref('')
 
+const ALPHANUMERIC_TYPES = ['CODE128', 'CODE39', 'ITF', 'MSI', 'FISCALCODE']
+
 const isQr = computed(() => props.type === 'QR' || props.type === 'QRCODE')
+const isAlphanumeric = computed(() => ALPHANUMERIC_TYPES.includes(props.type))
+const showQr = computed(() => isAlphanumeric.value && !isQr.value && props.code)
+const barcodeHeight = computed(() => isAlphanumeric.value ? 100 : props.height)
 
 function render() {
   if (!props.code) return
@@ -35,7 +41,7 @@ function render() {
       JsBarcode(barcodeSvg.value, props.code, {
         format: jsFormat,
         width: props.width,
-        height: props.height,
+        height: barcodeHeight.value,
         displayValue: true,
         fontSize: 14,
         margin: 8,
@@ -44,6 +50,11 @@ function render() {
     } catch (e) {
       console.warn('Barcode render error:', e.message)
     }
+  }
+  if (showQr.value) {
+    QRCode.toDataURL(props.code, { width: 140, margin: 1 })
+      .then(url => { qrDataUrl.value = url })
+      .catch(() => {})
   }
 }
 
@@ -54,17 +65,25 @@ watch(() => [props.code, props.type], render)
 <style scoped>
 .barcode-wrapper {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   padding: 8px 0;
 }
 
-.barcode-wrapper svg,
-.barcode-wrapper .qr-display {
+.barcode-svg,
+.qr-display,
+.qr-below {
   max-width: 100%;
   height: auto;
 }
 
 .qr-display {
   border-radius: 8px;
+}
+
+.qr-below {
+  border-radius: 6px;
+  width: 120px;
 }
 </style>
