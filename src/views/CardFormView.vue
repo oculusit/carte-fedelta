@@ -482,6 +482,9 @@ async function save() {
 
   saving.value = true
   try {
+    form.value.store_name = form.value.store_name.trim()
+    form.value.card_number = form.value.card_number.trim()
+    form.value.holder_name = form.value.holder_name.trim()
     const data = { ...form.value }
     if (!data.logo_data) delete data.logo_data
     if (isEdit.value) {

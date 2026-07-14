@@ -324,11 +324,13 @@ export const useAppStore = defineStore('app', () => {
     if (Date.now() - lastCheck < 86400000) return
     const allCards = await db.getAll()
     if (!allCards.length) return
-    const storeNames = [...new Set(allCards.map(c => c.store_name))]
+    const storeNames = [...new Set(allCards.map(c => c.store_name.trim()))]
+    let anySuccess = false
     for (const name of storeNames) {
       try {
         const res = await httpFetch(`${base}/logos/${encodeURIComponent(name)}`)
         if (res.ok) {
+          anySuccess = true
           const data = await res.json()
           if (data?.logo_data) {
             await logosDb.set(name, {
@@ -336,7 +338,7 @@ export const useAppStore = defineStore('app', () => {
               logoType: data.logo_type || 'predefined',
               color: data.color || '#1a73e8',
             })
-            const cardsForStore = allCards.filter(c => c.store_name === name)
+            const cardsForStore = allCards.filter(c => c.store_name.trim() === name)
             for (const card of cardsForStore) {
               if (data.logo_data !== card.logo_data) {
                 await updateCard(card.id, {
@@ -349,7 +351,7 @@ export const useAppStore = defineStore('app', () => {
         }
       } catch {}
     }
-    localStorage.setItem('last_logo_check', String(Date.now()))
+    if (anySuccess) localStorage.setItem('last_logo_check', String(Date.now()))
   }
 
   return {
