@@ -6,6 +6,8 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.util.Log;
 
+import androidx.activity.result.ActivityResult;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -53,17 +55,18 @@ public class FilePickerPlugin extends Plugin {
     }
 
     @ActivityCallback
-    private void handleSaveResult(PluginCall call, Intent intent) {
-        Log.d(TAG, "handleSaveResult: intent=" + intent);
+    private void handleSaveResult(PluginCall call, ActivityResult result) {
+        Log.d(TAG, "handleSaveResult: resultCode=" + (result != null ? result.getResultCode() : "null"));
 
-        if (intent == null || intent.getData() == null) {
-            Log.d(TAG, "User cancelled or no data");
+        if (result == null || result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) {
+            Log.d(TAG, "User cancelled");
             call.reject("Salvataggio annullato");
             return;
         }
 
+        Intent intent = result.getData();
         Uri uri = intent.getData();
-        Log.d(TAG, "Selected URI: " + uri.toString());
+        Log.d(TAG, "Selected URI: " + uri);
 
         try {
             File tempFile = new File(getContext().getCacheDir(), "export_temp.json");
@@ -72,13 +75,11 @@ public class FilePickerPlugin extends Plugin {
                 call.reject("File temporaneo non trovato");
                 return;
             }
-            Log.d(TAG, "Temp file exists, size=" + tempFile.length());
 
             InputStream is = new FileInputStream(tempFile);
             OutputStream os = getContext().getContentResolver().openOutputStream(uri);
 
             if (os == null) {
-                Log.e(TAG, "OutputStream is null!");
                 is.close();
                 call.reject("Impossibile aprire il file di destinazione");
                 return;
@@ -94,7 +95,7 @@ public class FilePickerPlugin extends Plugin {
             os.flush();
             os.close();
             is.close();
-            Log.d(TAG, "Written " + totalWritten + " bytes to " + uri.toString());
+            Log.d(TAG, "Written " + totalWritten + " bytes to " + uri);
 
             tempFile.delete();
 
@@ -108,12 +109,12 @@ public class FilePickerPlugin extends Plugin {
                 cursor.close();
             }
 
-            JSObject result = new JSObject();
-            result.put("uri", uri.toString());
-            result.put("filename", displayName);
-            call.resolve(result);
+            JSObject res = new JSObject();
+            res.put("uri", uri.toString());
+            res.put("filename", displayName);
+            call.resolve(res);
         } catch (Exception e) {
-            Log.e(TAG, "handleSaveResult error", e);
+            Log.e(TAG, "Write error", e);
             call.reject("Errore scrittura: " + e.getMessage());
         }
     }
