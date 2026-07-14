@@ -110,6 +110,7 @@ import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
 import { httpFetch } from '../services/http.js'
+import { Capacitor } from '@capacitor/core'
 
 const store = useAppStore()
 
@@ -316,11 +317,30 @@ async function shareBackup() {
     const json = JSON.stringify(backup, null, 2)
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
     const file = new File([json], filename, { type: 'application/json' })
+
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: 'Backup FidAPPti', text: `${allCards.length} carte fedeltà` })
       backupResult.value = { ok: true, msg: 'Backup condiviso con successo!' }
     } else {
-      backupResult.value = { ok: false, msg: 'Condivisione non disponibile su questo dispositivo' }
+      // Fallback: save file then try to open file manager
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+
+      const isNative = Capacitor.isNativePlatform()
+      if (isNative) {
+        // On Android, try to open Downloads folder via intent
+        try {
+          const intent = 'content://com.android.externalstorage.documents/root/primary/Download'
+          window.open(intent, '_system')
+        } catch {}
+      }
+
+      backupResult.value = { ok: true, msg: `Backup salvato nella cartella <strong>Download</strong>.${isNative ? ' Si aprirà la cartella: condividi il file dall\'app Gestione File.' : ''}` }
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
