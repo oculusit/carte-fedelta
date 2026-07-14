@@ -1,6 +1,7 @@
 package it.oculus.carte;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 
@@ -11,15 +12,12 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.ActivityCallback;
 
-import android.database.Cursor;
-
-import java.io.InputStream;
 import java.io.OutputStream;
 
 @CapacitorPlugin(name = "FilePicker")
 public class FilePickerPlugin extends Plugin {
 
-    private PluginCall savedCall;
+    private String pendingData = "";
 
     @PluginMethod
     public void saveFile(PluginCall call) {
@@ -27,7 +25,7 @@ public class FilePickerPlugin extends Plugin {
         String data = call.getString("data", "");
         String mimeType = call.getString("mimeType", "application/json");
 
-        this.savedCall = call;
+        this.pendingData = data;
 
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -45,17 +43,15 @@ public class FilePickerPlugin extends Plugin {
         }
 
         Uri uri = intent.getData();
-        String data = call.getString("data", "");
 
         try {
             OutputStream os = getContext().getContentResolver().openOutputStream(uri);
             if (os != null) {
-                os.write(data.getBytes("UTF-8"));
+                os.write(pendingData.getBytes("UTF-8"));
                 os.flush();
                 os.close();
             }
 
-            // Try to get the display name
             String displayName = "";
             Cursor cursor = getContext().getContentResolver().query(uri, null, null, null, null);
             if (cursor != null) {
