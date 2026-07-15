@@ -274,8 +274,9 @@ async function withLogosStore(mode, callback) {
 
 export const logosDb = {
   async get(storeName) {
+    const key = (storeName || '').toLowerCase()
     return withLogosStore('readonly', (store) => {
-      const req = store.get(storeName)
+      const req = store.get(key)
       return new Promise((resolve) => {
         req.onsuccess = () => resolve(req.result || null)
       })
@@ -292,9 +293,10 @@ export const logosDb = {
   },
 
   async set(storeName, logoData) {
+    const key = (storeName || '').toLowerCase()
     return withLogosStore('readwrite', (store) => {
       const data = {
-        storeName,
+        storeName: key,
         logoData: logoData.logoData,
         logoType: logoData.logoType,
         color: logoData.color,
@@ -306,8 +308,9 @@ export const logosDb = {
   },
 
   async remove(storeName) {
+    const key = (storeName || '').toLowerCase()
     return withLogosStore('readwrite', (store) => {
-      store.delete(storeName)
+      store.delete(key)
       return true
     })
   },

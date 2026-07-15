@@ -8,6 +8,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
+    target: 'chrome61',
   },
   publicDir: 'public',
 })

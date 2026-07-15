@@ -348,7 +348,7 @@ export const useAppStore = defineStore('app', () => {
     const storeNames = [...new Set(allCards.map(c => c.store_name))]
     const cached = await logosDb.getAll()
     const cachedNames = new Set(cached.map(l => l.storeName))
-    const missing = storeNames.filter(n => !cachedNames.has(n))
+    const missing = storeNames.filter(n => !cachedNames.has(n.toLowerCase()))
     for (const name of missing) {
       const card = allCards.find(c => c.store_name === name)
       await loadLogo(name, card?.color)

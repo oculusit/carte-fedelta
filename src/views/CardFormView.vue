@@ -166,7 +166,7 @@
       <p>Il numero scansionato è:</p>
       <p class="scan-confirm-number">{{ scanConfirm.code }}</p>
       <div class="modal-actions">
-        <button class="btn btn-outline" @click="scanConfirm = null">No, riacquisisci</button>
+        <button class="btn btn-outline" @click="scanConfirm = null; showScanner = true">No, riacquisisci</button>
         <button class="btn btn-primary" @click="confirmScanNumber(true)">Sì, è corretto</button>
       </div>
     </div>
