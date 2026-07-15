@@ -36,7 +36,7 @@ public class FilePickerPlugin extends Plugin {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 saveWithMediaStore(call, filename, bytes);
             } else {
-                saveWithFileOutputStream(call, filename, bytes);
+                saveWithExternalFilesDir(call, filename, bytes);
             }
         } catch (Exception e) {
             Log.e(TAG, "saveToDownloads error", e);
@@ -84,8 +84,12 @@ public class FilePickerPlugin extends Plugin {
         call.resolve(result);
     }
 
-    private void saveWithFileOutputStream(PluginCall call, String filename, byte[] bytes) throws Exception {
-        File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+    private void saveWithExternalFilesDir(PluginCall call, String filename, byte[] bytes) throws Exception {
+        File dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        if (dir == null) {
+            call.reject("Cartella Download non disponibile");
+            return;
+        }
         if (!dir.exists()) {
             dir.mkdirs();
         }
@@ -96,7 +100,7 @@ public class FilePickerPlugin extends Plugin {
         fos.flush();
         fos.close();
 
-        Log.d(TAG, "Written " + bytes.length + " bytes via FileOutputStream");
+        Log.d(TAG, "Written " + bytes.length + " bytes to " + file.getAbsolutePath());
 
         JSObject result = new JSObject();
         result.put("uri", Uri.fromFile(file).toString());
