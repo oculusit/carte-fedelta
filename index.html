@@ -21,6 +21,22 @@
       else if (typeof window !== 'undefined') { window.globalThis = window; }
       else if (typeof global !== 'undefined') { global.globalThis = global; }
     }
+    if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
+      var c = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? crypto : { getRandomValues: function(a) { for (var i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256); return a; } };
+      if (!crypto.randomUUID) {
+        crypto.randomUUID = function() {
+          var b = new Uint8Array(16);
+          c.getRandomValues(b);
+          b[6] = (b[6] & 0x0f) | 0x40;
+          b[8] = (b[8] & 0x3f) | 0x80;
+          var h = function(x) { return ('0' + x.toString(16)).slice(-2); };
+          return [0,2,4,6,8,10].map(function(i){return h(b[i])}).join('') + '-' +
+            [12,14].map(function(i){return h(b[i])}).join('') + '-' +
+            h(b[6]) + h(b[7]) + '-' + h(b[8]) + h(b[9]) + '-' +
+            [10,11,12,13,14,15].map(function(i){return h(b[i])}).join('');
+        };
+      }
+    }
   </script>
   <script>
     // Capture beforeinstallprompt immediately, before Vue loads
