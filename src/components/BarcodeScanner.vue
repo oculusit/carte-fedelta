@@ -16,15 +16,15 @@
 
       <div class="scanner-controls">
         <button
-          v-if="isNative && !loading"
+          v-if="!isScanning && !loading"
           class="btn btn-primary btn-block"
-          @click="startScan"
+          @click="startCamera"
           type="button"
         >
-          Scansiona
+          Avvia fotocamera
         </button>
         <button
-          v-if="!isNative && isScanning"
+          v-if="isScanning"
           class="btn btn-danger btn-block"
           @click="stopCamera"
           type="button"
@@ -37,7 +37,7 @@
         </label>
       </div>
 
-      <p v-if="!isNative && isScanning" class="scanner-hint">
+      <p v-if="isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
       </p>
     </div>
@@ -64,82 +64,6 @@ let scanner = null
 let scannerContainer = null
 
 const SCANNER_ID = 'qrcode-scanner-element'
-
-const isNative = !!(window.Capacitor?.isNativePlatform?.())
-
-async function startScan() {
-  loading.value = true
-  loadingMsg.value = 'Apro scanner...'
-  error.value = ''
-  try {
-    const { BarcodeScanner, BarcodeFormat } = await import('@capacitor-mlkit/barcode-scanning')
-
-    const { supported } = await BarcodeScanner.isSupported()
-    if (!supported) {
-      throw new Error('Scanner non supportato su questo dispositivo')
-    }
-
-    const result = await BarcodeScanner.scan({
-      formats: [
-        BarcodeFormat.Code128,
-        BarcodeFormat.Ean13,
-        BarcodeFormat.Ean8,
-        BarcodeFormat.UpcA,
-        BarcodeFormat.UpcE,
-        BarcodeFormat.Code39,
-        BarcodeFormat.Itf,
-        BarcodeFormat.QrCode,
-        BarcodeFormat.Codabar,
-        BarcodeFormat.Code93,
-        BarcodeFormat.DataMatrix,
-        BarcodeFormat.Pdf417,
-      ],
-    })
-
-    if (result.barcodes && result.barcodes.length > 0) {
-      const barcode = result.barcodes[0]
-      let code = barcode.displayValue
-      let type = mapMlkitFormat(barcode.format)
-      if (!type) type = detectBarcodeType(code)
-      if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
-        type = 'EAN13'
-        code = '0' + code
-      }
-      if (type === 'EAN13' && code.length === 12) code = '0' + code
-      emit('scan', { code, type, cameraFormat: true })
-    } else {
-      throw new Error('Nessun codice riconosciuto')
-    }
-  } catch (e) {
-    console.warn('Scan error:', e)
-    if (e.message?.includes('cancel') || e.message?.includes('cancelled') || e.code === 'CAMERA_CANCELLED') {
-      error.value = 'Scansione annullata. Premi "Scansiona" per riprovare.'
-    } else {
-      error.value = 'Errore scanner: ' + (e.message || 'sconosciuto')
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-function mapMlkitFormat(fmt) {
-  const map = {
-    CODE_128: 'CODE128',
-    EAN_13: 'EAN13',
-    EAN_8: 'EAN8',
-    UPC_A: 'UPC',
-    UPC_E: 'UPC',
-    CODE_39: 'CODE39',
-    ITF: 'ITF',
-    QR_CODE: 'QR',
-    CODABAR: 'CODE128',
-    CODE_93: 'CODE128',
-    DATA_MATRIX: 'CODE128',
-    PDF_417: 'CODE128',
-    AZTEC: 'CODE128',
-  }
-  return map[fmt] || ''
-}
 
 function getSupportedFormats() {
   return [
@@ -180,10 +104,6 @@ function removeContainer() {
 }
 
 async function startCamera() {
-  if (isNative) {
-    await startScan()
-    return
-  }
   loading.value = true
   loadingMsg.value = 'Richiedo permesso fotocamera...'
   error.value = ''
@@ -194,7 +114,7 @@ async function startCamera() {
       cameras = await Html5Qrcode.getCameras()
     } catch (permErr) {
       loading.value = false
-      error.value = 'Fotocamera non accessibile. Verifica i permessi del browser (HTTPS richiesto).'
+      error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
       return
     }
 
@@ -251,7 +171,7 @@ async function startCamera() {
     console.warn('Camera error:', e)
 
     if (e.message?.includes('NotAllowed')) {
-      error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del browser (HTTPS richiesto).'
+      error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
     } else if (e.message?.includes('NotFound')) {
       error.value = 'Fotocamera non trovata sul dispositivo.'
     } else if (e.message?.includes('NotReadable')) {
@@ -397,12 +317,8 @@ async function close() {
 
 watch(() => props.active, (val) => {
   if (val) {
-    if (isNative) {
-      error.value = ''
-      startScan()
-    } else {
-      startCamera()
-    }
+    error.value = ''
+    startCamera()
   } else {
     stopCamera()
     error.value = ''

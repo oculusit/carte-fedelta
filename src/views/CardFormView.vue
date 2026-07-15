@@ -149,6 +149,11 @@
     </div>
   </div>
 
+  <div v-if="saving" class="saving-overlay">
+    <div class="saving-spinner"></div>
+    <p>Salvataggio...</p>
+  </div>
+
   <BarcodeScanner
     :active="showScanner"
     @scan="onScanResult"
@@ -248,6 +253,7 @@ const form = ref({
 })
 
 onMounted(async () => {
+  window.scrollTo(0, 0)
   nextTick(() => firstInputRef.value?.focus())
 
   // Load stores from API for autocomplete
@@ -866,5 +872,29 @@ textarea {
   font-family: monospace;
   letter-spacing: 2px;
   padding: 12px 0;
+}
+.saving-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10000;
+  color: white;
+  font-size: 16px;
+}
+.saving-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
