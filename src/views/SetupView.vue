@@ -98,7 +98,7 @@
         </div>
         <div class="input-group">
           <label>Nome mittente</label>
-          <input v-model="mail.from_name" type="text" placeholder="Carte Fedeltà" />
+          <input v-model="mail.from_name" type="text" placeholder="FidAPPti" />
         </div>
         <div class="input-group">
           <label>Reply-To</label>
@@ -151,7 +151,7 @@
         </div>
         <div class="input-group">
           <label>Nome mittente</label>
-          <input v-model="mail.from_name" type="text" placeholder="Carte Fedeltà" />
+          <input v-model="mail.from_name" type="text" placeholder="FidAPPti" />
         </div>
       </div>
 
@@ -305,7 +305,7 @@ const db = ref({
 const mail = ref({
   mode: 'mail',
   from: '',
-  from_name: 'Carte Fedeltà',
+  from_name: 'FidAPPti',
   reply_to: '',
   return_path: '',
   smtp_host: '',

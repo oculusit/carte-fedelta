@@ -4,10 +4,17 @@ const FilePickerNative = registerPlugin('FilePicker', {
   web: () => Promise.resolve({
     saveToDownloads: async ({ filename }) => {
       return { path: filename, filename, size: 0 }
+    },
+    pickFile: async () => {
+      throw new Error('pickFile not supported on web, use native file input')
     }
   }),
 })
 
 export async function saveToDownloads({ filename, data }) {
   return FilePickerNative.saveToDownloads({ filename, data })
+}
+
+export async function pickJsonFile() {
+  return FilePickerNative.pickFile({ acceptType: 'application/json' })
 }

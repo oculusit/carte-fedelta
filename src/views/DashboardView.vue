@@ -49,7 +49,7 @@
 
       <template v-if="otherCards.length > 0">
         <div :class="{ 'section-spacer': favoriteCards.length > 0 }"></div>
-        <h3 class="section-title">💳 Portafoglio Carte Fedeltà</h3>
+        <h3 class="section-title">💳 Portafoglio FidAPPti</h3>
         <BarcodeCard
           v-for="card in otherCards"
           :key="card.id"

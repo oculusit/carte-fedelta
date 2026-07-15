@@ -1,12 +1,19 @@
 package it.oculus.carte;
 
+import android.app.Activity;
 import android.content.ContentValues;
 import android.content.ContentResolver;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -14,14 +21,96 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 
 @CapacitorPlugin(name = "FilePicker")
 public class FilePickerPlugin extends Plugin {
 
     private static final String TAG = "FilePicker";
+    private PluginCall pendingPickCall;
+    private ActivityResultLauncher<Intent> pickLauncher;
+
+    @Override
+    public void load() {
+        super.load();
+        pickLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            (ActivityResult result) -> {
+                if (pendingPickCall == null) return;
+                PluginCall call = pendingPickCall;
+                pendingPickCall = null;
+
+                if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+                    call.reject("Selezione annullata");
+                    return;
+                }
+
+                Uri uri = result.getData().getData();
+                if (uri == null) {
+                    call.reject("Nessun file selezionato");
+                    return;
+                }
+
+                try {
+                    ContentResolver resolver = getContext().getContentResolver();
+                    InputStream is = resolver.openInputStream(uri);
+                    if (is == null) {
+                        call.reject("Impossibile leggere il file");
+                        return;
+                    }
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    reader.close();
+                    is.close();
+
+                    String fileName = uri.getLastPathSegment();
+                    if (fileName == null) fileName = "file.json";
+
+                    JSObject ret = new JSObject();
+                    ret.put("content", sb.toString());
+                    ret.put("fileName", fileName);
+                    ret.put("uri", uri.toString());
+                    call.resolve(ret);
+                } catch (Exception e) {
+                    Log.e(TAG, "pickFile read error", e);
+                    call.reject("Errore lettura file: " + e.getMessage());
+                }
+            }
+        );
+    }
+
+    @PluginMethod
+    public void pickFile(PluginCall call) {
+        if (pendingPickCall != null) {
+            call.reject("Un'altra selezione file è già in corso");
+            return;
+        }
+
+        String acceptType = call.getString("acceptType", "*/*");
+
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType(acceptType);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{ acceptType });
+
+        pendingPickCall = call;
+        try {
+            pickLauncher.launch(intent);
+        } catch (Exception e) {
+            pendingPickCall = null;
+            Log.e(TAG, "pickFile launch error", e);
+            call.reject("Impossibile aprire il selettore file: " + e.getMessage());
+        }
+    }
 
     @PluginMethod
     public void saveToDownloads(PluginCall call) {

@@ -8,7 +8,7 @@
       <p>Oculus.it<br />Email: <a href="mailto:info@oculus.it">info@oculus.it</a></p>
 
       <h3>2. Dati raccolti</h3>
-      <p>Registrandoti all'applicazione "Carte Fedeltà", raccogliamo i seguenti dati personali:</p>
+      <p>Registrandoti all'applicazione "FidAPPti", raccogliamo i seguenti dati personali:</p>
       <ul>
         <li>Indirizzo email</li>
         <li>Password (memorizzata in forma crittografata)</li>

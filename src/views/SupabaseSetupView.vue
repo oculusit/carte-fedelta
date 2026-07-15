@@ -93,7 +93,7 @@
         </div>
         <p>Dalla dashboard di Supabase, clicca su <strong>"New Project"</strong>.</p>
         <ul class="step-list">
-          <li>Scegli un nome a piacere (es. "Carte Fedeltà")</li>
+          <li>Scegli un nome a piacere (es. "FidAPPti")</li>
           <li>Imposta una password sicura per il database</li>
           <li>Scegli il server più vicino a te</li>
           <li>Attendi circa 1-2 minuti per la creazione</li>

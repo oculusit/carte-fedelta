@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ============================================
-echo  Carte Fedeltà - Build per deploy
+echo  FidAPPti - Build per deploy
 echo ============================================
 echo.
 

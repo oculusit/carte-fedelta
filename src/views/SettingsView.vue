@@ -59,10 +59,10 @@
         <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
           {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
         </button>
-        <button class="btn btn-outline btn-block" @click="$refs.importInput.click()">
+        <button class="btn btn-outline btn-block" @click="triggerImport">
           Importa backup
         </button>
-        <input ref="importInput" type="file" accept=".json" @change="importBackup" hidden />
+        <input v-if="!Capacitor.isNativePlatform()" ref="importInput" type="file" accept=".json" @change="importBackupFromInput" hidden />
       </div>
       <p v-if="backupResult" :class="backupResult.ok ? 'test-ok' : 'test-err'" v-html="backupResult.msg"></p>
       <p class="backup-path" v-if="backupPath">Cartella download: <code>{{ backupPath }}</code></p>
@@ -121,7 +121,7 @@ import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
-import { saveToDownloads } from '../services/filePicker.js'
+import { saveToDownloads, pickJsonFile } from '../services/filePicker.js'
 
 const store = useAppStore()
 
@@ -335,7 +335,37 @@ function downloadBlob(blob, filename, count) {
   backupResult.value = { ok: true, msg: `Backup esportato: ${count} carte. File scaricato.` }
 }
 
-async function importBackup(e) {
+async function triggerImport() {
+  if (Capacitor.isNativePlatform()) {
+    await importBackupNative()
+  } else {
+    importInput.value?.click()
+  }
+}
+
+async function importBackupNative() {
+  backupResult.value = null
+  try {
+    const result = await pickJsonFile()
+    console.log('[import] Native pick OK, fileName:', result.fileName, 'content length:', result.content.length)
+    const backup = JSON.parse(result.content)
+    if (!backup.cards || !Array.isArray(backup.cards)) {
+      backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
+      return
+    }
+    const validCards = backup.cards.filter(c => c.id && c.store_name && c.card_number)
+    console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
+    await store.importCardsFromBackup(validCards)
+    console.log('[import] Import OK')
+    backupResult.value = { ok: true, msg: `Importate ${validCards.length} carte da backup` }
+  } catch (e) {
+    if (e.message && e.message.includes('annullata')) return
+    console.error('[import] Native ERROR:', e)
+    backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
+  }
+}
+
+async function importBackupFromInput(e) {
   const file = e.target.files?.[0]
   if (!file) return
   backupResult.value = null

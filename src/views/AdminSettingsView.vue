@@ -18,7 +18,7 @@
       <p class="section-desc">Nome personalizzato mostrato nel titolo della pagina e nelle email.</p>
       <div class="input-group">
         <label>Nome applicazione</label>
-        <input v-model="form.app_name" type="text" placeholder="Carte Fedeltà" />
+        <input v-model="form.app_name" type="text" placeholder="FidAPPti" />
       </div>
     </div>
 
@@ -44,7 +44,7 @@
       </div>
       <div class="input-group">
         <label>Nome mittente</label>
-        <input v-model="form.mail_from_name" type="text" placeholder="Carte Fedeltà" />
+        <input v-model="form.mail_from_name" type="text" placeholder="FidAPPti" />
       </div>
       <div class="input-group">
         <label>Rispondi a (Reply-To)</label>
@@ -253,7 +253,7 @@ const form = reactive({
   app_name: '',
   mail_mode: 'mail',
   mail_from: '',
-  mail_from_name: 'Carte Fedeltà',
+  mail_from_name: 'FidAPPti',
   mail_reply_to: '',
   mail_return_path: '',
   smtp_host: '',

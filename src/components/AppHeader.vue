@@ -2,11 +2,11 @@
   <header class="app-header">
     <div class="header-inner">
       <a class="header-logo" href="#" @click.prevent="$router.push('/')" title="Home">
-        <img v-if="logoOk" :src="logoSrc" alt="Carte Fedeltà" class="header-logo-img" @error="logoOk = false" />
-        <svg v-else class="header-logo-svg" viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6v-2zm0 4h8v2H6v-2zm10 0h2v2h-2v-2zm-6-4h8v2h-8v-2z"/></svg>
+        <img v-if="logoOk" :src="logoSrc" alt="FidAPPti" class="header-logo-img" @error="logoOk = false" />
+        <svg v-else class="header-logo-svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2"/></svg>
       </a>
       <button class="header-back" v-if="showBack" @click="goBack">
-        <span class="icon">←</span>
+        <svg class="back-chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <h1 class="header-title">{{ title }}</h1>
       <div class="header-actions">
@@ -39,7 +39,7 @@ const router = useRouter()
 const store = useAppStore()
 
 const logoOk = ref(true)
-const logoSrc = './api/site-logo'
+const logoSrc = './fidappti-logo.png'
 const reloading = ref(false)
 
 async function clearAndReload() {
@@ -56,14 +56,14 @@ async function clearAndReload() {
 }
 
 const title = computed(() => {
-  if (route.name === 'dashboard') return store.appName || 'Carte Fedeltà'
+  if (route.name === 'dashboard') return store.appName || 'FidAPPti'
   const specific = {
     'card-new': 'Nuova Carta',
     'card-detail': 'Dettaglio Carta',
     'card-edit': 'Modifica Carta',
     settings: 'Impostazioni',
   }
-  return specific[route.name] || store.appName || 'Carte Fedeltà'
+  return specific[route.name] || store.appName || 'FidAPPti'
 })
 
 const showBack = computed(() => {
@@ -116,9 +116,15 @@ function goBack() {
   background: none;
   border: none;
   color: white;
-  font-size: 20px;
   cursor: pointer;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-chevron {
+  flex-shrink: 0;
 }
 
 .header-title {
@@ -140,8 +146,8 @@ function goBack() {
 
 .header-logo-img,
 .header-logo-svg {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   object-fit: contain;
 }

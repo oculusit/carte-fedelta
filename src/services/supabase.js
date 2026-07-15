@@ -74,7 +74,7 @@ export async function testSupabaseConnection(url, anonKey) {
 }
 
 export const SUPABASE_SETUP_SQL = `-- ==========================================
--- Carte Fedeltà App - Schema Supabase
+-- FidAPPti App - Schema Supabase
 -- Incolla tutto nell'SQL Editor ed esegui
 -- ==========================================
 
