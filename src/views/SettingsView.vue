@@ -307,21 +307,26 @@ async function importBackup(e) {
   if (!file) return
   backupResult.value = null
   try {
+    console.log('[import] Reading file:', file.name, 'size:', file.size)
     const text = await new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result)
       reader.onerror = () => reject(reader.error)
       reader.readAsText(file)
     })
+    console.log('[import] File read OK, length:', text.length)
     const backup = JSON.parse(text)
     if (!backup.cards || !Array.isArray(backup.cards)) {
       backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
       return
     }
     const validCards = backup.cards.filter(c => c.id && c.store_name && c.card_number)
+    console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
     await store.importCardsFromBackup(validCards)
+    console.log('[import] Import OK')
     backupResult.value = { ok: true, msg: `Importate ${validCards.length} carte da backup` }
   } catch (e) {
+    console.error('[import] ERROR:', e)
     backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
   }
   e.target.value = ''

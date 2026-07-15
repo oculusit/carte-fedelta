@@ -226,6 +226,7 @@ import { useRouter } from 'vue-router'
 import { api } from '../services/api.js'
 import { auth } from '../services/auth.js'
 import { toast } from '../services/toast.js'
+import { copyToClipboard } from '../services/clipboard.js'
 
 const router = useRouter()
 
@@ -381,7 +382,7 @@ async function revealSeed() {
 
 async function copySeed() {
   try {
-    await navigator.clipboard.writeText(revealedSeed.value)
+    await copyToClipboard(revealedSeed.value)
     toast.show('Seed copiato negli appunti', 'success')
   } catch {
     toast.show('Errore copia', 'error')

@@ -77,6 +77,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
 import { toast } from '../services/toast.js'
+import { copyToClipboard } from '../services/clipboard.js'
 import { predefinedLogos } from '../utils/logoStore.js'
 import BarcodeDisplay from '../components/BarcodeDisplay.vue'
 
@@ -184,7 +185,7 @@ async function confirmDelete() {
 function copyNumber() {
   const num = card.value?.card_number
   if (!num) return
-  navigator.clipboard.writeText(num).then(() => {
+  copyToClipboard(num).then(() => {
     toast.show('Numero copiato negli appunti', 'success')
   }).catch(() => {
     toast.show('Errore copia negli appunti', 'error')

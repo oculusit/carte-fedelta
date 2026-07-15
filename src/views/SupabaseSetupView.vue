@@ -212,6 +212,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { isSupabaseConfigured, getSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig, testSupabaseConnection, getSupabaseClient, SUPABASE_SETUP_SQL } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
+import { copyToClipboard } from '../services/clipboard.js'
 import { useAppStore } from '../stores/app.js'
 
 const store = useAppStore()
@@ -327,7 +328,7 @@ const sqlScript = computed(() => SUPABASE_SETUP_SQL)
 
 async function copySql() {
   try {
-    await navigator.clipboard.writeText(SUPABASE_SETUP_SQL)
+    await copyToClipboard(SUPABASE_SETUP_SQL)
     copyText.value = 'Copiato!'
     setTimeout(() => { copyText.value = 'Copia codice' }, 2000)
   } catch {
