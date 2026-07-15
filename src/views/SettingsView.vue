@@ -77,7 +77,19 @@
       </button>
     </div>
 
-    <!-- 4) Informazioni -->
+    <!-- 4) Log errori -->
+    <div v-if="errorLog.length" class="card settings-card">
+      <h3>Log errori</h3>
+      <p class="section-desc">Errori registrati durante l'utilizzo dell'app.</p>
+      <div v-for="(entry, i) in errorLog" :key="i" class="error-log-entry">
+        <div class="error-log-time">{{ formatLogTime(entry.t) }}</div>
+        <pre class="error-log-msg">{{ entry.msg }}</pre>
+      </div>
+      <button class="btn btn-outline btn-block" @click="copyErrorLog" style="margin-top:8px">Copia log</button>
+      <button class="btn btn-outline btn-block" @click="clearErrorLog" style="margin-top:4px">Cancella log</button>
+    </div>
+
+    <!-- 5) Informazioni -->
     <div class="card settings-card">
       <h3>Informazioni</h3>
       <div class="info-row">
@@ -106,6 +118,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
+import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
 import { saveToDownloads } from '../services/filePicker.js'
@@ -126,6 +139,25 @@ const exporting = ref(false)
 const backupResult = ref(null)
 const importInput = ref(null)
 const backupPath = ref('')
+const errorLog = ref([])
+
+function loadErrorLog() {
+  try {
+    errorLog.value = JSON.parse(localStorage.getItem('error_log') || '[]').reverse()
+  } catch { errorLog.value = [] }
+}
+function formatLogTime(ts) {
+  return new Date(ts).toLocaleString('it-IT')
+}
+function copyErrorLog() {
+  var text = errorLog.value.map(function(e) { return '[' + formatLogTime(e.t) + '] ' + e.type + '\n' + e.msg }).join('\n\n---\n\n')
+  copyToClipboard(text).then(function() { toast.show('Log copiato', 'success') }).catch(function() { toast.show('Errore copia', 'error') })
+}
+function clearErrorLog() {
+  localStorage.removeItem('error_log')
+  errorLog.value = []
+  toast.show('Log cancellato', 'success')
+}
 
 function saveManualUrl() {
   const val = manualUrl.value.replace(/\/+$/, '')
@@ -171,6 +203,7 @@ async function discoverServer() {
 }
 
 onMounted(async () => {
+  loadErrorLog()
   if (syncConfigured.value) {
     cloudCount.value = await store.getCloudCardCount()
   }
@@ -378,4 +411,7 @@ async function importBackup(e) {
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .backup-row { display: flex; gap: 8px; }
 .backup-row .btn { flex: 1; }
+.error-log-entry { margin-bottom: 12px; padding: 10px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--danger); }
+.error-log-time { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.error-log-msg { font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; max-height: 120px; overflow: auto; }
 </style>
