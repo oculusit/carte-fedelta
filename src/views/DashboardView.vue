@@ -21,7 +21,6 @@
         <p class="cards-count">
           {{ filteredCards.length }} carte<template v-if="search"> (su {{ store.cards.length }})</template>
         </p>
-        <button class="btn btn-primary btn-sm" @click="$router.push('/card/new')">+ Nuova</button>
       </div>
 
       <div class="search-bar">

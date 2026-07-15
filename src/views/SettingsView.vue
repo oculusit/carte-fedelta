@@ -121,6 +121,7 @@ import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
+import { Share } from '@capacitor/share'
 import { saveToDownloads, pickJsonFile } from '../services/filePicker.js'
 
 const store = useAppStore()
@@ -305,7 +306,18 @@ async function exportBackup() {
 
     if (Capacitor.isNativePlatform()) {
       const result = await saveToDownloads({ filename, data: json })
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.<br>Percorso: <code>${result.path}</code>` }
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      try {
+        await Share.share({
+          title: 'Backup FidAPPti',
+          text: `Backup con ${allCards.length} carte fidelity`,
+          files: [{ path: result.uri || result.path, mimeType: 'application/json' }],
+        })
+      } catch (shareErr) {
+        if (shareErr.message !== 'User cancelled the share') {
+          console.warn('Share cancelled or failed:', shareErr)
+        }
+      }
     } else {
       const blob = new Blob([json], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
