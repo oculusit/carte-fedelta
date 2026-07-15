@@ -52,6 +52,23 @@ export const useAppStore = defineStore('app', () => {
         }
       }
 
+      // Delete server cards that were deleted locally
+      const deletedRaw = JSON.parse(localStorage.getItem('deleted_ids') || '{}')
+      const deletedIds = Object.keys(deletedRaw)
+      const confirmedDeleted = []
+      for (const id of deletedIds) {
+        const { error } = await supabase.from('cards').delete().eq('id', id)
+        if (!error) {
+          confirmedDeleted.push(id)
+        }
+      }
+      // Remove confirmed deletions from deleted_ids
+      if (confirmedDeleted.length) {
+        const remaining = { ...deletedRaw }
+        for (const id of confirmedDeleted) delete remaining[id]
+        localStorage.setItem('deleted_ids', JSON.stringify(remaining))
+      }
+
       // Download all server cards and upsert locally (never delete)
       const { data: supabaseCards, error } = await supabase.from('cards').select('*')
       if (error) throw error
