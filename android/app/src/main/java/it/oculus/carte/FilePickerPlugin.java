@@ -11,9 +11,9 @@ import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.fragment.app.FragmentActivity;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -38,7 +38,8 @@ public class FilePickerPlugin extends Plugin {
     @Override
     public void load() {
         super.load();
-        pickLauncher = registerForActivityResult(
+        FragmentActivity activity = (FragmentActivity) getActivity();
+        pickLauncher = activity.registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             (ActivityResult result) -> {
                 if (pendingPickCall == null) return;
