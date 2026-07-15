@@ -307,7 +307,12 @@ async function importBackup(e) {
   if (!file) return
   backupResult.value = null
   try {
-    const text = await file.text()
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(file)
+    })
     const backup = JSON.parse(text)
     if (!backup.cards || !Array.isArray(backup.cards)) {
       backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
