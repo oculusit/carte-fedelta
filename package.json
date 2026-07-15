@@ -32,7 +32,6 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-legacy": "^8.2.0",
     "@vitejs/plugin-vue": "^5.2.3",
     "adm-zip": "^0.5.17",
     "vite": "^6.3.1"
