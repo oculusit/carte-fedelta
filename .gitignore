@@ -5,7 +5,7 @@ dist/
 uploads/logos/*
 !uploads/logos/.gitkeep
 api/config.php
-*.keystore
+fidappti.keystore
 *.jks
 oc
 oc.txt
