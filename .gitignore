@@ -9,3 +9,5 @@ api/config.php
 *.jks
 oc
 oc.txt
+..bfg-report/
+*.swp

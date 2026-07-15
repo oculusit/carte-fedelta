@@ -1,2 +1,0 @@
-ae707a9f7db6dbd918d649aa95389524c11ede06 2666 debug.keystore
-59330d4488ad9b3813f9c2f3b47c2c4751bad343 2732 fidappti.keystore
