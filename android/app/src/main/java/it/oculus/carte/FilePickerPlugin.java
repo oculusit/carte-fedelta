@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 
@@ -198,5 +199,30 @@ public class FilePickerPlugin extends Plugin {
         result.put("filename", filename);
         result.put("size", bytes.length);
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openDownloadsFolder(PluginCall call) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                Uri treeUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload");
+                intent.setDataAndType(treeUri, DocumentsContract.Document.MIME_TYPE_DIR);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            } else {
+                File dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (dir == null) {
+                    dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                }
+                Uri uri = Uri.fromFile(dir);
+                intent.setDataAndType(uri, "*/*");
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            getActivity().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            Log.e(TAG, "openDownloadsFolder error", e);
+            call.reject("Impossibile aprire la cartella: " + e.getMessage());
+        }
     }
 }

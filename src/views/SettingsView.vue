@@ -1,6 +1,43 @@
 <template>
   <div class="settings">
-    <!-- 1) Sincronizzazione cloud -->
+    <!-- 1) Backup locale -->
+    <div class="card settings-card">
+      <h3>Backup locale</h3>
+      <p class="section-desc">Esporta tutte le tue carte in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <div class="backup-row">
+        <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
+          {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
+        </button>
+        <button class="btn btn-outline btn-block" @click="triggerImport">
+          Importa backup
+        </button>
+        <input v-if="!Capacitor.isNativePlatform()" ref="importInput" type="file" accept=".json" @change="importBackupFromInput" hidden />
+      </div>
+      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok clickable' : 'test-err'" v-html="backupResult.msg" @click="backupResult?.ok && openBackupFolder()"></p>
+    </div>
+
+    <!-- 2) Server backend -->
+    <div class="card settings-card">
+      <h3>Server backend</h3>
+      <p class="section-desc">Collegati al server che fornisce i loghi personalizzati per i negozi.</p>
+      <button class="btn btn-outline btn-block" @click="discoverServer" :disabled="discovering">
+        {{ discovering ? 'Ricerca in corso...' : 'Collegati al server backend di default' }}
+      </button>
+      <p v-if="serverUrl" class="info-row" style="margin-top:8px">
+        <span>Server:</span>
+        <span class="tag">{{ serverUrl }}</span>
+      </p>
+      <p v-if="discoverResult" :class="discoverResult.ok ? 'test-ok' : 'test-err'">{{ discoverResult.msg }}</p>
+      <details style="margin-top:8px">
+        <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer">Inserisci manualmente</summary>
+        <div class="input-group" style="margin-top:8px">
+          <input v-model="manualUrl" type="url" placeholder="https://mioserver.com/carte" class="input" />
+          <button class="btn btn-primary btn-block" @click="saveManualUrl" style="margin-top:8px">Salva</button>
+        </div>
+      </details>
+    </div>
+
+    <!-- 3) Sincronizzazione cloud -->
     <div class="card settings-card">
       <h3>Sincronizzazione cloud</h3>
       <p class="section-desc">Configura Supabase per sincronizzare le tue carte su tutti i dispositivi. I dati restano privati.</p>
@@ -30,44 +67,6 @@
       </template>
     </div>
 
-    <!-- 2) Server backend loghi -->
-    <div class="card settings-card">
-      <h3>Server backend</h3>
-      <p class="section-desc">Collegati al server che fornisce i loghi personalizzati per i negozi.</p>
-      <button class="btn btn-outline btn-block" @click="discoverServer" :disabled="discovering">
-        {{ discovering ? 'Ricerca in corso...' : 'Collegati al server backend di default' }}
-      </button>
-      <p v-if="serverUrl" class="info-row" style="margin-top:8px">
-        <span>Server:</span>
-        <span class="tag">{{ serverUrl }}</span>
-      </p>
-      <p v-if="discoverResult" :class="discoverResult.ok ? 'test-ok' : 'test-err'">{{ discoverResult.msg }}</p>
-      <details style="margin-top:8px">
-        <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer">Inserisci manualmente</summary>
-        <div class="input-group" style="margin-top:8px">
-          <input v-model="manualUrl" type="url" placeholder="https://mioserver.com/carte" class="input" />
-          <button class="btn btn-primary btn-block" @click="saveManualUrl" style="margin-top:8px">Salva</button>
-        </div>
-      </details>
-    </div>
-
-    <!-- 3) Backup locale -->
-    <div class="card settings-card">
-      <h3>Backup locale</h3>
-      <p class="section-desc">Esporta tutte le tue carte in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
-      <div class="backup-row">
-        <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
-          {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
-        </button>
-        <button class="btn btn-outline btn-block" @click="triggerImport">
-          Importa backup
-        </button>
-        <input v-if="!Capacitor.isNativePlatform()" ref="importInput" type="file" accept=".json" @change="importBackupFromInput" hidden />
-      </div>
-      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok' : 'test-err'" v-html="backupResult.msg"></p>
-      <p class="backup-path" v-if="backupPath">Cartella download: <code>{{ backupPath }}</code></p>
-    </div>
-
     <!-- 4) Cache applicazione -->
     <div class="card settings-card">
       <h3>Cache applicazione</h3>
@@ -77,7 +76,7 @@
       </button>
     </div>
 
-    <!-- 4) Log errori -->
+    <!-- 5) Log errori -->
     <div v-if="errorLog.length" class="card settings-card">
       <h3>Log errori</h3>
       <p class="section-desc">Errori registrati durante l'utilizzo dell'app.</p>
@@ -89,7 +88,7 @@
       <button class="btn btn-outline btn-block" @click="clearErrorLog" style="margin-top:4px">Cancella log</button>
     </div>
 
-    <!-- 5) Informazioni -->
+    <!-- 6) Informazioni -->
     <div class="card settings-card">
       <h3>Informazioni</h3>
       <div class="info-row">
@@ -122,7 +121,8 @@ import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
-import { saveToDownloads, pickJsonFile } from '../services/filePicker.js'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { saveToDownloads, pickJsonFile, openDownloadsFolder } from '../services/filePicker.js'
 
 const store = useAppStore()
 
@@ -139,7 +139,7 @@ const manualUrl = ref('')
 const exporting = ref(false)
 const backupResult = ref(null)
 const importInput = ref(null)
-const backupPath = ref('')
+const lastBackupPath = ref('')
 const errorLog = ref([])
 
 function loadErrorLog() {
@@ -277,7 +277,6 @@ async function clearCache() {
 async function exportBackup() {
   exporting.value = true
   backupResult.value = null
-  backupPath.value = ''
   try {
     const allCards = await store.cards.map(c => ({
       id: c.id,
@@ -306,16 +305,22 @@ async function exportBackup() {
 
     if (Capacitor.isNativePlatform()) {
       const result = await saveToDownloads({ filename, data: json })
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      lastBackupPath.value = result.path
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. <span class="clickable-hint">Tocca per aprire la cartella</span>` }
       try {
+        const cacheFile = await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.Cache,
+        })
         await Share.share({
           title: 'Backup FidAPPti',
           text: `Backup con ${allCards.length} carte fidelity`,
-          files: [{ path: result.uri || result.path, mimeType: 'application/json' }],
+          files: [{ path: cacheFile.uri, mimeType: 'application/json' }],
         })
       } catch (shareErr) {
         if (shareErr.message !== 'User cancelled the share') {
-          console.warn('Share cancelled or failed:', shareErr)
+          console.warn('Share failed:', shareErr)
         }
       }
     } else {
@@ -335,16 +340,13 @@ async function exportBackup() {
   }
 }
 
-function downloadBlob(blob, filename, count) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  backupResult.value = { ok: true, msg: `Backup esportato: ${count} carte. File scaricato.` }
+async function openBackupFolder() {
+  if (!Capacitor.isNativePlatform()) return
+  try {
+    await openDownloadsFolder()
+  } catch {
+    toast.show('Impossibile aprire la cartella', 'error')
+  }
 }
 
 async function triggerImport() {
@@ -448,6 +450,8 @@ async function importBackupFromInput(e) {
 .input-group { display: flex; flex-direction: column; gap: 4px; }
 .input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
 .test-ok { margin-top: 8px; font-size: 13px; color: var(--success); word-break: break-all; }
+.test-ok.clickable { cursor: pointer; text-decoration: underline; }
+.clickable-hint { font-size: 11px; color: var(--text-secondary); }
 .test-err { margin-top: 8px; font-size: 13px; color: var(--danger); word-break: break-all; }
 .sync-spinner { display: inline-block; animation: spin 0.8s linear infinite; margin-right: 6px; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
