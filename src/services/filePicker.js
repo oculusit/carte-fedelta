@@ -9,6 +9,7 @@ const FilePickerNative = registerPlugin('FilePicker', {
       throw new Error('pickFile not supported on web, use native file input')
     },
     openDownloadsFolder: async () => {},
+    shareFile: async () => {},
   }),
 })
 
@@ -22,4 +23,8 @@ export async function pickJsonFile() {
 
 export async function openDownloadsFolder() {
   return FilePickerNative.openDownloadsFolder()
+}
+
+export async function shareFile({ filename, data, title, text }) {
+  return FilePickerNative.shareFile({ filename, data, title, text })
 }

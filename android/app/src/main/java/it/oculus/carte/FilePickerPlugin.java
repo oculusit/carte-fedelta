@@ -7,13 +7,13 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.FileProvider;
 import androidx.fragment.app.FragmentActivity;
 
 import com.getcapacitor.JSObject;
@@ -202,27 +202,83 @@ public class FilePickerPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void shareFile(PluginCall call) {
+        String filename = call.getString("filename", "backup.json");
+        String data = call.getString("data", "");
+        String title = call.getString("title", "Condividi file");
+        String text = call.getString("text", "");
+
+        try {
+            byte[] bytes = data.getBytes("UTF-8");
+
+            File cacheDir = new File(getContext().getCacheDir(), "share");
+            if (!cacheDir.exists()) cacheDir.mkdirs();
+            File file = new File(cacheDir, filename);
+            FileOutputStream fos = new FileOutputStream(file);
+            fos.write(bytes);
+            fos.flush();
+            fos.close();
+
+            Log.d(TAG, "shareFile: wrote " + bytes.length + " bytes to " + file.getAbsolutePath());
+
+            Uri contentUri = FileProvider.getUriForFile(
+                getContext(),
+                getContext().getPackageName() + ".fileprovider",
+                file
+            );
+
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType("application/json");
+            intent.putExtra(Intent.EXTRA_STREAM, contentUri);
+            intent.putExtra(Intent.EXTRA_TITLE, title);
+            if (text != null && !text.isEmpty()) {
+                intent.putExtra(Intent.EXTRA_TEXT, text);
+            }
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(Intent.createChooser(intent, title));
+
+            call.resolve();
+        } catch (Exception e) {
+            Log.e(TAG, "shareFile error", e);
+            call.reject("Impossibile condividere: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
     public void openDownloadsFolder(PluginCall call) {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 Uri treeUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload");
-                intent.setDataAndType(treeUri, DocumentsContract.Document.MIME_TYPE_DIR);
+                intent.setDataAndType(treeUri, "vnd.android.document/directory");
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             } else {
-                File dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (dir == null || !dir.exists()) {
+                    dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                }
                 if (dir == null) {
-                    dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    call.reject("Cartella Download non disponibile");
+                    return;
                 }
                 Uri uri = Uri.fromFile(dir);
-                intent.setDataAndType(uri, "*/*");
+                intent.setDataAndType(uri, "resource/folder");
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             }
             getActivity().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
             Log.e(TAG, "openDownloadsFolder error", e);
-            call.reject("Impossibile aprire la cartella: " + e.getMessage());
+            // Fallback: open Downloads via DownloadManager
+            try {
+                Intent fallback = new Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(fallback);
+                call.resolve();
+            } catch (Exception e2) {
+                call.reject("Impossibile aprire la cartella: " + e2.getMessage());
+            }
         }
     }
 }

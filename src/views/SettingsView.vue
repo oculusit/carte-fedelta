@@ -120,9 +120,7 @@ import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
 import { Capacitor } from '@capacitor/core'
-import { Share } from '@capacitor/share'
-import { Filesystem, Directory } from '@capacitor/filesystem'
-import { saveToDownloads, pickJsonFile, openDownloadsFolder } from '../services/filePicker.js'
+import { saveToDownloads, pickJsonFile, openDownloadsFolder, shareFile } from '../services/filePicker.js'
 
 const store = useAppStore()
 
@@ -139,7 +137,6 @@ const manualUrl = ref('')
 const exporting = ref(false)
 const backupResult = ref(null)
 const importInput = ref(null)
-const lastBackupPath = ref('')
 const errorLog = ref([])
 
 function loadErrorLog() {
@@ -304,24 +301,17 @@ async function exportBackup() {
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
 
     if (Capacitor.isNativePlatform()) {
-      const result = await saveToDownloads({ filename, data: json })
-      lastBackupPath.value = result.path
+      await saveToDownloads({ filename, data: json })
       backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. <span class="clickable-hint">Tocca per aprire la cartella</span>` }
       try {
-        const cacheFile = await Filesystem.writeFile({
-          path: filename,
+        await shareFile({
+          filename,
           data: json,
-          directory: Directory.Cache,
-        })
-        await Share.share({
           title: 'Backup FidAPPti',
           text: `Backup con ${allCards.length} carte fidelity`,
-          files: [{ path: cacheFile.uri, mimeType: 'application/json' }],
         })
       } catch (shareErr) {
-        if (shareErr.message !== 'User cancelled the share') {
-          console.warn('Share failed:', shareErr)
-        }
+        console.warn('Share failed:', shareErr)
       }
     } else {
       const blob = new Blob([json], { type: 'application/json' })
