@@ -290,6 +290,7 @@ onUnmounted(async () => {
   transition: color 0.15s, transform 0.15s;
   user-select: none;
   line-height: 1;
+  margin-left: auto;
 }
 
 .star:hover {
