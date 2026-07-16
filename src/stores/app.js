@@ -272,17 +272,13 @@ export const useAppStore = defineStore('app', () => {
   }
 
   async function importCardsFromBackup(importCards) {
-    await db.importCards(importCards)
-    // Clear deleted_ids for imported cards so they aren't skipped on re-import
-    const importedIds = new Set(importCards.map(c => c.id))
-    const deletedRaw = JSON.parse(localStorage.getItem('deleted_ids') || '{}')
-    let changed = false
-    for (const id of Object.keys(deletedRaw)) {
-      if (importedIds.has(id)) { delete deletedRaw[id]; changed = true }
-    }
-    if (changed) localStorage.setItem('deleted_ids', JSON.stringify(deletedRaw))
+    console.log('[store] importCardsFromBackup: cards to import:', importCards.length)
+    const result = await db.importCards(importCards)
+    console.log('[store] importCards result:', result)
     cards.value = await db.getAll()
+    console.log('[store] cards.value after import:', cards.value.length)
     saveBackup(cards.value)
+    return result
   }
 
   async function getCloudCardCount() {

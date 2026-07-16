@@ -365,11 +365,11 @@ async function importBackupNative() {
       backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
       return
     }
-    const validCards = backup.cards.filter(c => c.id && c.store_name && c.card_number)
+    const validCards = backup.cards.filter(c => c.store_name && c.card_number)
     console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
-    await store.importCardsFromBackup(validCards)
-    console.log('[import] Import OK')
-    backupResult.value = { ok: true, msg: `Importate ${validCards.length} carte da backup` }
+    const res = await store.importCardsFromBackup(validCards)
+    console.log('[import] Import result:', res)
+    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
   } catch (e) {
     if (e.message && e.message.includes('annullata')) return
     console.error('[import] Native ERROR:', e)
@@ -395,11 +395,11 @@ async function importBackupFromInput(e) {
       backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
       return
     }
-    const validCards = backup.cards.filter(c => c.id && c.store_name && c.card_number)
+    const validCards = backup.cards.filter(c => c.store_name && c.card_number)
     console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
-    await store.importCardsFromBackup(validCards)
-    console.log('[import] Import OK')
-    backupResult.value = { ok: true, msg: `Importate ${validCards.length} carte da backup` }
+    const res = await store.importCardsFromBackup(validCards)
+    console.log('[import] Import result:', res)
+    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
   } catch (e) {
     console.error('[import] ERROR:', e)
     backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }

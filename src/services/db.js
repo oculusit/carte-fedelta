@@ -104,27 +104,55 @@ export const db = {
 
   async importCards(cards) {
     const existingCards = await this.getAll()
-    const pendingIds = new Set(
-      existingCards.filter(c => c.sync_status === 'pending').map(c => c.id)
-    )
-    // Load deleted IDs (kept indefinitely until server confirms deletion)
-    const deletedRaw = JSON.parse(localStorage.getItem('deleted_ids') || '{}')
-    const deletedIds = new Set(Object.keys(deletedRaw))
+    console.log('[db.importCards] existing:', existingCards.length, 'incoming:', cards.length)
+    const existingByNumber = new Map()
+    for (const c of existingCards) {
+      if (c.card_number) existingByNumber.set(c.card_number, c)
+    }
+    let added = 0, updated = 0, skipped = 0
     return withStore('readwrite', (store) => {
-      let count = 0
-      cards.forEach((card) => {
-        if (pendingIds.has(card.id)) return
-        if (deletedIds.has(card.id)) return
-        const data = {
-          ...card,
-          id: card.id || crypto.randomUUID(),
-          created_at: card.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+      for (const card of cards) {
+        const num = (card.card_number || '').trim()
+        if (!num) { skipped++; continue }
+        const existing = existingByNumber.get(num)
+        if (existing) {
+          const merged = {
+            ...existing,
+            store_name: card.store_name || existing.store_name,
+            holder_name: card.holder_name || existing.holder_name,
+            barcode_type: card.barcode_type || existing.barcode_type,
+            logo_type: card.logo_type || existing.logo_type,
+            logo_path: card.logo_path || existing.logo_path,
+            logo_data: card.logo_data || existing.logo_data,
+            notes: card.notes !== undefined ? card.notes : existing.notes,
+            color: card.color || existing.color,
+            is_favorite: card.is_favorite !== undefined ? card.is_favorite : existing.is_favorite,
+            updated_at: new Date().toISOString(),
+          }
+          store.put(merged)
+          updated++
+        } else {
+          const data = {
+            id: card.id || crypto.randomUUID(),
+            store_name: card.store_name || '',
+            card_number: num,
+            holder_name: card.holder_name || '',
+            barcode_type: card.barcode_type || '',
+            logo_type: card.logo_type || '',
+            logo_path: card.logo_path || '',
+            logo_data: card.logo_data || '',
+            notes: card.notes || '',
+            color: card.color || '',
+            is_favorite: card.is_favorite || 0,
+            created_at: card.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          store.put(data)
+          added++
         }
-        store.put(data)
-        count++
-      })
-      return count
+      }
+      console.log('[db.importCards] added:', added, 'updated:', updated, 'skipped:', skipped)
+      return { added, updated, skipped }
     })
   },
 
