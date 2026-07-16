@@ -110,6 +110,16 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN aliases TEXT AFTER logo_data");
   }
 
+  // ── Ensure default app version settings exist ──
+  $defaultSettings = [
+    'app_version' => '1.2.0',
+    'app_download_url' => '',
+  ];
+  foreach ($defaultSettings as $key => $val) {
+    $stmt = $db->prepare("INSERT IGNORE INTO `{$p}settings` (`key`, `value`) VALUES (?, ?)");
+    $stmt->execute([$key, $val]);
+  }
+
   // ── logo_path column on stores ──
   $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}stores` LIKE 'logo_path'");
   $stmt->execute();

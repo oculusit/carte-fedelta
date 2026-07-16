@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>CarteFedelta</string>
+        <string>FidAPPti</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>FidAPPti ha bisogno della fotocamera per scansionare i codici a barre delle tue carte fedeltà.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FidAPPti ha bisogno dell'accesso alla libreria fotografica per importare immagini dei loghi.</string>
 </dict>
 </plist>

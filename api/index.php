@@ -204,6 +204,7 @@ $routes = [
   '/admin/change-password'  => 'admin.php@handleAdminChangePassword',
   '/admin/forgot-password'  => 'admin.php@handleAdminForgotPassword',
   '/settings/info'    => 'admin.php@handleInfo',
+  '/version'          => 'version.php@getVersion',
   '/cron'             => 'cron.php@cron',
 ];
 

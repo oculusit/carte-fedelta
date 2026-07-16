@@ -340,6 +340,17 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     exit;
   }
 
+  if ($action === 'save_version_config') {
+    if (!panelIsSuperAdmin()) { echo json_encode(['error' => 'Permesso negato']); exit; }
+    $version = trim($_POST['app_version'] ?? '');
+    $downloadUrl = trim($_POST['app_download_url'] ?? '');
+    $table = TABLE_SETTINGS;
+    $db->prepare("INSERT INTO `{$table}` (`key`, `value`) VALUES ('app_version', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")->execute([$version]);
+    $db->prepare("INSERT INTO `{$table}` (`key`, `value`) VALUES ('app_download_url', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)")->execute([$downloadUrl]);
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
   echo json_encode(['error' => 'Azione sconosciuta']);
   exit;
 }
@@ -520,6 +531,7 @@ tr:hover td{background:#f8f9fa}
   <?php if ($isSuper): ?>
   <a onclick="showSection('admins')">Amministratori</a>
   <a onclick="showSection('email-config')">Email</a>
+  <a onclick="showSection('updates')">Aggiornamenti</a>
   <?php endif; ?>
   <a onclick="showSection('password')">Password</a>
 </div>
@@ -762,6 +774,22 @@ tr:hover td{background:#f8f9fa}
         <button type="submit" class="btn btn-primary">Salva Configurazione</button>
         <button type="button" class="btn btn-outline" onclick="testMail()">Invia Email di Test</button>
       </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- Aggiornamenti -->
+<?php if ($isSuper): ?>
+<?php $versionSettings = []; try { $versionSettings = $db->query('SELECT `key`, `value` FROM ' . TABLE_SETTINGS . ' WHERE `key` IN (\'app_version\', \'app_download_url\')')->fetchAll(PDO::FETCH_KEY_PAIR); } catch(Exception $e) {} ?>
+<div id="updates" class="section">
+  <div class="card" style="max-width:400px">
+    <h2>Aggiornamenti App</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">Configura la versione disponibile per gli utenti. Quando viene rilevata una versione diversa da quella installata, l'app mostrerà un popup con il link di download.</p>
+    <form onsubmit="saveVersionConfig(event)">
+      <div class="field"><label>Versione disponibile</label><input type="text" id="app-version" value="<?= htmlspecialchars($versionSettings['app_version'] ?? '1.2.0') ?>" placeholder="es. 1.2.0" /></div>
+      <div class="field"><label>URL di download</label><input type="url" id="app-download-url" value="<?= htmlspecialchars($versionSettings['app_download_url'] ?? '') ?>" placeholder="https://..." /></div>
+      <button type="submit" class="btn btn-primary">Salva Configurazione</button>
     </form>
   </div>
 </div>
@@ -1166,5 +1194,14 @@ uploadStore = async function(e) {
   const r = await res.json();
   if (r.success) { toast('Negozio creato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 };
+
+async function saveVersionConfig(e) {
+  e.preventDefault();
+  const r = await postAction('save_version_config', {
+    app_version: document.getElementById('app-version').value,
+    app_download_url: document.getElementById('app-download-url').value,
+  });
+  toast(r.success ? 'Configurazione salvata!' : 'Errore');
+}
 </script>
 </body></html>

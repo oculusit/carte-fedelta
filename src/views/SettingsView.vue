@@ -93,7 +93,7 @@
       <h3>Informazioni</h3>
       <div class="info-row">
         <span>Versione</span>
-        <span>1.1.0</span>
+        <span>1.2.0</span>
       </div>
       <div class="info-row">
         <span>Stato rete</span>
@@ -292,7 +292,7 @@ async function exportBackup() {
       updated_at: c.updated_at,
     }))
     const backup = {
-      version: '1.1.0',
+      version: '1.2.0',
       exported_at: new Date().toISOString(),
       cards_count: allCards.length,
       cards: allCards,

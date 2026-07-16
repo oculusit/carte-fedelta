@@ -8,11 +8,12 @@
       <div class="footer-links">
         <a href="#/privacy" target="_blank">Privacy</a>
         <span class="footer-sep">·</span>
-        <span>VibeCoded by <a href="https://oculus.it" target="_blank" rel="noopener">Oculus.it</a> - Versione 1.0.0</span>
+        <span>VibeCoded by <a href="https://oculus.it" target="_blank" rel="noopener">Oculus.it</a> - Versione 1.2.0</span>
       </div>
       <span v-if="store.encryptionSeedSet" class="footer-encryption">Crittografia Attiva</span>
     </footer>
     <ToastContainer />
+    <UpdateChecker />
 
     <button v-if="showFab" class="fab" @click="goToNewCard" title="Nuova carta">+</button>
   </div>
@@ -25,6 +26,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/app.js'
 import AppHeader from './components/AppHeader.vue'
 import ToastContainer from './components/ToastContainer.vue'
+import UpdateChecker from './components/UpdateChecker.vue'
 
 const store = useAppStore()
 const route = useRoute()
