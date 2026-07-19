@@ -17,6 +17,15 @@
         <button class="header-btn" @click="clearAndReload" title="Ricarica" :disabled="reloading">
           <span class="icon header-reload-icon" :class="{ spinning: reloading }">↻</span>
         </button>
+        <button class="header-btn" @click="shareApp" title="Condividi">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
         <button class="header-btn" @click="$router.push('/settings')" title="Impostazioni">
           <span class="icon">⚙</span>
         </button>
@@ -33,6 +42,8 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
 import { isSupabaseConfigured } from '../services/supabase.js'
+import { copyToClipboard } from '../services/clipboard.js'
+import { toast } from '../services/toast.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,6 +97,29 @@ function goBack() {
     router.back()
   } else {
     router.push('/')
+  }
+}
+
+async function shareApp() {
+  const shareData = {
+    title: 'FidAPPti',
+    text: 'Gestisci le tue carte fedeltà con FidAPPti!',
+    url: 'https://fidappti.altervista.org',
+  }
+  try {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      const { Share } = await import('@capacitor/share')
+      await Share.share(shareData)
+    } else if (navigator.share) {
+      await navigator.share(shareData)
+    } else {
+      await copyToClipboard('https://fidappti.altervista.org')
+      toast.show('Link copiato negli appunti', 'success')
+    }
+  } catch (e) {
+    if (e?.message !== 'Share canceled') {
+      console.warn('Share error:', e)
+    }
   }
 }
 </script>
