@@ -178,8 +178,8 @@ async function startCamera() {
       { deviceId: { exact: camId } },
       {
         fps: 15,
-        qrbox: { width: 260, height: 120 },
-        aspectRatio: 1.777,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
         videoConstraints: {
           width: { ideal: 4096 },
           height: { ideal: 2160 },
@@ -426,7 +426,7 @@ onBeforeUnmount(() => {
 
 .scanner-viewport {
   position: relative;
-  min-height: 260px;
+  min-height: 300px;
   background: #1a1a1a;
   overflow: hidden;
 }
