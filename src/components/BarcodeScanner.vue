@@ -23,14 +23,30 @@
         >
           Avvia fotocamera
         </button>
-        <button
-          v-if="isScanning"
-          class="btn btn-danger btn-block"
-          @click="stopCamera"
-          type="button"
-        >
-          Ferma fotocamera
-        </button>
+        <div v-if="isScanning" class="scanner-actions-row">
+          <button
+            class="btn btn-danger btn-block"
+            @click="stopCamera"
+            type="button"
+          >
+            Ferma fotocamera
+          </button>
+          <button
+            v-if="cameras.length > 1"
+            class="btn btn-outline btn-switch-cam"
+            @click="switchCamera"
+            type="button"
+            title="Cambia fotocamera"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/>
+              <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="m18 22-3-3 3-3"/>
+              <path d="m6 2 3 3-3 3"/>
+            </svg>
+          </button>
+        </div>
         <label class="btn btn-outline btn-block upload-label">
           Carica immagine
           <input type="file" accept="image/*" hidden @change="onFileUpload" />
@@ -39,6 +55,7 @@
 
       <p v-if="isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
+        <template v-if="cameras.length > 1"> · {{ cameras[currentCameraIndex]?.label || ('Camera ' + (currentCameraIndex + 1)) }}</template>
       </p>
     </div>
   </div>
@@ -59,6 +76,8 @@ const isScanning = ref(false)
 const loading = ref(false)
 const loadingMsg = ref('')
 const error = ref('')
+const cameras = ref([])
+const currentCameraIndex = ref(0)
 
 let scanner = null
 let scannerContainer = null
@@ -109,19 +128,28 @@ async function startCamera() {
   error.value = ''
 
   try {
-    let cameras = []
-    try {
-      cameras = await Html5Qrcode.getCameras()
-    } catch (permErr) {
-      loading.value = false
-      error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
-      return
-    }
+    if (!cameras.value || cameras.value.length === 0) {
+      try {
+        cameras.value = await Html5Qrcode.getCameras()
+      } catch (permErr) {
+        loading.value = false
+        error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
+        return
+      }
 
-    if (!cameras || cameras.length === 0) {
-      loading.value = false
-      error.value = 'Nessuna fotocamera trovata sul dispositivo.'
-      return
+      if (!cameras.value || cameras.value.length === 0) {
+        loading.value = false
+        error.value = 'Nessuna fotocamera trovata sul dispositivo.'
+        return
+      }
+
+      // Prefer back camera by default
+      const backIdx = cameras.value.findIndex(c =>
+        c.label?.toLowerCase().includes('back') ||
+        c.label?.toLowerCase().includes('rear') ||
+        c.label?.toLowerCase().includes('environment')
+      )
+      currentCameraIndex.value = backIdx >= 0 ? backIdx : 0
     }
 
     loadingMsg.value = 'Avvio fotocamera...'
@@ -144,12 +172,7 @@ async function startCamera() {
       verbose: false,
     })
 
-    const backCam = cameras.find(c =>
-      c.label?.toLowerCase().includes('back') ||
-      c.label?.toLowerCase().includes('rear') ||
-      c.label?.toLowerCase().includes('environment')
-    )
-    const camId = backCam ? backCam.id : cameras[0].id
+    const camId = cameras.value[currentCameraIndex.value].id
 
     await scanner.start(
       { deviceId: { exact: camId } },
@@ -181,6 +204,15 @@ async function startCamera() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function switchCamera() {
+  if (cameras.value.length < 2) return
+  currentCameraIndex.value = (currentCameraIndex.value + 1) % cameras.value.length
+  if (isScanning.value) {
+    await stopCamera()
+    await startCamera()
   }
 }
 
@@ -311,6 +343,8 @@ async function onFileUpload(e) {
 
 async function close() {
   await stopCamera()
+  cameras.value = []
+  currentCameraIndex.value = 0
   error.value = ''
   emit('close')
 }
@@ -450,6 +484,25 @@ onBeforeUnmount(() => {
 .upload-label {
   cursor: pointer;
   text-align: center;
+}
+
+.scanner-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.scanner-actions-row .btn-danger {
+  flex: 1;
+}
+
+.btn-switch-cam {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  flex-shrink: 0;
+  padding: 0;
 }
 
 .scanner-hint {

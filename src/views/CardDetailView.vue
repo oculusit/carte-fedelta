@@ -123,6 +123,7 @@ function startCountdown() {
     if (countdown.value <= 0) {
       countdown.value = 0
       stopCountdown()
+      restoreBrightnessAndSleep()
     }
   }, 1000)
 }
@@ -155,6 +156,18 @@ function releaseWakeLock() {
   if (wakeLockSentinel) {
     wakeLockSentinel.release()
     wakeLockSentinel = null
+  }
+}
+
+async function restoreBrightnessAndSleep() {
+  releaseWakeLock()
+  if (brightnessPlugin) {
+    try {
+      await brightnessPlugin.setBrightness({ brightness: previousBrightness })
+      console.log('Brightness restored to', previousBrightness, '(auto after 2 min)')
+    } catch (e) {
+      console.warn('Brightness restore error:', e)
+    }
   }
 }
 
