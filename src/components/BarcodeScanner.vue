@@ -32,18 +32,14 @@
             Ferma fotocamera
           </button>
           <button
-            v-if="cameras.length > 1"
-            class="btn btn-outline btn-switch-cam"
-            @click="switchCamera"
+            class="btn btn-switch-cam"
+            :class="torchOn ? 'btn-torch-on' : 'btn-torch-off'"
+            @click="toggleTorch"
             type="button"
-            title="Cambia fotocamera"
+            :title="torchOn ? 'Spegni flash' : 'Accendi flash'"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/>
-              <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/>
-              <circle cx="12" cy="12" r="3"/>
-              <path d="m18 22-3-3 3-3"/>
-              <path d="m6 2 3 3-3 3"/>
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
             </svg>
           </button>
         </div>
@@ -55,7 +51,7 @@
 
       <p v-if="isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
-        <template v-if="cameras.length > 1"> · {{ cameras[currentCameraIndex]?.label || ('Camera ' + (currentCameraIndex + 1)) }}</template>
+        <template v-if="torchOn"> · Flash attivo</template>
       </p>
     </div>
   </div>
@@ -78,6 +74,7 @@ const loadingMsg = ref('')
 const error = ref('')
 const cameras = ref([])
 const currentCameraIndex = ref(0)
+const torchOn = ref(false)
 
 let scanner = null
 let scannerContainer = null
@@ -179,12 +176,13 @@ async function startCamera() {
     await scanner.start(
       { deviceId: { exact: camId } },
       {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
+        fps: 10,
+        qrbox: { width: 280, height: 280 },
         aspectRatio: 1.0,
+        disableFlip: false,
         videoConstraints: {
-          width: { ideal: 4096 },
-          height: { ideal: 2160 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
       },
       onScanSuccess,
@@ -209,52 +207,21 @@ async function startCamera() {
   }
 }
 
-async function switchCamera() {
-  if (cameras.value.length < 2) return
-  currentCameraIndex.value = (currentCameraIndex.value + 1) % cameras.value.length
-
-  if (!isScanning.value || !scanner) return
-
+async function toggleTorch() {
+  if (!scanner || !isScanning.value) return
   try {
-    await scanner.stop()
-  } catch {}
-
-  try {
-    scanner.clear()
-  } catch {}
-  scanner = null
-
-  await new Promise(r => setTimeout(r, 300))
-
-  const container = ensureContainer()
-  if (!container) {
-    error.value = 'Errore cambio fotocamera: contenitore non trovato'
-    return
+    torchOn.value = !torchOn.value
+    await scanner.applyVideoConstraints({
+      advanced: [{ torch: torchOn.value }]
+    })
+  } catch (e) {
+    torchOn.value = false
+    console.warn('Torch not supported:', e)
   }
-
-  scanner = new Html5Qrcode(SCANNER_ID, {
-    formatsToSupport: getSupportedFormats(),
-    verbose: false,
-  })
-
-  const camId = cameras.value[currentCameraIndex.value].id
-  await scanner.start(
-    { deviceId: { exact: camId } },
-    {
-      fps: 15,
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
-      videoConstraints: {
-        width: { ideal: 4096 },
-        height: { ideal: 2160 },
-      },
-    },
-    onScanSuccess,
-    onScanFailure
-  )
 }
 
 async function stopCamera() {
+  torchOn.value = false
   if (scanner) {
     try { await scanner.stop() } catch {}
     try { scanner.clear() } catch {}
@@ -386,6 +353,7 @@ async function close() {
   await stopCamera()
   cameras.value = []
   currentCameraIndex.value = 0
+  torchOn.value = false
   error.value = ''
   emit('close')
 }
@@ -544,6 +512,23 @@ onBeforeUnmount(() => {
   width: 44px;
   flex-shrink: 0;
   padding: 0;
+}
+
+.btn-torch-off {
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-torch-on {
+  background: #f59e0b;
+  color: #fff;
+  border: 1px solid #f59e0b;
+}
+
+.btn-torch-on:hover {
+  background: #d97706;
+  border-color: #d97706;
 }
 
 .scanner-hint {
