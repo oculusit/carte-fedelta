@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount, watch } from 'vue'
+import { ref, onBeforeUnmount, watch, nextTick } from 'vue'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { detectBarcodeType } from '../utils/barcodeUtils.js'
 
@@ -123,6 +123,8 @@ function removeContainer() {
 }
 
 async function startCamera() {
+  await nextTick()
+
   loading.value = true
   loadingMsg.value = 'Richiedo permesso fotocamera...'
   error.value = ''
@@ -218,25 +220,38 @@ async function switchCamera() {
   } catch {}
 
   try {
-    const camId = cameras.value[currentCameraIndex.value].id
-    await scanner.start(
-      { deviceId: { exact: camId } },
-      {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-        videoConstraints: {
-          width: { ideal: 4096 },
-          height: { ideal: 2160 },
-        },
-      },
-      onScanSuccess,
-      onScanFailure
-    )
-  } catch (e) {
-    console.warn('Switch camera error:', e)
-    error.value = 'Errore cambio fotocamera: ' + (e.message || 'sconosciuto')
+    scanner.clear()
+  } catch {}
+  scanner = null
+
+  await new Promise(r => setTimeout(r, 300))
+
+  const container = ensureContainer()
+  if (!container) {
+    error.value = 'Errore cambio fotocamera: contenitore non trovato'
+    return
   }
+
+  scanner = new Html5Qrcode(SCANNER_ID, {
+    formatsToSupport: getSupportedFormats(),
+    verbose: false,
+  })
+
+  const camId = cameras.value[currentCameraIndex.value].id
+  await scanner.start(
+    { deviceId: { exact: camId } },
+    {
+      fps: 15,
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0,
+      videoConstraints: {
+        width: { ideal: 4096 },
+        height: { ideal: 2160 },
+      },
+    },
+    onScanSuccess,
+    onScanFailure
+  )
 }
 
 async function stopCamera() {
@@ -304,7 +319,10 @@ function onScanSuccess(decodedText, decodedResult) {
     code = '0' + code
   }
   if (type === 'EAN13' && code.length === 12) code = '0' + code
-  stopCamera()
+  isScanning.value = false
+  if (scanner) {
+    try { scanner.stop() } catch {}
+  }
   emit('scan', { code, type, cameraFormat: true })
 }
 
@@ -372,12 +390,12 @@ async function close() {
   emit('close')
 }
 
-watch(() => props.active, (val) => {
+watch(() => props.active, async (val) => {
   if (val) {
     error.value = ''
-    startCamera()
+    await startCamera()
   } else {
-    stopCamera()
+    await stopCamera()
     error.value = ''
   }
 })
