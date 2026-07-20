@@ -7,8 +7,8 @@ android {
         applicationId "it.oculus.carte"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -24,10 +24,10 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('fidappti.keystore')
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ''
-            keyAlias 'fidappti'
-            keyPassword System.getenv("KEY_PASSWORD") ?: ''
+            storeFile file('debug.keystore')
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword System.getenv("KEY_PASSWORD") ?: 'android'
         }
     }
     buildTypes {
