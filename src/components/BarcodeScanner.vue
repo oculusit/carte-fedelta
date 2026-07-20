@@ -81,7 +81,6 @@ let localStream = null
 let scanInterval = null
 let detector = null
 let zxingReader = null
-let zxingAbort = null
 
 const fileScannerFormats = [
   Html5QrcodeSupportedFormats.CODE_128,
@@ -218,12 +217,13 @@ async function startCamera() {
     } else {
       try {
         const zxing = await import('@zxing/library')
-        zxingReader = new zxing.BrowserMultiFormatReader()
-        const video = videoEl.value
-        const controls = await zxingReader.decodeFromVideoElement(video, (result) => {
-          if (result && result.getText() && isScanning.value) {
-            handleDetection(result.getText(), null)
-          }
+        zxingReader = new zxing.MultiFormatReader()
+        zxingScanLoop()
+      } catch (e) {
+        console.warn('ZXing import error:', e)
+        error.value = 'Nessun decodificatore barcode disponibile su questo dispositivo.'
+      }
+    }
         })
         zxingAbort = controls
       } catch {
@@ -262,6 +262,53 @@ async function scanLoop() {
   }
 }
 
+let zxingCanvas = null
+let zxingCtx = null
+
+async function zxingScanLoop() {
+  if (!isScanning.value || !zxingReader || !videoEl.value) return
+
+  try {
+    const video = videoEl.value
+    const w = video.videoWidth
+    const h = video.videoHeight
+
+    if (!w || !h) {
+      if (isScanning.value) scanInterval = requestAnimationFrame(zxingScanLoop)
+      return
+    }
+
+    if (!zxingCanvas || zxingCanvas.width !== w || zxingCanvas.height !== h) {
+      zxingCanvas = document.createElement('canvas')
+      zxingCanvas.width = w
+      zxingCanvas.height = h
+      zxingCtx = zxingCanvas.getContext('2d', { willReadFrequently: true })
+    }
+
+    zxingCtx.drawImage(video, 0, 0, w, h)
+    const imageData = zxingCtx.getImageData(0, 0, w, h)
+
+    const { RGBLuminanceSource, BinaryBitmap, HybridBinarizer } = await import('@zxing/library')
+    const source = new RGBLuminanceSource(imageData.data, w, h)
+    const bitmap = new BinaryBitmap(new HybridBinarizer(source))
+    const result = zxingReader.decode(bitmap)
+
+    if (result && result.getText()) {
+      handleDetection(result.getText(), null)
+      return
+    }
+  } catch (e) {
+    const name = e?.constructor?.name || e?.message || ''
+    if (name !== 'NotFoundException' && !name.includes('not found')) {
+      console.warn('ZXing decode error:', e)
+    }
+  }
+
+  if (isScanning.value) {
+    scanInterval = setTimeout(zxingScanLoop, 250)
+  }
+}
+
 async function toggleTorch() {
   if (!localStream) return
   try {
@@ -279,15 +326,17 @@ async function stopCamera() {
   torchOn.value = false
   isScanning.value = false
   if (scanInterval) {
-    cancelAnimationFrame(scanInterval)
+    if (typeof scanInterval === 'number' && scanInterval > 0 && scanInterval < 10000) {
+      clearTimeout(scanInterval)
+    } else {
+      cancelAnimationFrame(scanInterval)
+    }
     scanInterval = null
   }
   detector = null
-  if (zxingAbort) {
-    try { zxingAbort.stop() } catch {}
-    zxingAbort = null
-  }
   zxingReader = null
+  zxingCanvas = null
+  zxingCtx = null
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop())
     localStream = null
