@@ -80,6 +80,8 @@ const torchOn = ref(false)
 let localStream = null
 let scanInterval = null
 let detector = null
+let zxingReader = null
+let zxingAbort = null
 
 const fileScannerFormats = [
   Html5QrcodeSupportedFormats.CODE_128,
@@ -214,7 +216,19 @@ async function startCamera() {
       detector = new BarcodeDetector({ formats: supported })
       scanLoop()
     } else {
-      error.value = 'BarcodeDetector non supportato su questo dispositivo.'
+      try {
+        const zxing = await import('@zxing/library')
+        zxingReader = new zxing.BrowserMultiFormatReader()
+        const video = videoEl.value
+        const controls = await zxingReader.decodeFromVideoElement(video, (result) => {
+          if (result && result.getText() && isScanning.value) {
+            handleDetection(result.getText(), null)
+          }
+        })
+        zxingAbort = controls
+      } catch {
+        error.value = 'Nessun decodificatore barcode disponibile su questo dispositivo.'
+      }
     }
   } catch (e) {
     if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
@@ -269,6 +283,11 @@ async function stopCamera() {
     scanInterval = null
   }
   detector = null
+  if (zxingAbort) {
+    try { zxingAbort.stop() } catch {}
+    zxingAbort = null
+  }
+  zxingReader = null
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop())
     localStream = null
