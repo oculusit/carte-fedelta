@@ -7,11 +7,13 @@
       </div>
 
       <div class="scanner-viewport" ref="viewportEl">
+        <video ref="videoEl" class="scanner-video" autoplay playsinline muted></video>
         <div v-if="loading" class="scanner-loading">
           <span class="loading-spinner"></span>
-          <p style="white-space:pre-line;font-size:12px;text-align:left">{{ loadingMsg }}</p>
+          <p>{{ loadingMsg }}</p>
         </div>
         <div v-if="error" class="scanner-error">{{ error }}</div>
+        <div v-if="isScanning" class="scanner-reticle"></div>
       </div>
 
       <div class="scanner-controls">
@@ -52,7 +54,6 @@
       <p v-if="isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
         <template v-if="torchOn"> · Flash attivo</template>
-        <template v-if="cameras[currentCameraIndex]"> · {{ cameras[currentCameraIndex]?.label || ('Camera ' + (currentCameraIndex + 1)) }}</template>
       </p>
     </div>
   </div>
@@ -69,208 +70,45 @@ const props = defineProps({
 })
 
 const viewportEl = ref(null)
+const videoEl = ref(null)
 const isScanning = ref(false)
 const loading = ref(false)
 const loadingMsg = ref('')
 const error = ref('')
-const cameras = ref([])
-const currentCameraIndex = ref(0)
 const torchOn = ref(false)
 
-let scanner = null
-let scannerContainer = null
+let localStream = null
+let scanInterval = null
+let detector = null
 
-const SCANNER_ID = 'qrcode-scanner-element'
+const fileScannerFormats = [
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.CODABAR,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.PDF_417,
+]
 
-function getSupportedFormats() {
-  return [
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.ITF,
-    Html5QrcodeSupportedFormats.QR_CODE,
-    Html5QrcodeSupportedFormats.CODABAR,
-    Html5QrcodeSupportedFormats.CODE_93,
-    Html5QrcodeSupportedFormats.DATA_MATRIX,
-    Html5QrcodeSupportedFormats.PDF_417,
-  ]
-}
-
-function ensureContainer() {
-  if (!scannerContainer && viewportEl.value) {
-    scannerContainer = document.createElement('div')
-    scannerContainer.id = SCANNER_ID
-    scannerContainer.style.width = '100%'
-    scannerContainer.style.height = '100%'
-    scannerContainer.style.position = 'absolute'
-    scannerContainer.style.top = '0'
-    scannerContainer.style.left = '0'
-    viewportEl.value.appendChild(scannerContainer)
-  }
-  return scannerContainer
-}
-
-function removeContainer() {
-  if (scannerContainer && scannerContainer.parentNode) {
-    scannerContainer.parentNode.removeChild(scannerContainer)
-  }
-  scannerContainer = null
-}
-
-async function startCamera() {
-  await nextTick()
-
-  loading.value = true
-  loadingMsg.value = 'Richiedo permesso fotocamera...'
-  error.value = ''
-
-  try {
-    try {
-      cameras.value = await Html5Qrcode.getCameras()
-    } catch (permErr) {
-      loading.value = false
-      error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
-      return
-    }
-
-    if (!cameras.value || cameras.value.length === 0) {
-      loading.value = false
-      error.value = 'Nessuna fotocamera trovata sul dispositivo.'
-      return
-    }
-
-    const savedId = localStorage.getItem('preferred_camera_id')
-    if (savedId) {
-      const idx = cameras.value.findIndex(c => String(c.id) === String(savedId))
-      if (idx >= 0) currentCameraIndex.value = idx
-    } else {
-      const backIdx = cameras.value.findIndex(c =>
-        c.label?.toLowerCase().includes('back') ||
-        c.label?.toLowerCase().includes('rear') ||
-        c.label?.toLowerCase().includes('environment')
-      )
-      currentCameraIndex.value = backIdx >= 0 ? backIdx : cameras.value.length - 1
-    }
-
-    const debugInfo = cameras.value.map((c, i) =>
-      (i === currentCameraIndex.value ? '>' : ' ') + ' ' + c.id + ' ' + (c.label || '?')
-    ).join('\n')
-    loadingMsg.value = 'Camere trovate:\n' + debugInfo
-
-    loadingMsg.value = 'Avvio fotocamera...'
-
-    const container = ensureContainer()
-    if (!container) {
-      loading.value = false
-      error.value = 'Errore interno: contenitore non trovato.'
-      return
-    }
-
-    if (scanner) {
-      try { await scanner.stop() } catch {}
-      scanner.clear()
-      scanner = null
-    }
-
-    const camId = cameras.value[currentCameraIndex.value].id
-    const camLabel = cameras.value[currentCameraIndex.value]?.label || ''
-    loadingMsg.value = 'Avvio ' + (camLabel || 'fotocamera') + '...'
-
-    scanner = new Html5Qrcode(SCANNER_ID, {
-      formatsToSupport: getSupportedFormats(),
-      verbose: false,
-    })
-
-    await scanner.start(
-      { deviceId: { exact: camId } },
-      {
-        fps: 10,
-        qrbox: { width: 280, height: 280 },
-        aspectRatio: 1.0,
-        disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      },
-      onScanSuccess,
-      onScanFailure
-    )
-
-    isScanning.value = true
-  } catch (e) {
-    console.warn('Camera error:', e)
-
-    if (e.message?.includes('NotAllowed')) {
-      error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
-    } else if (e.message?.includes('NotFound')) {
-      error.value = 'Fotocamera non trovata sul dispositivo.'
-    } else if (e.message?.includes('NotReadable')) {
-      error.value = 'Fotocamera occupata da un\'altra applicazione.'
-    } else {
-      error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-async function toggleTorch() {
-  if (!scanner || !isScanning.value) return
-  try {
-    torchOn.value = !torchOn.value
-    await scanner.applyVideoConstraints({
-      advanced: [{ torch: torchOn.value }]
-    })
-  } catch (e) {
-    torchOn.value = false
-    console.warn('Torch not supported:', e)
-  }
-}
-
-async function stopCamera() {
-  torchOn.value = false
-  if (scanner) {
-    try { await scanner.stop() } catch {}
-    try { scanner.clear() } catch {}
-    scanner = null
-  }
-  isScanning.value = false
-  removeContainer()
-}
-
-const scannerFormatMap = {
-  EAN_13: 'EAN13',
-  EAN_8: 'EAN8',
-  UPC_A: 'UPC',
-  UPC_E: 'UPC',
-  CODE_128: 'CODE128',
-  CODE_39: 'CODE39',
-  ITF: 'ITF',
-  QR_CODE: 'QR',
-  CODABAR: 'CODE128',
-  CODE_93: 'CODE128',
-  DATA_MATRIX: 'CODE128',
-  PDF_417: 'CODE128',
-  AZTEC: 'CODE128',
-}
-
-function mapScannerFormat(libFormat) {
-  if (!libFormat) return ''
-  let name
-  if (typeof libFormat === 'string') {
-    name = libFormat.toUpperCase()
-  } else if (libFormat.formatName) {
-    name = libFormat.formatName.toUpperCase()
-  } else if (libFormat.toString) {
-    name = libFormat.toString().toUpperCase()
-  } else {
-    return ''
-  }
-  return scannerFormatMap[name] || ''
+const barcodeFormatMap = {
+  'ean_13': 'EAN13', 'ean-13': 'EAN13',
+  'ean_8': 'EAN8', 'ean-8': 'EAN8',
+  'upc_a': 'UPC', 'upc-a': 'UPC', 'upc_e': 'UPC', 'upc-e': 'UPC',
+  'code_128': 'CODE128', 'code-128': 'CODE128', 'code128': 'CODE128',
+  'code_39': 'CODE39', 'code-39': 'CODE39', 'code39': 'CODE39',
+  'itf': 'ITF', 'itf-14': 'ITF',
+  'qr_code': 'QR', 'qr-code': 'QR', 'qr': 'QR',
+  'codabar': 'CODE128',
+  'code_93': 'CODE128', 'code-93': 'CODE128',
+  'data_matrix': 'CODE128', 'data-matrix': 'CODE128',
+  'pdf_417': 'CODE128', 'pdf-417': 'CODE128',
+  'aztec': 'CODE128',
 }
 
 const eanPrefixes = new Set([
@@ -283,28 +121,154 @@ const eanPrefixes = new Set([
   '90','91','92','93','94','95','96','97','98','99',
 ])
 
-function onScanSuccess(decodedText, decodedResult) {
-  if (!isScanning.value) return
-  let code = decodedText
-  let type = ''
-  try {
-    const raw = decodedResult?.result?.format || decodedResult?.format
-    type = mapScannerFormat(raw)
-  } catch {}
+function resolveType(rawFormat) {
+  if (!rawFormat) return ''
+  const name = (rawFormat.formatName || rawFormat.toString?.() || '').toLowerCase()
+  return barcodeFormatMap[name] || ''
+}
+
+function postProcess(code, type) {
   if (!type) type = detectBarcodeType(code)
   if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
     type = 'EAN13'
     code = '0' + code
   }
   if (type === 'EAN13' && code.length === 12) code = '0' + code
-  isScanning.value = false
-  if (scanner) {
-    try { scanner.stop() } catch {}
-  }
-  emit('scan', { code, type, cameraFormat: true })
+  return { code, type }
 }
 
-function onScanFailure() {
+function handleDetection(decodedText, rawFormat) {
+  if (!isScanning.value) return
+  let type = resolveType(rawFormat)
+  const { code, type: finalType } = postProcess(decodedText, type)
+  stopCamera()
+  emit('scan', { code, type: finalType, cameraFormat: true })
+}
+
+async function startCamera() {
+  await nextTick()
+
+  loading.value = true
+  loadingMsg.value = 'Richiedo permesso fotocamera...'
+  error.value = ''
+
+  try {
+    const savedId = localStorage.getItem('preferred_camera_id')
+
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const videoDevices = devices.filter(d => d.kind === 'videoinput')
+
+    if (videoDevices.length === 0) {
+      loading.value = false
+      error.value = 'Nessuna fotocamera trovata sul dispositivo.'
+      return
+    }
+
+    let selectedDevice = null
+    if (savedId) {
+      selectedDevice = videoDevices.find(d => d.deviceId === savedId)
+    }
+    if (!selectedDevice) {
+      selectedDevice = videoDevices.find(d =>
+        d.label?.toLowerCase().includes('back') ||
+        d.label?.toLowerCase().includes('rear') ||
+        d.label?.toLowerCase().includes('environment')
+      ) || videoDevices[videoDevices.length - 1]
+    }
+
+    const camLabel = selectedDevice?.label || ''
+    loadingMsg.value = 'Avvio ' + (camLabel || 'fotocamera') + '...'
+
+    const constraints = {
+      video: {
+        deviceId: selectedDevice ? { exact: selectedDevice.deviceId } : undefined,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      }
+    }
+
+    localStream = await navigator.mediaDevices.getUserMedia(constraints)
+    await nextTick()
+
+    const video = videoEl.value
+    if (!video) {
+      error.value = 'Errore interno: elemento video non trovato.'
+      return
+    }
+
+    video.srcObject = localStream
+    await video.play()
+
+    loading.value = false
+    isScanning.value = true
+
+    if ('BarcodeDetector' in window) {
+      const supported = await BarcodeDetector.getSupportedFormats()
+      detector = new BarcodeDetector({ formats: supported })
+      scanLoop()
+    } else {
+      error.value = 'BarcodeDetector non supportato su questo dispositivo.'
+    }
+  } catch (e) {
+    if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
+      error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
+    } else if (e.name === 'NotFoundError' || e.message?.includes('NotFound')) {
+      error.value = 'Fotocamera non trovata sul dispositivo.'
+    } else if (e.name === 'NotReadableError' || e.message?.includes('NotReadable')) {
+      error.value = 'Fotocamera occupata da un\'altra applicazione.'
+    } else {
+      error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+async function scanLoop() {
+  if (!isScanning.value || !detector || !videoEl.value) return
+
+  try {
+    const results = await detector.detect(videoEl.value)
+    if (results && results.length > 0) {
+      const best = results[0]
+      handleDetection(best.rawValue, best.format)
+      return
+    }
+  } catch {}
+
+  if (isScanning.value) {
+    scanInterval = requestAnimationFrame(scanLoop)
+  }
+}
+
+async function toggleTorch() {
+  if (!localStream) return
+  try {
+    torchOn.value = !torchOn.value
+    const track = localStream.getVideoTracks()[0]
+    await track.applyConstraints({
+      advanced: [{ torch: torchOn.value }]
+    })
+  } catch (e) {
+    torchOn.value = false
+  }
+}
+
+async function stopCamera() {
+  torchOn.value = false
+  isScanning.value = false
+  if (scanInterval) {
+    cancelAnimationFrame(scanInterval)
+    scanInterval = null
+  }
+  detector = null
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop())
+    localStream = null
+  }
+  if (videoEl.value) {
+    videoEl.value.srcObject = null
+  }
 }
 
 async function onFileUpload(e) {
@@ -315,7 +279,7 @@ async function onFileUpload(e) {
   loading.value = true
   loadingMsg.value = 'Analisi immagine...'
 
-  const fileDivId = SCANNER_ID + '-file'
+  const fileDivId = 'barcode-file-scanner'
   let fileDiv = document.getElementById(fileDivId)
   if (!fileDiv) {
     fileDiv = document.createElement('div')
@@ -329,25 +293,19 @@ async function onFileUpload(e) {
   }
 
   const fileScanner = new Html5Qrcode(fileDivId, {
-    formatsToSupport: getSupportedFormats(),
+    formatsToSupport: fileScannerFormats,
     verbose: false,
   })
 
   try {
     const result = await fileScanner.scanFileV2(file, false)
-    let code = result.decodedText
     let type = ''
     try {
       const raw = result.result?.format || result.format
-      type = mapScannerFormat(raw)
+      type = resolveType(raw)
     } catch {}
-    if (!type) type = detectBarcodeType(code)
-    if (type === 'UPC' && code.length === 12 && eanPrefixes.has(code.substring(0, 2))) {
-      type = 'EAN13'
-      code = '0' + code
-    }
-    if (type === 'EAN13' && code.length === 12) code = '0' + code
-    emit('scan', { code, type, cameraFormat: false })
+    const { code, type: finalType } = postProcess(result.decodedText, type)
+    emit('scan', { code, type: finalType, cameraFormat: false })
   } catch {
     error.value = 'Nessun codice a barre riconosciuto nell\'immagine'
   } finally {
@@ -362,8 +320,6 @@ async function onFileUpload(e) {
 
 async function close() {
   await stopCamera()
-  cameras.value = []
-  currentCameraIndex.value = 0
   torchOn.value = false
   error.value = ''
   emit('close')
@@ -449,6 +405,27 @@ onBeforeUnmount(() => {
   min-height: 300px;
   background: #1a1a1a;
   overflow: hidden;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.scanner-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  height: 240px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
 .scanner-loading {
