@@ -142,13 +142,7 @@ async function startCamera() {
         return
       }
 
-      // Prefer back camera by default
-      const backIdx = cameras.value.findIndex(c =>
-        c.label?.toLowerCase().includes('back') ||
-        c.label?.toLowerCase().includes('rear') ||
-        c.label?.toLowerCase().includes('environment')
-      )
-      currentCameraIndex.value = backIdx >= 0 ? backIdx : 0
+      currentCameraIndex.value = cameras.value.length - 1
     }
 
     loadingMsg.value = 'Avvio fotocamera...'
@@ -171,10 +165,8 @@ async function startCamera() {
       verbose: false,
     })
 
-    const camId = cameras.value[currentCameraIndex.value].id
-
     await scanner.start(
-      { deviceId: { exact: camId } },
+      { facingMode: 'environment' },
       {
         fps: 10,
         qrbox: { width: 280, height: 280 },
