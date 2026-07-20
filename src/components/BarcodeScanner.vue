@@ -9,7 +9,7 @@
       <div class="scanner-viewport" ref="viewportEl">
         <div v-if="loading" class="scanner-loading">
           <span class="loading-spinner"></span>
-          <p>{{ loadingMsg }}</p>
+          <p style="white-space:pre-line;font-size:12px;text-align:left">{{ loadingMsg }}</p>
         </div>
         <div v-if="error" class="scanner-error">{{ error }}</div>
       </div>
@@ -79,7 +79,6 @@ const torchOn = ref(false)
 
 let scanner = null
 let scannerContainer = null
-let localStream = null
 
 const SCANNER_ID = 'qrcode-scanner-element'
 
@@ -156,6 +155,11 @@ async function startCamera() {
       currentCameraIndex.value = backIdx >= 0 ? backIdx : cameras.value.length - 1
     }
 
+    const debugInfo = cameras.value.map((c, i) =>
+      (i === currentCameraIndex.value ? '>' : ' ') + ' ' + c.id + ' ' + (c.label || '?')
+    ).join('\n')
+    loadingMsg.value = 'Camere trovate:\n' + debugInfo
+
     loadingMsg.value = 'Avvio fotocamera...'
 
     const container = ensureContainer()
@@ -175,23 +179,22 @@ async function startCamera() {
     const camLabel = cameras.value[currentCameraIndex.value]?.label || ''
     loadingMsg.value = 'Avvio ' + (camLabel || 'fotocamera') + '...'
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: camId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-    })
-    localStream = stream
-
     scanner = new Html5Qrcode(SCANNER_ID, {
       formatsToSupport: getSupportedFormats(),
       verbose: false,
     })
 
     await scanner.start(
-      stream,
+      { deviceId: { exact: camId } },
       {
         fps: 10,
         qrbox: { width: 280, height: 280 },
         aspectRatio: 1.0,
         disableFlip: false,
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
       },
       onScanSuccess,
       onScanFailure
@@ -234,10 +237,6 @@ async function stopCamera() {
     try { await scanner.stop() } catch {}
     try { scanner.clear() } catch {}
     scanner = null
-  }
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop())
-    localStream = null
   }
   isScanning.value = false
   removeContainer()
