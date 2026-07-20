@@ -155,8 +155,15 @@ async function startCamera() {
   try {
     const savedId = localStorage.getItem('preferred_camera_id')
 
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    const videoDevices = devices.filter(d => d.kind === 'videoinput')
+    let videoDevices = []
+    try {
+      const cams = await Html5Qrcode.getCameras()
+      videoDevices = (cams || []).map(c => ({ deviceId: c.id, label: c.label || '' }))
+    } catch {
+      loading.value = false
+      error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
+      return
+    }
 
     if (videoDevices.length === 0) {
       loading.value = false
@@ -166,7 +173,7 @@ async function startCamera() {
 
     let selectedDevice = null
     if (savedId) {
-      selectedDevice = videoDevices.find(d => d.deviceId === savedId)
+      selectedDevice = videoDevices.find(d => String(d.deviceId) === String(savedId))
     }
     if (!selectedDevice) {
       selectedDevice = videoDevices.find(d =>
@@ -181,7 +188,7 @@ async function startCamera() {
 
     const constraints = {
       video: {
-        deviceId: selectedDevice ? { exact: selectedDevice.deviceId } : undefined,
+        deviceId: { exact: selectedDevice.deviceId },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       }
