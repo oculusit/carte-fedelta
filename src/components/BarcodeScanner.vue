@@ -7,7 +7,8 @@
       </div>
 
       <div class="scanner-viewport" ref="viewportEl">
-        <video ref="videoEl" class="scanner-video" autoplay playsinline muted></video>
+        <video v-if="useNativeCamera" ref="videoEl" class="scanner-video" autoplay playsinline muted></video>
+        <div v-if="!useNativeCamera" ref="html5Container" class="html5-container"></div>
         <div v-if="loading" class="scanner-loading">
           <span class="loading-spinner"></span>
           <p>{{ loadingMsg }}</p>
@@ -34,6 +35,7 @@
             Ferma fotocamera
           </button>
           <button
+            v-if="useNativeCamera"
             class="btn btn-switch-cam"
             :class="torchOn ? 'btn-torch-on' : 'btn-torch-off'"
             @click="toggleTorch"
@@ -71,16 +73,20 @@ const props = defineProps({
 
 const viewportEl = ref(null)
 const videoEl = ref(null)
+const html5Container = ref(null)
 const isScanning = ref(false)
 const loading = ref(false)
 const loadingMsg = ref('')
 const error = ref('')
 const torchOn = ref(false)
+const useNativeCamera = ref(false)
 
 let localStream = null
 let scanInterval = null
 let detector = null
-let zxingReader = null
+let html5Scanner = null
+
+const SCANNER_ID = 'qrcode-scanner-element'
 
 const fileScannerFormats = [
   Html5QrcodeSupportedFormats.CODE_128,
@@ -153,6 +159,14 @@ async function startCamera() {
   loadingMsg.value = 'Richiedo permesso fotocamera...'
   error.value = ''
 
+  if ('BarcodeDetector' in window) {
+    await startNativeCamera()
+  } else {
+    await startHtml5Camera()
+  }
+}
+
+async function startNativeCamera() {
   try {
     const savedId = localStorage.getItem('preferred_camera_id')
 
@@ -187,17 +201,15 @@ async function startCamera() {
     const camLabel = selectedDevice?.label || ''
     loadingMsg.value = 'Avvio ' + (camLabel || 'fotocamera') + '...'
 
-    const constraints = {
+    localStream = await navigator.mediaDevices.getUserMedia({
       video: {
         deviceId: { exact: selectedDevice.deviceId },
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       }
-    }
+    })
 
-    localStream = await navigator.mediaDevices.getUserMedia(constraints)
     await nextTick()
-
     const video = videoEl.value
     if (!video) {
       error.value = 'Errore interno: elemento video non trovato.'
@@ -207,99 +219,129 @@ async function startCamera() {
     video.srcObject = localStream
     await video.play()
 
+    useNativeCamera.value = true
     loading.value = false
     isScanning.value = true
 
-    if ('BarcodeDetector' in window) {
-      const supported = await BarcodeDetector.getSupportedFormats()
-      detector = new BarcodeDetector({ formats: supported })
-      scanLoop()
-    } else {
-      try {
-        const zxing = await import('@zxing/library')
-        zxingReader = new zxing.MultiFormatReader()
-        zxingScanLoop()
-      } catch (e) {
-        console.warn('ZXing import error:', e)
-        error.value = 'Nessun decodificatore barcode disponibile su questo dispositivo.'
-      }
-    }
+    const supported = await BarcodeDetector.getSupportedFormats()
+    detector = new BarcodeDetector({ formats: supported })
+    scanLoop()
   } catch (e) {
-    if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
-      error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
-    } else if (e.name === 'NotFoundError' || e.message?.includes('NotFound')) {
-      error.value = 'Fotocamera non trovata sul dispositivo.'
-    } else if (e.name === 'NotReadableError' || e.message?.includes('NotReadable')) {
-      error.value = 'Fotocamera occupata da un\'altra applicazione.'
-    } else {
-      error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
-    }
+    handleCameraError(e)
   } finally {
     loading.value = false
   }
 }
 
-async function scanLoop() {
-  if (!isScanning.value || !detector || !videoEl.value) return
-
+async function startHtml5Camera() {
   try {
-    const results = await detector.detect(videoEl.value)
-    if (results && results.length > 0) {
-      const best = results[0]
-      handleDetection(best.rawValue, best.format)
+    loadingMsg.value = 'Avvio fotocamera...'
+
+    await nextTick()
+
+    const containerId = SCANNER_ID
+    if (html5Scanner) {
+      try { await html5Scanner.stop() } catch {}
+      html5Scanner.clear()
+      html5Scanner = null
+    }
+
+    let container = document.getElementById(containerId)
+    if (!container && html5Container.value) {
+      container = document.createElement('div')
+      container.id = containerId
+      container.style.width = '100%'
+      container.style.height = '100%'
+      container.style.position = 'absolute'
+      container.style.top = '0'
+      container.style.left = '0'
+      html5Container.value.appendChild(container)
+    }
+
+    if (!container) {
+      error.value = 'Errore interno: contenitore non trovato.'
       return
     }
-  } catch {}
 
-  if (isScanning.value) {
-    scanInterval = requestAnimationFrame(scanLoop)
+    html5Scanner = new Html5Qrcode(containerId, {
+      formatsToSupport: fileScannerFormats,
+      verbose: false,
+    })
+
+    const savedId = localStorage.getItem('preferred_camera_id')
+    let cameraConfig = { facingMode: 'environment' }
+
+    if (savedId) {
+      try {
+        const cams = await Html5Qrcode.getCameras()
+        const found = cams?.find(c => String(c.id) === String(savedId))
+        if (found) {
+          cameraConfig = { deviceId: { exact: found.id } }
+          loadingMsg.value = 'Avvio ' + (found.label || 'fotocamera') + '...'
+        }
+      } catch {}
+    }
+
+    await html5Scanner.start(
+      cameraConfig,
+      {
+        fps: 10,
+        qrbox: { width: 280, height: 280 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      },
+      (decodedText, decodedResult) => {
+        if (!isScanning.value) return
+        let type = ''
+        try {
+          const raw = decodedResult?.result?.format || decodedResult?.format
+          type = resolveType(raw)
+        } catch {}
+        const { code, type: finalType } = postProcess(decodedText, type)
+        isScanning.value = false
+        html5Scanner?.stop?.()
+        emit('scan', { code, type: finalType, cameraFormat: true })
+      },
+      () => {}
+    )
+
+    useNativeCamera.value = false
+    loading.value = false
+    isScanning.value = true
+  } catch (e) {
+    handleCameraError(e)
+  } finally {
+    loading.value = false
   }
 }
 
-let zxingCanvas = null
-let zxingCtx = null
-
-async function zxingScanLoop() {
-  if (!isScanning.value || !zxingReader || !videoEl.value) return
-
-  try {
-    const video = videoEl.value
-    const w = video.videoWidth
-    const h = video.videoHeight
-
-    if (!w || !h) {
-      if (isScanning.value) scanInterval = requestAnimationFrame(zxingScanLoop)
-      return
-    }
-
-    if (!zxingCanvas || zxingCanvas.width !== w || zxingCanvas.height !== h) {
-      zxingCanvas = document.createElement('canvas')
-      zxingCanvas.width = w
-      zxingCanvas.height = h
-      zxingCtx = zxingCanvas.getContext('2d', { willReadFrequently: true })
-    }
-
-    zxingCtx.drawImage(video, 0, 0, w, h)
-    const imageData = zxingCtx.getImageData(0, 0, w, h)
-
-    const { RGBLuminanceSource, BinaryBitmap, HybridBinarizer } = await import('@zxing/library')
-    const source = new RGBLuminanceSource(imageData.data, w, h)
-    const bitmap = new BinaryBitmap(new HybridBinarizer(source))
-    const result = zxingReader.decode(bitmap)
-
-    if (result && result.getText()) {
-      handleDetection(result.getText(), null)
-      return
-    }
-  } catch (e) {
-    const name = e?.constructor?.name || e?.message || ''
-    if (name !== 'NotFoundException' && !name.includes('not found')) {
-      console.warn('ZXing decode error:', e)
-    }
+function handleCameraError(e) {
+  if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
+    error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
+  } else if (e.name === 'NotFoundError' || e.message?.includes('NotFound')) {
+    error.value = 'Fotocamera non trovata sul dispositivo.'
+  } else if (e.name === 'NotReadableError' || e.message?.includes('NotReadable')) {
+    error.value = 'Fotocamera occupata da un\'altra applicazione.'
+  } else {
+    error.value = 'Errore fotocamera: ' + (e.message || 'sconosciuto')
   }
+}
 
+async function scanLoop() {
+  if (!isScanning.value || !detector || !videoEl.value) return
+  try {
+    const results = await detector.detect(videoEl.value)
+    if (results && results.length > 0) {
+      handleDetection(results[0].rawValue, results[0].format)
+      return
+    }
+  } catch {}
   if (isScanning.value) {
-    scanInterval = setTimeout(zxingScanLoop, 250)
+    scanInterval = requestAnimationFrame(scanLoop)
   }
 }
 
@@ -308,10 +350,8 @@ async function toggleTorch() {
   try {
     torchOn.value = !torchOn.value
     const track = localStream.getVideoTracks()[0]
-    await track.applyConstraints({
-      advanced: [{ torch: torchOn.value }]
-    })
-  } catch (e) {
+    await track.applyConstraints({ advanced: [{ torch: torchOn.value }] })
+  } catch {
     torchOn.value = false
   }
 }
@@ -319,24 +359,30 @@ async function toggleTorch() {
 async function stopCamera() {
   torchOn.value = false
   isScanning.value = false
+
   if (scanInterval) {
-    if (typeof scanInterval === 'number' && scanInterval > 0 && scanInterval < 10000) {
-      clearTimeout(scanInterval)
-    } else {
-      cancelAnimationFrame(scanInterval)
-    }
+    cancelAnimationFrame(scanInterval)
     scanInterval = null
   }
   detector = null
-  zxingReader = null
-  zxingCanvas = null
-  zxingCtx = null
+
+  if (html5Scanner) {
+    try { await html5Scanner.stop() } catch {}
+    try { html5Scanner.clear() } catch {}
+    html5Scanner = null
+  }
+
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop())
     localStream = null
   }
   if (videoEl.value) {
     videoEl.value.srcObject = null
+  }
+
+  const oldContainer = document.getElementById(SCANNER_ID)
+  if (oldContainer && oldContainer.parentNode) {
+    oldContainer.parentNode.removeChild(oldContainer)
   }
 }
 
@@ -461,13 +507,8 @@ onBeforeUnmount(() => {
   z-index: 10;
 }
 
-.scanner-close:hover {
-  background: #e0e0e0;
-}
-
-.scanner-close:active {
-  background: #d0d0d0;
-}
+.scanner-close:hover { background: #e0e0e0; }
+.scanner-close:active { background: #d0d0d0; }
 
 .scanner-viewport {
   position: relative;
@@ -482,6 +523,11 @@ onBeforeUnmount(() => {
   min-height: 300px;
   object-fit: cover;
   display: block;
+}
+
+.html5-container {
+  width: 100%;
+  min-height: 300px;
 }
 
 .scanner-reticle {
@@ -519,9 +565,7 @@ onBeforeUnmount(() => {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .scanner-error {
   position: absolute;
@@ -558,9 +602,7 @@ onBeforeUnmount(() => {
   align-items: stretch;
 }
 
-.scanner-actions-row .btn-danger {
-  flex: 1;
-}
+.scanner-actions-row .btn-danger { flex: 1; }
 
 .btn-switch-cam {
   display: flex;
