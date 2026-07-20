@@ -52,6 +52,7 @@
       <p v-if="isScanning" class="scanner-hint">
         Inquadra il codice a barre della carta
         <template v-if="torchOn"> · Flash attivo</template>
+        <template v-if="cameras[currentCameraIndex]"> · {{ cameras[currentCameraIndex]?.label || ('Camera ' + (currentCameraIndex + 1)) }}</template>
       </p>
     </div>
   </div>
@@ -78,6 +79,7 @@ const torchOn = ref(false)
 
 let scanner = null
 let scannerContainer = null
+let localStream = null
 
 const SCANNER_ID = 'qrcode-scanner-element'
 
@@ -169,27 +171,27 @@ async function startCamera() {
       scanner = null
     }
 
+    const camId = cameras.value[currentCameraIndex.value].id
+    const camLabel = cameras.value[currentCameraIndex.value]?.label || ''
+    loadingMsg.value = 'Avvio ' + (camLabel || 'fotocamera') + '...'
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: camId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+    })
+    localStream = stream
+
     scanner = new Html5Qrcode(SCANNER_ID, {
       formatsToSupport: getSupportedFormats(),
       verbose: false,
     })
 
-    const camId = cameras.value[currentCameraIndex.value].id
-    console.log('[Scanner] cameras:', cameras.value.map(c => ({ id: c.id, label: c.label })))
-    console.log('[Scanner] selected:', camId, cameras.value[currentCameraIndex.value]?.label)
-    console.log('[Scanner] savedId:', savedId)
-
     await scanner.start(
-      { deviceId: { exact: camId } },
+      stream,
       {
         fps: 10,
         qrbox: { width: 280, height: 280 },
         aspectRatio: 1.0,
         disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
       },
       onScanSuccess,
       onScanFailure
@@ -232,6 +234,10 @@ async function stopCamera() {
     try { await scanner.stop() } catch {}
     try { scanner.clear() } catch {}
     scanner = null
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop())
+    localStream = null
   }
   isScanning.value = false
   removeContainer()
