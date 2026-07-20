@@ -24,10 +24,10 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('debug.keystore')
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword System.getenv("KEY_PASSWORD") ?: 'android'
+            storeFile file('fidappti-release.keystore')
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ''
+            keyAlias 'fidappti'
+            keyPassword System.getenv("KEY_PASSWORD") ?: ''
         }
     }
     buildTypes {
