@@ -76,7 +76,35 @@
       </button>
     </div>
 
-    <!-- 5) Log errori -->
+    <!-- 5) Test fotocamera -->
+    <div class="card settings-card">
+      <h3>Test fotocamera</h3>
+      <p class="section-desc">Elenca tutte le fotocamere del dispositivo per identificare quella posteriore.</p>
+      <button class="btn btn-outline btn-block" @click="enumerateCameras" :disabled="cameraTesting">
+        {{ cameraTesting ? 'Ricerca...' : 'Elenca fotocamere' }}
+      </button>
+      <div v-if="cameraList.length" class="camera-list" style="margin-top:12px">
+        <div v-for="(cam, i) in cameraList" :key="cam.id" class="camera-item" :class="{ 'camera-active': cam.id === savedCameraId }">
+          <div class="camera-info">
+            <strong>{{ cam.label || 'Camera ' + (i + 1) }}</strong>
+            <span class="camera-id">ID: {{ cam.id }}</span>
+          </div>
+          <div class="camera-actions">
+            <button class="btn btn-outline btn-sm" @click="testCamera(cam.id, i)">
+              {{ testingCameraIndex === i ? 'Apertura...' : 'Testa' }}
+            </button>
+            <button v-if="cam.id !== savedCameraId" class="btn btn-primary btn-sm" @click="setPreferredCamera(cam.id)">
+              Usa questa
+            </button>
+            <span v-else class="tag-online">Attiva</span>
+          </div>
+          <video v-if="testingCameraIndex === i" :ref="el => { if (el) testVideoEl = el }" autoplay playsinline muted style="width:100%;border-radius:8px;margin-top:8px;max-height:200px;object-fit:cover"></video>
+        </div>
+      </div>
+      <p v-if="savedCameraId" class="test-ok" style="margin-top:8px">Camera posteriore selezionata: ID {{ savedCameraId }}</p>
+    </div>
+
+    <!-- 6) Log errori -->
     <div v-if="errorLog.length" class="card settings-card">
       <h3>Log errori</h3>
       <p class="section-desc">Errori registrati durante l'utilizzo dell'app.</p>
@@ -88,7 +116,7 @@
       <button class="btn btn-outline btn-block" @click="clearErrorLog" style="margin-top:4px">Cancella log</button>
     </div>
 
-    <!-- 6) Informazioni -->
+    <!-- 7) Informazioni -->
     <div class="card settings-card">
       <h3>Informazioni</h3>
       <div class="info-row">
@@ -398,6 +426,64 @@ async function importBackupFromInput(e) {
   }
   e.target.value = ''
 }
+
+const cameraTesting = ref(false)
+const cameraList = ref([])
+const testingCameraIndex = ref(-1)
+const savedCameraId = ref(localStorage.getItem('preferred_camera_id') || '')
+const testVideoEl = ref(null)
+let testStream = null
+
+async function enumerateCameras() {
+  cameraTesting.value = true
+  cameraList.value = []
+  try {
+    const { Html5Qrcode } = await import('html5-qrcode')
+    const cams = await Html5Qrcode.getCameras()
+    cameraList.value = cams || []
+    if (!cams || cams.length === 0) {
+      toast.show('Nessuna fotocamera trovata', 'error')
+    }
+  } catch (e) {
+    toast.show('Errore enumerazione: ' + (e.message || e), 'error')
+  } finally {
+    cameraTesting.value = false
+  }
+}
+
+async function testCamera(cameraId, index) {
+  stopTestCamera()
+  testingCameraIndex.value = index
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: cameraId }, width: { ideal: 640 }, height: { ideal: 480 } }
+    })
+    testStream = stream
+    await new Promise(r => setTimeout(r, 100))
+    if (testVideoEl.value) {
+      testVideoEl.value.srcObject = stream
+    }
+    setTimeout(stopTestCamera, 4000)
+  } catch (e) {
+    toast.show('Errore apertura camera: ' + (e.message || e), 'error')
+    testingCameraIndex.value = -1
+  }
+}
+
+function stopTestCamera() {
+  if (testStream) {
+    testStream.getTracks().forEach(t => t.stop())
+    testStream = null
+  }
+  testingCameraIndex.value = -1
+}
+
+function setPreferredCamera(cameraId) {
+  localStorage.setItem('preferred_camera_id', cameraId)
+  savedCameraId.value = cameraId
+  toast.show('Camera salvata come preferita', 'success')
+  stopTestCamera()
+}
 </script>
 
 <style scoped>
@@ -450,4 +536,10 @@ async function importBackupFromInput(e) {
 .error-log-entry { margin-bottom: 12px; padding: 10px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--danger); }
 .error-log-time { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
 .error-log-msg { font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; max-height: 120px; overflow: auto; }
+.camera-item { padding: 10px; background: var(--bg); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid var(--border); }
+.camera-item.camera-active { border-left-color: var(--success); }
+.camera-info { display: flex; flex-direction: column; gap: 2px; }
+.camera-id { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
+.camera-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
 </style>

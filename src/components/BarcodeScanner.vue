@@ -127,6 +127,20 @@ async function startCamera() {
   error.value = ''
 
   try {
+    const savedId = localStorage.getItem('preferred_camera_id')
+
+    if (savedId) {
+      if (!cameras.value || cameras.value.length === 0) {
+        try {
+          cameras.value = await Html5Qrcode.getCameras()
+        } catch {}
+      }
+      const found = cameras.value?.find(c => String(c.id) === String(savedId))
+      if (found) {
+        currentCameraIndex.value = cameras.value.indexOf(found)
+      }
+    }
+
     if (!cameras.value || cameras.value.length === 0) {
       try {
         cameras.value = await Html5Qrcode.getCameras()
@@ -142,7 +156,15 @@ async function startCamera() {
         return
       }
 
-      currentCameraIndex.value = cameras.value.length - 1
+      if (!savedId) {
+        const backIdx = cameras.value.findIndex(c =>
+          c.label?.toLowerCase().includes('back') ||
+          c.label?.toLowerCase().includes('rear') ||
+          c.label?.toLowerCase().includes('environment') ||
+          c.label?.includes('0')
+        )
+        currentCameraIndex.value = backIdx >= 0 ? backIdx : cameras.value.length - 1
+      }
     }
 
     loadingMsg.value = 'Avvio fotocamera...'
@@ -165,8 +187,13 @@ async function startCamera() {
       verbose: false,
     })
 
+    const useDeviceId = savedId && cameras.value?.[currentCameraIndex.value]
+    const cameraConfig = useDeviceId
+      ? { deviceId: { exact: cameras.value[currentCameraIndex.value].id } }
+      : { facingMode: 'environment' }
+
     await scanner.start(
-      { facingMode: 'environment' },
+      cameraConfig,
       {
         fps: 10,
         qrbox: { width: 280, height: 280 },
