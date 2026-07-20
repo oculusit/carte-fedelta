@@ -224,12 +224,6 @@ async function startCamera() {
         error.value = 'Nessun decodificatore barcode disponibile su questo dispositivo.'
       }
     }
-        })
-        zxingAbort = controls
-      } catch {
-        error.value = 'Nessun decodificatore barcode disponibile su questo dispositivo.'
-      }
-    }
   } catch (e) {
     if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
       error.value = 'Permesso fotocamera negato. Abilitalo nelle impostazioni del dispositivo.'
