@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
 
 .scanner-viewport {
   position: relative;
-  min-height: 300px;
+  height: 220px;
   background: #1a1a1a;
   overflow: hidden;
 }
@@ -405,7 +405,6 @@ onBeforeUnmount(() => {
 .scanner-video {
   width: 100%;
   height: 100%;
-  min-height: 300px;
   object-fit: cover;
   display: block;
 }
@@ -415,8 +414,8 @@ onBeforeUnmount(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   border: 2px solid rgba(255, 255, 255, 0.7);
   border-radius: 12px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
