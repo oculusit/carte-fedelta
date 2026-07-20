@@ -127,44 +127,31 @@ async function startCamera() {
   error.value = ''
 
   try {
-    const savedId = localStorage.getItem('preferred_camera_id')
-
-    if (savedId) {
-      if (!cameras.value || cameras.value.length === 0) {
-        try {
-          cameras.value = await Html5Qrcode.getCameras()
-        } catch {}
-      }
-      const found = cameras.value?.find(c => String(c.id) === String(savedId))
-      if (found) {
-        currentCameraIndex.value = cameras.value.indexOf(found)
-      }
+    try {
+      cameras.value = await Html5Qrcode.getCameras()
+    } catch (permErr) {
+      loading.value = false
+      error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
+      return
     }
 
     if (!cameras.value || cameras.value.length === 0) {
-      try {
-        cameras.value = await Html5Qrcode.getCameras()
-      } catch (permErr) {
-        loading.value = false
-        error.value = 'Fotocamera non accessibile. Verifica i permessi della fotocamera.'
-        return
-      }
+      loading.value = false
+      error.value = 'Nessuna fotocamera trovata sul dispositivo.'
+      return
+    }
 
-      if (!cameras.value || cameras.value.length === 0) {
-        loading.value = false
-        error.value = 'Nessuna fotocamera trovata sul dispositivo.'
-        return
-      }
-
-      if (!savedId) {
-        const backIdx = cameras.value.findIndex(c =>
-          c.label?.toLowerCase().includes('back') ||
-          c.label?.toLowerCase().includes('rear') ||
-          c.label?.toLowerCase().includes('environment') ||
-          c.label?.includes('0')
-        )
-        currentCameraIndex.value = backIdx >= 0 ? backIdx : cameras.value.length - 1
-      }
+    const savedId = localStorage.getItem('preferred_camera_id')
+    if (savedId) {
+      const idx = cameras.value.findIndex(c => String(c.id) === String(savedId))
+      if (idx >= 0) currentCameraIndex.value = idx
+    } else {
+      const backIdx = cameras.value.findIndex(c =>
+        c.label?.toLowerCase().includes('back') ||
+        c.label?.toLowerCase().includes('rear') ||
+        c.label?.toLowerCase().includes('environment')
+      )
+      currentCameraIndex.value = backIdx >= 0 ? backIdx : cameras.value.length - 1
     }
 
     loadingMsg.value = 'Avvio fotocamera...'
@@ -187,13 +174,13 @@ async function startCamera() {
       verbose: false,
     })
 
-    const useDeviceId = savedId && cameras.value?.[currentCameraIndex.value]
-    const cameraConfig = useDeviceId
-      ? { deviceId: { exact: cameras.value[currentCameraIndex.value].id } }
-      : { facingMode: 'environment' }
+    const camId = cameras.value[currentCameraIndex.value].id
+    console.log('[Scanner] cameras:', cameras.value.map(c => ({ id: c.id, label: c.label })))
+    console.log('[Scanner] selected:', camId, cameras.value[currentCameraIndex.value]?.label)
+    console.log('[Scanner] savedId:', savedId)
 
     await scanner.start(
-      cameraConfig,
+      { deviceId: { exact: camId } },
       {
         fps: 10,
         qrbox: { width: 280, height: 280 },

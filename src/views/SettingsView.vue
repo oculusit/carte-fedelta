@@ -101,7 +101,7 @@
           <video v-if="testingCameraIndex === i" :ref="el => { if (el) testVideoEl = el }" autoplay playsinline muted style="width:100%;border-radius:8px;margin-top:8px;max-height:200px;object-fit:cover"></video>
         </div>
       </div>
-      <p v-if="savedCameraId" class="test-ok" style="margin-top:8px">Camera posteriore selezionata: ID {{ savedCameraId }}</p>
+      <p v-if="savedCameraId" class="test-ok" style="margin-top:8px">Camera selezionata: ID {{ savedCameraId }}</p>
     </div>
 
     <!-- 6) Log errori -->
