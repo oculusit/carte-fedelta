@@ -210,9 +210,32 @@ async function startCamera() {
 async function switchCamera() {
   if (cameras.value.length < 2) return
   currentCameraIndex.value = (currentCameraIndex.value + 1) % cameras.value.length
-  if (isScanning.value) {
-    await stopCamera()
-    await startCamera()
+
+  if (!isScanning.value || !scanner) return
+
+  try {
+    await scanner.stop()
+  } catch {}
+
+  try {
+    const camId = cameras.value[currentCameraIndex.value].id
+    await scanner.start(
+      { deviceId: { exact: camId } },
+      {
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        videoConstraints: {
+          width: { ideal: 4096 },
+          height: { ideal: 2160 },
+        },
+      },
+      onScanSuccess,
+      onScanFailure
+    )
+  } catch (e) {
+    console.warn('Switch camera error:', e)
+    error.value = 'Errore cambio fotocamera: ' + (e.message || 'sconosciuto')
   }
 }
 
