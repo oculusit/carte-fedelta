@@ -27,7 +27,7 @@
 import { ref, onMounted } from 'vue'
 import { httpFetch } from '../services/http.js'
 
-const CURRENT_VERSION = '1.2.0'
+const CURRENT_VERSION = '1.2.1'
 const showUpdatePopup = ref(false)
 const latestVersion = ref('')
 const downloadUrl = ref('')
