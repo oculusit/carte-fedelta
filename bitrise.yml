@@ -5,22 +5,24 @@ project_type: other
 
 app:
   envs:
-    - XCODE_WORKSPACE: App.xcworkspace
     - XCODE_SCHEME: App
 
 trigger_map:
   - push_branch: master
-    workflow: ios_release
+    workflow: ios_build
   - pull_request_source_branch: "*"
-    workflow: ios_pr
+    workflow: ios_build
 
 workflows:
-  ios_pr:
-    description: Build PR - debug, no publish
+  ios_build:
+    description: Build iOS simulator (debug, no signing needed)
     steps:
       - activate-ssh-key@4:
           run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
       - git-clone@8: {}
+      - nvm@:
+          inputs:
+            - node_version: lts/*
       - npm@:
           inputs:
             - command: install
@@ -34,29 +36,3 @@ workflows:
           inputs:
             - project_path: ios/App/App.xcodeproj
             - scheme: App
-
-  ios_release:
-    description: Build release IPA
-    before_run:
-      - deploy-to-bitrise-io
-    steps:
-      - activate-ssh-key@4:
-          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-      - git-clone@8: {}
-      - npm@:
-          inputs:
-            - command: install
-      - npm@:
-          inputs:
-            - command: run build
-      - capacitor@:
-          inputs:
-            - command: sync ios
-      - certificate-and-profile-installer@: {}
-      - xcode-archive@:
-          inputs:
-            - project_path: ios/App/App.xcodeproj
-            - scheme: App
-            - configuration: Release
-            - export_method: app-store
-      - deploy-to-bitrise-io@: {}
