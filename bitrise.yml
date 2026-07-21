@@ -1,0 +1,62 @@
+---
+format_version: 11
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
+
+app:
+  envs:
+    - XCODE_WORKSPACE: App.xcworkspace
+    - XCODE_SCHEME: App
+
+trigger_map:
+  - push_branch: master
+    workflow: ios_release
+  - pull_request_source_branch: "*"
+    workflow: ios_pr
+
+workflows:
+  ios_pr:
+    description: Build PR - debug, no publish
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - npm@:
+          inputs:
+            - command: install
+      - npm@:
+          inputs:
+            - command: run build
+      - capacitor@:
+          inputs:
+            - command: sync ios
+      - xcode-build-for-simulator@:
+          inputs:
+            - project_path: ios/App/App.xcodeproj
+            - scheme: App
+
+  ios_release:
+    description: Build release IPA
+    before_run:
+      - deploy-to-bitrise-io
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - npm@:
+          inputs:
+            - command: install
+      - npm@:
+          inputs:
+            - command: run build
+      - capacitor@:
+          inputs:
+            - command: sync ios
+      - certificate-and-profile-installer@: {}
+      - xcode-archive@:
+          inputs:
+            - project_path: ios/App/App.xcodeproj
+            - scheme: App
+            - configuration: Release
+            - export_method: app-store
+      - deploy-to-bitrise-io@: {}
