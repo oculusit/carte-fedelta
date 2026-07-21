@@ -9,29 +9,26 @@ app:
 
 trigger_map:
   - push_branch: master
-    workflow: ios_build
+    workflow: build
   - pull_request_source_branch: "*"
-    workflow: ios_build
+    workflow: build
 
 workflows:
-  ios_build:
+  build:
     description: Build iOS simulator (debug, no signing needed)
     steps:
       - activate-ssh-key@4:
           run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
       - git-clone@8: {}
-      - nvm@:
+      - script@1:
+          title: Install dependencies + build web + sync Capacitor
           inputs:
-            - node_version: lts/*
-      - npm@:
-          inputs:
-            - command: install
-      - npm@:
-          inputs:
-            - command: run build
-      - capacitor@:
-          inputs:
-            - command: sync ios
+            - content: |
+                #!/bin/bash
+                set -ex
+                npm install
+                npm run build
+                npx cap sync ios
       - xcode-build-for-simulator@:
           inputs:
             - project_path: ios/App/App.xcodeproj
