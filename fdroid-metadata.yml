@@ -1,0 +1,36 @@
+Categories:
+  - Finance
+  - Offline
+License: MIT
+AuthorName: Alessandro Blasi
+AuthorWebSite: https://www.oculus.it
+SourceCode: https://github.com/oculusit/carte-fedelta
+IssueTracker: https://github.com/oculusit/carte-fedelta/issues
+
+AutoName: FidAPPti
+
+RepoType: git
+Repo: https://github.com/oculusit/carte-fedelta.git
+
+Builds:
+  - versionName: '1.2.1'
+    versionCode: 4
+    commit: 6af3fe19af1240be1f9b58aec689d949d107ba73
+    subdir: android
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm
+    init:
+      - cd .. && npm install
+      - cd .. && npx vite build
+      - cd .. && npx cap sync android
+    gradle:
+      - yes
+    scanignore:
+      - android/app/build
+      - node_modules
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: '1.2.1'
+CurrentVersionCode: 4

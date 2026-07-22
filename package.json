@@ -28,13 +28,13 @@
     "jsbarcode": "^3.11.6",
     "pinia": "^3.0.2",
     "qrcode": "^1.5.4",
-    "sharp": "^0.34.5",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
     "adm-zip": "^0.5.17",
+    "sharp": "^0.34.5",
     "vite": "^6.3.1"
   }
 }
