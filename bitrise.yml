@@ -30,9 +30,13 @@ workflows:
       - npm@:
           inputs:
             - command: run build
-      - capacitor@:
+      - script@1:
+          title: Sync Capacitor Android
           inputs:
-            - command: sync android
+            - content: |
+                #!/bin/bash
+                set -ex
+                npx cap sync android
       - android-build@:
           inputs:
             - project_path: $ANDROID_PROJECT_PATH
@@ -55,9 +59,13 @@ workflows:
       - npm@:
           inputs:
             - command: run build
-      - capacitor@:
+      - script@1:
+          title: Sync Capacitor iOS
           inputs:
-            - command: sync ios
+            - content: |
+                #!/bin/bash
+                set -ex
+                npx cap sync ios
       - xcode-build-for-simulator@:
           inputs:
             - project_path: ios/App/App.xcodeproj
