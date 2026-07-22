@@ -6,30 +6,36 @@ project_type: other
 app:
   envs:
     - XCODE_SCHEME: App
+    - ANDROID_PROJECT_PATH: android
 
 trigger_map:
   - push_branch: master
-    workflow: build
+    workflow: android_build
   - pull_request_source_branch: "*"
-    workflow: build
+    workflow: android_build
 
 workflows:
-  build:
-    description: Build iOS simulator (debug, no signing needed)
+  android_build:
+    description: Build Android APK + deploy to Bitrise
     steps:
       - activate-ssh-key@4:
           run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
       - git-clone@8: {}
-      - script@1:
-          title: Install dependencies + build web + sync Capacitor
+      - nvm@:
           inputs:
-            - content: |
-                #!/bin/bash
-                set -ex
-                npm install
-                npm run build
-                npx cap sync ios
-      - xcode-build-for-simulator@:
+            - node_version: lts/*
+      - npm@:
           inputs:
-            - project_path: ios/App/App.xcodeproj
-            - scheme: App
+            - command: install
+      - npm@:
+          inputs:
+            - command: run build
+      - capacitor@:
+          inputs:
+            - command: sync android
+      - android-build@:
+          inputs:
+            - project_path: $ANDROID_PROJECT_PATH
+            - module: app
+            - variant: debug
+      - deploy-to-bitrise-io@: {}
