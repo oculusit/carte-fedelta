@@ -39,3 +39,27 @@ workflows:
             - module: app
             - variant: debug
       - deploy-to-bitrise-io@: {}
+
+  ios_build:
+    description: Build iOS simulator + deploy to Bitrise
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - nvm@:
+          inputs:
+            - node_version: lts/*
+      - npm@:
+          inputs:
+            - command: install
+      - npm@:
+          inputs:
+            - command: run build
+      - capacitor@:
+          inputs:
+            - command: sync ios
+      - xcode-build-for-simulator@:
+          inputs:
+            - project_path: ios/App/App.xcodeproj
+            - scheme: App
+      - deploy-to-bitrise-io@: {}
