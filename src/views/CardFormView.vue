@@ -582,7 +582,7 @@ async function save() {
     form.value.card_number = form.value.card_number.trim()
     form.value.holder_name = form.value.holder_name.trim()
 
-    // No logo → generate text placeholder, save locally, submit for approval
+    // No logo → generate text placeholder, save locally, submit for approval + request store
     if (!form.value.logo_data) {
       const placeholder = textPlaceholderSvg(form.value.store_name)
       form.value.logo_data = placeholder
@@ -598,6 +598,17 @@ async function save() {
             store_name: form.value.store_name,
             image_data: placeholder,
             notes: 'Logo testuale generato automaticamente dall\'app. Da sostituire con logo ufficiale.'
+          })
+        })
+      } catch {}
+      // Also request store creation (fire-and-forget)
+      try {
+        await httpFetch('./api/logos/report-missing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            store_name: form.value.store_name,
+            timestamp: new Date().toISOString(),
           })
         })
       } catch {}

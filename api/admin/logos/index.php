@@ -316,6 +316,42 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     exit;
   }
 
+  if ($action === 'create_store_from_request') {
+    $id = (int)($_POST['id'] ?? 0);
+    $storeName = trim($_POST['store_name'] ?? '');
+    if (!$storeName) { echo json_encode(['error' => 'Nome negozio obbligatorio']); exit; }
+    $logoData = null;
+    if (!empty($_FILES['logo_file']['tmp_name'])) {
+      $ext = strtolower(pathinfo($_FILES['logo_file']['name'], PATHINFO_EXTENSION));
+      $allowed = ['webp','png','jpg','jpeg','svg'];
+      if (!in_array($ext, $allowed)) { echo json_encode(['error' => 'Estensione non valida']); exit; }
+      $safeName = str_replace(['/', '\\', "\0"], '_', $storeName) . '.' . $ext;
+      $uploadDir = __DIR__ . '/../../../uploads/logos/';
+      if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+      if (move_uploaded_file($_FILES['logo_file']['tmp_name'], $uploadDir . $safeName)) {
+        $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
+        $logoData = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($uploadDir . $safeName));
+        $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$storeName, $safeName, $logoData]);
+      }
+    } else {
+      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, status) VALUES (?, \'approved\')')->execute([$storeName]);
+    }
+    if ($id) {
+      $db->prepare('UPDATE ' . DB_PREFIX . 'missing_logos SET resolved = 1 WHERE id = ?')->execute([$id]);
+    }
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
+  if ($action === 'dismiss_request') {
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id) {
+      $db->prepare('UPDATE ' . DB_PREFIX . 'missing_logos SET resolved = 1 WHERE id = ?')->execute([$id]);
+    }
+    echo json_encode(['success' => true]);
+    exit;
+  }
+
   if ($action === 'test_mail') {
     if (!panelIsSuperAdmin()) { echo json_encode(['error' => 'Permesso negato']); exit; }
     $testEmail = trim($_POST['test_email'] ?? '');
@@ -429,6 +465,14 @@ $pendingLogos = $pendingLogos->fetchAll();
 $mailSettings = [];
 try { $mailSettings = $db->query('SELECT `key`, `value` FROM ' . TABLE_SETTINGS . ' WHERE `key` LIKE \'mail_%\' OR `key` LIKE \'smtp_%\'')->fetchAll(PDO::FETCH_KEY_PAIR); } catch(Exception $e) {}
 
+$missingStores = [];
+$missingCount = 0;
+try {
+  $r = $db->query('SELECT COUNT(*) FROM ' . DB_PREFIX . 'missing_logos WHERE resolved = 0');
+  $missingCount = (int)$r->fetchColumn();
+  $missingStores = $db->query('SELECT id, store_name, reported_at FROM ' . DB_PREFIX . 'missing_logos WHERE resolved = 0 ORDER BY reported_at DESC')->fetchAll();
+} catch(Exception $e) {}
+
 $customFiles = is_dir($uploadDir) ? array_diff(scandir($uploadDir), ['.', '..']) : [];
 $hiddenLogos = [];
 foreach ($customFiles as $f) { if (preg_match('/^(.+)\.hidden$/', $f, $m)) $hiddenLogos[$m[1]] = true; }
@@ -528,6 +572,7 @@ tr:hover td{background:#f8f9fa}
   <a class="active" onclick="showSection('dashboard')">Dashboard</a>
   <a onclick="showSection('logos-queue')">Coda Loghi<?php if ($pendingCount > 0): ?><span class="badge"><?= $pendingCount ?></span><?php endif; ?></a>
   <a onclick="showSection('custom-logos')">Loghi Approvati</a>
+  <a onclick="showSection('missing-stores')">Negozi Richiesti<?php if ($missingCount > 0): ?><span class="badge"><?= $missingCount ?></span><?php endif; ?></a>
   <?php if ($isSuper): ?>
   <a onclick="showSection('admins')">Amministratori</a>
   <a onclick="showSection('email-config')">Email</a>
@@ -543,6 +588,7 @@ tr:hover td{background:#f8f9fa}
   <div class="grid">
     <div class="stat" style="cursor:pointer" onclick="showSection('logos-queue')"><div class="num"><?= $pendingCount ?></div><div class="label">Loghi in attesa</div></div>
     <div class="stat" style="cursor:pointer" onclick="showSection('custom-logos')"><div class="num"><?= $customCount ?></div><div class="label">Loghi approvati</div></div>
+    <div class="stat" style="cursor:pointer" onclick="showSection('missing-stores')"><div class="num"><?= $missingCount ?></div><div class="label">Negozi richiesti</div></div>
     <?php if ($isSuper): ?>
     <div class="stat" style="cursor:pointer" onclick="showSection('admins')"><div class="num"><?= $adminCount ?></div><div class="label">Amministratori</div></div>
     <?php endif; ?>
@@ -606,6 +652,30 @@ tr:hover td{background:#f8f9fa}
   </div>
   <?php endif; ?>
 </div>
+</div>
+
+<!-- Missing stores requests -->
+<div id="missing-stores" class="section">
+  <div class="card">
+    <h2>Negozi Richiesti dagli Utenti</h2>
+    <?php if (empty($missingStores)): ?>
+    <p style="color:#999;font-size:14px">Nessun negozio in attesa.</p>
+    <?php else: ?>
+    <table>
+      <tr><th>Nome Negozio</th><th>Richiesto il</th><th>Azioni</th></tr>
+      <?php foreach ($missingStores as $ms): ?>
+      <tr>
+        <td><strong><?= htmlspecialchars($ms['store_name']) ?></strong></td>
+        <td><?= date('d/m/Y H:i', strtotime($ms['reported_at'])) ?></td>
+        <td class="flex-row">
+          <button class="btn btn-success btn-sm" onclick="createStoreFromRequest(<?= (int)$ms['id'] ?>, '<?= htmlspecialchars($ms['store_name'], ENT_QUOTES) ?>')">Crea Negozio</button>
+          <button class="btn btn-danger btn-sm" onclick="dismissRequest(<?= (int)$ms['id'] ?>)">Ignora</button>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+    <?php endif; ?>
+  </div>
 </div>
 
 <!-- Custom logos + Stores -->
@@ -861,6 +931,29 @@ async function rejectLogo(id) {
   if (!confirm('Rifiutare questo logo?')) return;
   const r = await postAction('reject_logo', { id });
   if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { toast('Errore'); }
+}
+
+function createStoreFromRequest(id, storeName) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.webp,.png,.jpg,.jpeg,.svg';
+  input.onchange = async () => {
+    const file = input.files[0];
+    const fd = new FormData();
+    fd.append('action', 'create_store_from_request');
+    fd.append('id', id);
+    fd.append('store_name', storeName);
+    if (file) fd.append('logo_file', file);
+    const res = await fetch('', { method: 'POST', body: fd });
+    const r = await res.json();
+    if (r.success) { toast('Negozio creato!'); reloadToSection('missing-stores'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  };
+  input.click();
+}
+
+async function dismissRequest(id) {
+  const r = await postAction('dismiss_request', { id });
+  if (r.success) { toast('Richiesta ignorata'); reloadToSection('missing-stores'); } else { toast('Errore'); }
 }
 
 async function createAdmin(e) {
