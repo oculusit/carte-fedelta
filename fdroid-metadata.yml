@@ -15,7 +15,7 @@ Repo: https://github.com/oculusit/carte-fedelta.git
 Builds:
   - versionName: '1.2.5'
     versionCode: 5
-    commit: 4ade0b7f6c7729be493c9d123d409d70680d6da9
+    commit: e5d9940304182d640428d41c4554b33a86155937
     subdir: android
     sudo:
       - apt-get update
