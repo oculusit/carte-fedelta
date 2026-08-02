@@ -179,6 +179,34 @@ function handleLogosHandler(string $method, string $uri): void {
   }
 }
 
+/**
+ * Cerca il colore di un negozio nella tabella stores (per nome o alias).
+ * Restituisce null se non trovato o se non configurato.
+ */
+function getStoreColorByName(string $storeName): ?string {
+  try {
+    $db = logosGetDb();
+    $lowerName = strtolower(trim($storeName));
+    $stmt = $db->prepare('SELECT name, aliases, color FROM ' . TABLE_STORES . ' WHERE status = ?');
+    $stmt->execute(['approved']);
+    foreach ($stmt->fetchAll() as $s) {
+      $match = strtolower(trim($s['name'])) === $lowerName;
+      if (!$match && !empty($s['aliases'])) {
+        foreach (array_map('trim', explode("\n", $s['aliases'])) as $alias) {
+          if (strtolower(trim($alias)) === $lowerName) {
+            $match = true;
+            break;
+          }
+        }
+      }
+      if ($match) {
+        return !empty($s['color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $s['color']) ? $s['color'] : null;
+      }
+    }
+  } catch (Exception $e) {}
+  return null;
+}
+
 function getStoreLogoHandler(string $method, string $uri): void {
   if ($method !== 'GET') {
     http_response_code(405);
@@ -225,7 +253,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
     $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
     echo json_encode([
       'store_name' => pathinfo($fsPath, PATHINFO_FILENAME),
-      'color' => null,
+      'color' => getStoreColorByName($storeName),
       'logo_type' => 'upload',
       'logo_data' => $logoData,
     ]);
@@ -265,7 +293,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
         $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
         echo json_encode([
           'store_name' => $custom['store_name'],
-          'color' => null,
+          'color' => getStoreColorByName($storeName),
           'logo_type' => 'upload',
           'logo_data' => $logoData,
         ]);

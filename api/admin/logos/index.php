@@ -759,7 +759,7 @@ tr:hover td{background:#f8f9fa}
           <?php endif; ?>
         </td>
         <td style="white-space:nowrap">
-          <button class="btn btn-outline btn-sm" onclick='editStore(<?= json_encode($s) ?>)'>Modifica</button>
+          <button class="btn btn-outline btn-sm" onclick="editStore(<?= htmlspecialchars(json_encode($s), ENT_QUOTES) ?>)">Modifica</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
         </td>
       </tr>

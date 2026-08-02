@@ -326,6 +326,7 @@ export const useAppStore = defineStore('app', () => {
             logoData: data.logo_data,
             logoType: data.logo_type || 'predefined',
             color: data.color || color || '#1a73e8',
+            serverColor: data.color || null,
           }
           await logosDb.set(storeName, logoEntry)
           return logoEntry
@@ -360,10 +361,12 @@ export const useAppStore = defineStore('app', () => {
         const cardsForStore = allCards.filter(c => c.store_name === name)
         for (const c of cardsForStore) {
           if (logoEntry.logoData !== c.logo_data) {
-            await updateCard(c.id, {
+            const updates = {
               logo_type: 'upload',
               logo_data: logoEntry.logoData,
-            })
+            }
+            if (logoEntry.serverColor) updates.color = logoEntry.serverColor
+            await updateCard(c.id, updates)
           }
         }
       }
@@ -386,18 +389,21 @@ export const useAppStore = defineStore('app', () => {
           anySuccess = true
           const data = await res.json()
           if (data?.logo_data) {
+            const serverColor = data.color || null
             await logosDb.set(name, {
               logoData: data.logo_data,
               logoType: data.logo_type || 'predefined',
-              color: data.color || '#1a73e8',
+              color: serverColor || '#1a73e8',
             })
             const cardsForStore = allCards.filter(c => c.store_name.trim() === name)
             for (const card of cardsForStore) {
               if (data.logo_data !== card.logo_data) {
-                await updateCard(card.id, {
+                const updates = {
                   logo_type: 'upload',
                   logo_data: data.logo_data,
-                })
+                }
+                if (serverColor) updates.color = serverColor
+                await updateCard(card.id, updates)
               }
             }
           }
