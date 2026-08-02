@@ -355,15 +355,26 @@ export const useAppStore = defineStore('app', () => {
     const missing = storeNames.filter(n => !cachedNames.has(n.toLowerCase()))
     for (const name of missing) {
       const card = allCards.find(c => c.store_name === name)
-      await loadLogo(name, card?.color)
+      const logoEntry = await loadLogo(name, card?.color)
+      if (logoEntry?.logoData) {
+        const cardsForStore = allCards.filter(c => c.store_name === name)
+        for (const c of cardsForStore) {
+          if (logoEntry.logoData !== c.logo_data) {
+            await updateCard(c.id, {
+              logo_type: 'upload',
+              logo_data: logoEntry.logoData,
+            })
+          }
+        }
+      }
     }
   }
 
-  async function updateCardsLogosFromServer() {
+  async function updateCardsLogosFromServer(force = false) {
     const base = getServerUrl()
     if (!base) return
     const lastCheck = parseInt(localStorage.getItem('last_logo_check') || '0', 10)
-    if (Date.now() - lastCheck < 86400000) return
+    if (!force && Date.now() - lastCheck < 86400000) return
     const allCards = await db.getAll()
     if (!allCards.length) return
     const storeNames = [...new Set(allCards.map(c => c.store_name.trim()))]

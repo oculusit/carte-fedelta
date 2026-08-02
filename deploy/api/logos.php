@@ -197,7 +197,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
     $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));
     $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
     echo json_encode([
-      'store_name' => $storeName,
+      'store_name' => pathinfo($fsPath, PATHINFO_FILENAME),
       'color' => null,
       'logo_type' => 'upload',
       'logo_data' => $logoData,
@@ -213,7 +213,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
     $hiddenFile = $uploadDir . $normalized . '.hidden';
     if (!file_exists($hiddenFile)) {
       echo json_encode([
-        'store_name' => $storeName,
+        'store_name' => $predefined[$normalized]['name'],
         'color' => $predefined[$normalized]['color'],
         'logo_type' => 'predefined',
         'logo_data' => null,
@@ -225,7 +225,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
   // Then check database
   try {
     $db = logosGetDb();
-    $stmt = $db->prepare('SELECT store_name, filename FROM ' . TABLE_CUSTOM_LOGOS . ' WHERE store_name = ? LIMIT 1');
+    $stmt = $db->prepare('SELECT store_name, filename FROM ' . TABLE_CUSTOM_LOGOS . ' WHERE LOWER(store_name) = LOWER(?) LIMIT 1');
     $stmt->execute([$storeName]);
     $custom = $stmt->fetch();
     if ($custom && !empty($custom['filename'])) {
@@ -237,7 +237,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
         $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : $ext);
         $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
         echo json_encode([
-          'store_name' => $storeName,
+          'store_name' => $custom['store_name'],
           'color' => null,
           'logo_type' => 'upload',
           'logo_data' => $logoData,

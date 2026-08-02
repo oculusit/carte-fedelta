@@ -23,6 +23,10 @@
       <button class="btn btn-outline btn-block" @click="discoverServer" :disabled="discovering">
         {{ discovering ? 'Ricerca in corso...' : 'Collegati al server backend di default' }}
       </button>
+      <button class="btn btn-outline btn-block" @click="refreshLogos" :disabled="refreshingLogos" style="margin-top:8px">
+        {{ refreshingLogos ? 'Aggiornamento in corso...' : 'Aggiorna loghi dai negozi' }}
+      </button>
+      <p v-if="refreshLogosResult" :class="refreshLogosResult.ok ? 'test-ok' : 'test-err'">{{ refreshLogosResult.msg }}</p>
       <p v-if="serverUrl" class="info-row" style="margin-top:8px">
         <span>Server:</span>
         <span class="tag">{{ serverUrl }}</span>
@@ -161,6 +165,8 @@ const syncConfigured = computed(() => isSupabaseConfigured())
 const serverUrl = ref(localStorage.getItem('server_url') || '')
 const discovering = ref(false)
 const discoverResult = ref(null)
+const refreshingLogos = ref(false)
+const refreshLogosResult = ref(null)
 const manualUrl = ref('')
 const exporting = ref(false)
 const backupResult = ref(null)
@@ -226,6 +232,20 @@ async function discoverServer() {
   }
   discoverResult.value = { ok: false, msg: 'Server non trovato.\n' + errors.join('\n') }
   discovering.value = false
+}
+
+async function refreshLogos() {
+  refreshingLogos.value = true
+  refreshLogosResult.value = null
+  try {
+    await store.updateCardsLogosFromServer(true)
+    await store.loadCards()
+    refreshLogosResult.value = { ok: true, msg: 'Controllo loghi completato. Le carte con un nuovo logo disponibile sono state aggiornate.' }
+  } catch (e) {
+    refreshLogosResult.value = { ok: false, msg: 'Errore: ' + (e.message || e) }
+  } finally {
+    refreshingLogos.value = false
+  }
 }
 
 onMounted(async () => {
