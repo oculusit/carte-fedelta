@@ -8,19 +8,22 @@ const ZIP = path.resolve(ROOT, 'progetto-cards.zip')
 
 const zip = new AdmZip()
 
-function addRecursive(dir, basePath) {
+const EXCLUDE_ROOT = new Set(['index.html', '.htaccess'])
+
+function addRecursive(dir, basePath, isRoot) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (isRoot && EXCLUDE_ROOT.has(entry.name)) continue
     const fullPath = path.join(dir, entry.name)
     const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name
     if (entry.isDirectory()) {
-      addRecursive(fullPath, entryPath)
+      addRecursive(fullPath, entryPath, false)
     } else {
       zip.addLocalFile(fullPath, basePath || '')
     }
   }
 }
 
-addRecursive(DEPLOY, '')
+addRecursive(DEPLOY, '', true)
 zip.writeZip(ZIP)
 
 const stats = fs.statSync(ZIP)

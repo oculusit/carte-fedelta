@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/auth.php';
+
 if (!function_exists('jsonBody')) {
   function jsonBody(): array {
     $raw = file_get_contents('php://input');
@@ -10,6 +12,31 @@ if (!function_exists('jsonBody')) {
     if (!empty($_POST)) return $_POST;
     return [];
   }
+}
+
+/**
+ * Invia una notifica email a tutti gli admin/moderatori attivi.
+ * Non lancia mai eccezioni: un errore di invio non deve bloccare la richiesta.
+ */
+function notifyAdminsLogos(string $subject, string $bodyHtml): void {
+  try {
+    if (!function_exists('sendMail')) return;
+    if (!defined('TABLE_USERS')) return;
+    $db = logosGetDb();
+    $stmt = $db->prepare('SELECT email FROM ' . TABLE_USERS . ' WHERE (is_admin = 1 OR is_moderator = 1) AND is_active = 1 AND status = \'approved\'');
+    $stmt->execute();
+    $admins = $stmt->fetchAll();
+    foreach ($admins as $admin) {
+      try {
+        sendMail($admin['email'], $subject, $bodyHtml);
+      } catch (Exception $e) {}
+    }
+  } catch (Exception $e) {}
+}
+
+function adminPanelUrl(): string {
+  $base = function_exists('getAppUrl') ? getAppUrl() : '';
+  return rtrim($base, '/') . '/api/admin/logos/';
 }
 
 function logosGetDb(): PDO {
@@ -251,7 +278,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
   try {
     $db = logosGetDb();
     $lowerName = strtolower($storeName);
-    $stmt = $db->prepare('SELECT name, aliases, logo_type, logo_data, logo_path FROM ' . TABLE_STORES . ' WHERE status = ?');
+    $stmt = $db->prepare('SELECT name, aliases, logo_type, logo_data, logo_path, color FROM ' . TABLE_STORES . ' WHERE status = ?');
     $stmt->execute(['approved']);
     $stores = $stmt->fetchAll();
     foreach ($stores as $s) {
@@ -270,7 +297,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
         if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
           echo json_encode([
             'store_name' => $s['name'],
-            'color' => null,
+            'color' => $s['color'] ?: null,
             'logo_type' => $s['logo_type'] ?: 'upload',
             'logo_data' => $s['logo_data'],
           ]);
@@ -285,7 +312,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
             $logoData = 'data:' . $mime . ';base64,' . base64_encode($data);
             echo json_encode([
               'store_name' => $s['name'],
-              'color' => null,
+              'color' => $s['color'] ?: null,
               'logo_type' => $s['logo_type'] ?: 'upload',
               'logo_data' => $logoData,
             ]);
@@ -342,6 +369,12 @@ function submitLogoHandler(string $method, string $uri): void {
   $stmt = $db->prepare('INSERT INTO ' . TABLE_PENDING_LOGOS . ' (user_id, store_name, image_data) VALUES (?, ?, ?)');
   $stmt->execute([$userId, $storeName, $imageData]);
 
+  notifyAdminsLogos(
+    'Nuovo logo in coda: ' . $storeName,
+    '<p>Un nuovo logo è stato inviato per il negozio <strong>' . htmlspecialchars($storeName) . '</strong> ed è in attesa di approvazione.</p>' .
+    '<p>Puoi gestirlo dal pannello amministratore: <a href="' . htmlspecialchars(adminPanelUrl()) . '">Apri il pannello</a></p>'
+  );
+
   echo json_encode([
     'success' => true,
     'message' => 'Logo inviato per approvazione. Sarà disponibile dopo la revisione di un amministratore.',
@@ -376,6 +409,13 @@ function reportMissingHandler(string $method): void {
     $table = DB_PREFIX . 'missing_logos';
     $stmt = $db->prepare("INSERT IGNORE INTO $table (store_name) VALUES (?)");
     $stmt->execute([$storeName]);
+    if ($stmt->rowCount() > 0) {
+      notifyAdminsLogos(
+        'Nuovo negozio richiesto: ' . $storeName,
+        '<p>Un utente ha richiesto il negozio <strong>' . htmlspecialchars($storeName) . '</strong>.</p>' .
+        '<p>Puoi crearlo dal pannello amministratore: <a href="' . htmlspecialchars(adminPanelUrl()) . '">Apri il pannello</a></p>'
+      );
+    }
     echo json_encode(['success' => true]);
   } catch (Exception $e) {
     http_response_code(500);

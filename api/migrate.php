@@ -110,9 +110,16 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN aliases TEXT AFTER logo_data");
   }
 
+  // ── color column on stores ──
+  $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}stores` LIKE 'color'");
+  $stmt->execute();
+  if (!$stmt->fetch()) {
+    $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN color VARCHAR(7) DEFAULT NULL AFTER aliases");
+  }
+
   // ── Ensure default app version settings exist ──
   $defaultSettings = [
-    'app_version' => '1.2.0',
+    'app_version' => '1.2.5',
     'app_download_url' => '',
   ];
   foreach ($defaultSettings as $key => $val) {

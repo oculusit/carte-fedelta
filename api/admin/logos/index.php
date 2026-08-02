@@ -227,7 +227,9 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     }
     $name = trim($_POST['store_name'] ?? '');
     $aliases = trim($_POST['aliases'] ?? '');
+    $color = trim($_POST['color'] ?? '');
     if (!$name) { echo json_encode(['error' => 'Nome negozio obbligatorio']); exit; }
+    if ($color === '' || !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
     $f = $_FILES['logo_file'];
     $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, ['webp','png','jpg','jpeg','svg'])) { echo json_encode(['error' => 'Formato non supportato (webp, png, jpg, svg)']); exit; }
@@ -242,7 +244,11 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
       $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
       $logoData = 'data:' . $mime . ';base64,' . base64_encode($fileData);
     }
-    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, aliases, status) VALUES (?, \'upload\', ?, ?, ?, \'approved\')')->execute([$name, $safeName, $logoData, $aliases]);
+    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, aliases, color, status) VALUES (?, \'upload\', ?, ?, ?, ?, \'approved\')')->execute([$name, $safeName, $logoData, $aliases, $color]);
+    $reqId = (int)($_POST['request_id'] ?? 0);
+    if ($reqId) {
+      $db->prepare('UPDATE ' . DB_PREFIX . 'missing_logos SET resolved = 1 WHERE id = ?')->execute([$reqId]);
+    }
     echo json_encode(['success' => true]);
     exit;
   }
@@ -251,9 +257,11 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     $id = (int)($_POST['id'] ?? 0);
     $name = trim($_POST['name'] ?? '');
     $aliases = trim($_POST['aliases'] ?? '');
+    $color = trim($_POST['color'] ?? '');
     if (!$name || !$id) { echo json_encode(['error' => 'Dati mancanti']); exit; }
-    $fields = ['name = ?', 'aliases = ?'];
-    $params = [$name, $aliases];
+    if ($color === '' || !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
+    $fields = ['name = ?', 'aliases = ?', 'color = ?'];
+    $params = [$name, $aliases, $color];
     if (isset($_FILES['logo_file']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
       $f = $_FILES['logo_file'];
       $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
@@ -320,6 +328,8 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     $id = (int)($_POST['id'] ?? 0);
     $storeName = trim($_POST['store_name'] ?? '');
     if (!$storeName) { echo json_encode(['error' => 'Nome negozio obbligatorio']); exit; }
+    $color = trim($_POST['color'] ?? '');
+    if ($color === '' || !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
     $logoData = null;
     if (!empty($_FILES['logo_file']['tmp_name'])) {
       $ext = strtolower(pathinfo($_FILES['logo_file']['name'], PATHINFO_EXTENSION));
@@ -331,10 +341,10 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
       if (move_uploaded_file($_FILES['logo_file']['tmp_name'], $uploadDir . $safeName)) {
         $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
         $logoData = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($uploadDir . $safeName));
-        $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$storeName, $safeName, $logoData]);
+        $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, color, status) VALUES (?, \'upload\', ?, ?, ?, \'approved\')')->execute([$storeName, $safeName, $logoData, $color]);
       }
     } else {
-      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, status) VALUES (?, \'approved\')')->execute([$storeName]);
+      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, color, status) VALUES (?, ?, \'approved\')')->execute([$storeName, $color]);
     }
     if ($id) {
       $db->prepare('UPDATE ' . DB_PREFIX . 'missing_logos SET resolved = 1 WHERE id = ?')->execute([$id]);
@@ -496,7 +506,7 @@ if ($imgFiles) {
 $predefined = getPredefinedLogos();
 
 $stores = [];
-try { $stores = $db->query('SELECT id, name, aliases, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
+try { $stores = $db->query('SELECT id, name, aliases, color, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -685,6 +695,7 @@ tr:hover td{background:#f8f9fa}
     <form onsubmit="uploadStore(event)" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
       <div class="field" style="flex:1;min-width:180px"><label>Nome negozio</label><input type="text" id="new-store-name" required placeholder="es. NaturaSì" /></div>
       <div class="field" style="flex:2;min-width:250px"><label>Alias (uno per riga)</label><textarea id="new-store-aliases" rows="4" placeholder="natura si&#10;naturasi&#10;natura sì" style="height:160px"></textarea></div>
+      <div class="field" style="min-width:120px"><label>Colore</label><input type="color" id="new-store-color" value="#e30613" /></div>
       <div class="field" style="min-width:160px"><label>Logo (webp/png/jpg/svg)</label><input type="file" id="new-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" required onchange="previewAndCrop(this, 'new')" /></div>
       <button type="submit" class="btn btn-primary">Carica</button>
     </form>
@@ -697,7 +708,7 @@ tr:hover td{background:#f8f9fa}
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
       <table>
-      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th></th></tr>
+      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th>Colore</th><th></th></tr>
       <?php foreach ($stores as $s):
         $logoFile = $s['logo_path'] ?? '';
         $logoExists = $logoFile && file_exists($uploadDir . $logoFile);
@@ -739,6 +750,14 @@ tr:hover td{background:#f8f9fa}
             <span style="color:#ccc">-</span>
           <?php endif; ?>
         </td>
+        <td>
+          <?php if (!empty($s['color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $s['color'])): ?>
+            <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:<?= htmlspecialchars($s['color']) ?>;border:1px solid #ddd;vertical-align:middle"></span>
+            <span style="font-size:12px;color:#666;margin-left:4px"><?= htmlspecialchars($s['color']) ?></span>
+          <?php else: ?>
+            <span style="color:#ccc;font-size:12px">-</span>
+          <?php endif; ?>
+        </td>
         <td style="white-space:nowrap">
           <button class="btn btn-outline btn-sm" onclick='editStore(<?= json_encode($s) ?>)'>Modifica</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
@@ -759,6 +778,7 @@ tr:hover td{background:#f8f9fa}
       <input type="hidden" id="edit-store-id" />
       <div class="field"><label>Nome negozio</label><input type="text" id="edit-store-name" required /></div>
       <div class="field"><label>Alias (uno per riga)</label><textarea id="edit-store-aliases" rows="4" style="height:160px"></textarea></div>
+      <div class="field"><label>Colore</label><input type="color" id="edit-store-color" value="#e30613" /></div>
       <div class="field"><label>Logo (lascia vuoto per non cambiare)</label><input type="file" id="edit-store-file" accept=".webp,.png,.jpg,.jpeg,.svg" onchange="previewAndCrop(this, 'edit')" /></div>
       <div id="edit-store-preview" style="margin-bottom:12px"></div>
       <div id="crop-preview-edit" style="margin-top:8px;display:none"></div>
@@ -857,7 +877,7 @@ tr:hover td{background:#f8f9fa}
     <h2>Aggiornamenti App</h2>
     <p style="font-size:13px;color:#666;margin-bottom:16px">Configura la versione disponibile per gli utenti. Quando viene rilevata una versione diversa da quella installata, l'app mostrerà un popup con il link di download.</p>
     <form onsubmit="saveVersionConfig(event)">
-      <div class="field"><label>Versione disponibile</label><input type="text" id="app-version" value="<?= htmlspecialchars($versionSettings['app_version'] ?? '1.2.0') ?>" placeholder="es. 1.2.0" /></div>
+      <div class="field"><label>Versione disponibile</label><input type="text" id="app-version" value="<?= htmlspecialchars($versionSettings['app_version'] ?? '1.2.5') ?>" placeholder="es. 1.2.5" /></div>
       <div class="field"><label>URL di download</label><input type="url" id="app-download-url" value="<?= htmlspecialchars($versionSettings['app_download_url'] ?? '') ?>" placeholder="https://..." /></div>
       <button type="submit" class="btn btn-primary">Salva Configurazione</button>
     </form>
@@ -933,22 +953,22 @@ async function rejectLogo(id) {
   if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { toast('Errore'); }
 }
 
+let pendingRequestId = null;
+
 function createStoreFromRequest(id, storeName) {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.webp,.png,.jpg,.jpeg,.svg';
-  input.onchange = async () => {
-    const file = input.files[0];
-    const fd = new FormData();
-    fd.append('action', 'create_store_from_request');
-    fd.append('id', id);
-    fd.append('store_name', storeName);
-    if (file) fd.append('logo_file', file);
-    const res = await fetch('', { method: 'POST', body: fd });
-    const r = await res.json();
-    if (r.success) { toast('Negozio creato!'); reloadToSection('missing-stores'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
-  };
-  input.click();
+  pendingRequestId = id;
+  document.getElementById('new-store-name').value = storeName;
+  document.getElementById('new-store-aliases').value = '';
+  document.getElementById('new-store-color').value = '#e30613';
+  document.getElementById('new-store-file').value = '';
+  document.getElementById('crop-preview-new').style.display = 'none';
+  croppedBlob = null;
+  cropTarget = null;
+  showSection('custom-logos');
+  const fileInput = document.getElementById('new-store-file');
+  fileInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  fileInput.focus();
+  toast('Negozio "' + storeName + '" precompilato. Carica il logo e premi Carica.');
 }
 
 async function dismissRequest(id) {
@@ -1011,16 +1031,23 @@ async function uploadStore(e) {
   fd.append('action', 'upload_store_logo');
   fd.append('store_name', document.getElementById('new-store-name').value);
   fd.append('aliases', document.getElementById('new-store-aliases').value);
+  fd.append('color', document.getElementById('new-store-color').value);
+  if (pendingRequestId) fd.append('request_id', pendingRequestId);
   fd.append('logo_file', document.getElementById('new-store-file').files[0]);
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio creato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) {
+    pendingRequestId = null;
+    toast('Negozio creato!');
+    reloadToSection('custom-logos');
+  } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 }
 
 function editStore(store) {
   document.getElementById('edit-store-id').value = store.id;
   document.getElementById('edit-store-name').value = store.name;
   document.getElementById('edit-store-aliases').value = (store.aliases || '').replace(/\n/g, '\n');
+  document.getElementById('edit-store-color').value = store.color || '#e30613';
   const preview = document.getElementById('edit-store-preview');
   if (store.logo_path) {
     preview.innerHTML = '<img src="../../../uploads/logos/' + escapeHtml(store.logo_path) + '" style="width:48px;height:48px;object-fit:contain;border-radius:6px;background:#f5f5f5;padding:4px" />';
@@ -1052,6 +1079,7 @@ async function saveStore(e) {
   fd.append('id', document.getElementById('edit-store-id').value);
   fd.append('name', document.getElementById('edit-store-name').value);
   fd.append('aliases', document.getElementById('edit-store-aliases').value);
+  fd.append('color', document.getElementById('edit-store-color').value);
   if (croppedBlob && cropTarget === 'edit') {
     fd.append('logo_file', croppedBlob, 'logo.webp');
   } else {
@@ -1278,6 +1306,8 @@ uploadStore = async function(e) {
   fd.append('action', 'upload_store_logo');
   fd.append('store_name', document.getElementById('new-store-name').value);
   fd.append('aliases', document.getElementById('new-store-aliases').value);
+  fd.append('color', document.getElementById('new-store-color').value);
+  if (pendingRequestId) fd.append('request_id', pendingRequestId);
   if (croppedBlob) {
     fd.append('logo_file', croppedBlob, 'logo.webp');
   } else {
@@ -1285,7 +1315,11 @@ uploadStore = async function(e) {
   }
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio creato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) {
+    pendingRequestId = null;
+    toast('Negozio creato!');
+    reloadToSection('custom-logos');
+  } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
 };
 
 async function saveVersionConfig(e) {

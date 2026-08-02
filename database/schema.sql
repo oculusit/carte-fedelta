@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS stores (
   logo_type ENUM('predefined','upload') NOT NULL DEFAULT 'predefined',
   logo_path VARCHAR(512) DEFAULT '',
   logo_data LONGTEXT,
+  aliases TEXT,
+  color VARCHAR(7) DEFAULT NULL,
   created_by INT UNSIGNED DEFAULT NULL,
   status ENUM('approved','pending') NOT NULL DEFAULT 'approved',
   admin_notes TEXT,
