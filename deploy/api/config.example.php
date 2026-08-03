@@ -35,3 +35,6 @@ define('SMTP_ENCRYPTION', 'tls'); // 'tls' or 'ssl' or ''
 // ─── Paths ───
 define('UPLOAD_DIR', __DIR__ . '/../uploads/logos/');
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
+
+// ─── Versione backend ───
+define('BACKEND_VERSION', '1.2.5.back');

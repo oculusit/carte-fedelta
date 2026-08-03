@@ -207,6 +207,35 @@ function getStoreColorByName(string $storeName): ?string {
   return null;
 }
 
+/**
+ * Incrementa il contatore download di un negozio nella tabella stores (per nome o alias).
+ * Non lancia mai eccezioni: un errore non deve bloccare la risposta del logo.
+ */
+function logosIncrementDownload(string $storeName): void {
+  try {
+    $db = logosGetDb();
+    $lowerName = strtolower(trim($storeName));
+    $stmt = $db->prepare('SELECT id, name, aliases FROM ' . TABLE_STORES . ' WHERE status = ?');
+    $stmt->execute(['approved']);
+    foreach ($stmt->fetchAll() as $s) {
+      $match = strtolower(trim($s['name'])) === $lowerName;
+      if (!$match && !empty($s['aliases'])) {
+        foreach (array_map('trim', explode("\n", $s['aliases'])) as $alias) {
+          if (strtolower(trim($alias)) === $lowerName) {
+            $match = true;
+            break;
+          }
+        }
+      }
+      if ($match) {
+        $upd = $db->prepare('UPDATE ' . TABLE_STORES . ' SET downloads = downloads + 1 WHERE id = ?');
+        $upd->execute([$s['id']]);
+        return;
+      }
+    }
+  } catch (Exception $e) {}
+}
+
 function getStoreLogoHandler(string $method, string $uri): void {
   if ($method !== 'GET') {
     http_response_code(405);
@@ -247,6 +276,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
     }
   }
   if ($fsPath && file_exists($fsPath)) {
+    logosIncrementDownload($storeName);
     $data = file_get_contents($fsPath);
     $ext = strtolower(pathinfo($fsPath, PATHINFO_EXTENSION));
     $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));
@@ -267,6 +297,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
     // Check if user hidden this predefined logo
     $hiddenFile = $uploadDir . $normalized . '.hidden';
     if (!file_exists($hiddenFile)) {
+      logosIncrementDownload($storeName);
       echo json_encode([
         'store_name' => $predefined[$normalized]['name'],
         'color' => $predefined[$normalized]['color'],
@@ -287,6 +318,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
       $uploadDir = defined('UPLOAD_DIR') ? UPLOAD_DIR : 'uploads/logos/';
       $path = __DIR__ . '/../' . $uploadDir . $custom['filename'];
       if (file_exists($path)) {
+        logosIncrementDownload($storeName);
         $data = file_get_contents($path);
         $ext = pathinfo($custom['filename'], PATHINFO_EXTENSION);
         $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : $ext);
@@ -323,6 +355,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
       if ($match) {
         // Prefer logo_data (base64), fall back to logo_path file
         if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
+          logosIncrementDownload($storeName);
           echo json_encode([
             'store_name' => $s['name'],
             'color' => $s['color'] ?: null,
@@ -334,6 +367,7 @@ function getStoreLogoHandler(string $method, string $uri): void {
         if (!empty($s['logo_path'])) {
           $lp = __DIR__ . '/../uploads/logos/' . $s['logo_path'];
           if (file_exists($lp)) {
+            logosIncrementDownload($storeName);
             $data = file_get_contents($lp);
             $ext = strtolower(pathinfo($lp, PATHINFO_EXTENSION));
             $mime = 'image/' . ($ext === 'svg' ? 'svg+xml' : ($ext === 'jpg' ? 'jpeg' : $ext));

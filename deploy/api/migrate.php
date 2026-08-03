@@ -117,6 +117,13 @@ function migrateRun(PDO $db): void {
     $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN color VARCHAR(7) DEFAULT NULL AFTER aliases");
   }
 
+  // ── downloads counter on stores ──
+  $stmt = $db->prepare("SHOW COLUMNS FROM `{$p}stores` LIKE 'downloads'");
+  $stmt->execute();
+  if (!$stmt->fetch()) {
+    $db->exec("ALTER TABLE `{$p}stores` ADD COLUMN downloads INT UNSIGNED NOT NULL DEFAULT 0 AFTER color");
+  }
+
   // ── Ensure default app version settings exist ──
   $defaultSettings = [
     'app_version' => '1.2.5',

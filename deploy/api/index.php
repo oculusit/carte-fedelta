@@ -142,6 +142,9 @@ if (!defined('TABLE_PENDING_LOGOS')) {
 if (!defined('TABLE_CARD_GROUP_SHARES')) {
   define('TABLE_CARD_GROUP_SHARES', DB_PREFIX . 'card_group_shares');
 }
+if (!defined('BACKEND_VERSION')) {
+  define('BACKEND_VERSION', '1.2.5.back');
+}
 
 // Auto-migrate schema on every request
 require_once __DIR__ . '/migrate.php';

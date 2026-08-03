@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS stores (
   logo_data LONGTEXT,
   aliases TEXT,
   color VARCHAR(7) DEFAULT NULL,
+  downloads INT UNSIGNED NOT NULL DEFAULT 0,
   created_by INT UNSIGNED DEFAULT NULL,
   status ENUM('approved','pending') NOT NULL DEFAULT 'approved',
   admin_notes TEXT,

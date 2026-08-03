@@ -317,6 +317,9 @@ define('SMTP_ENCRYPTION', '{$smtpEnc}'); // 'tls' or 'ssl' or ''
 define('UPLOAD_DIR', __DIR__ . '/../uploads/logos/');
 define('MAX_UPLOAD_SIZE', 5 * 1024 * 1024);
 
+// ─── Versione backend ───
+define('BACKEND_VERSION', '1.2.5.back');
+
 PHP;
 }
 

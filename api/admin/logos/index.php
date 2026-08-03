@@ -5,6 +5,8 @@ require_once __DIR__ . '/../../auth.php';
 require_once __DIR__ . '/../../logos.php';
 require_once __DIR__ . '/../../migrate.php';
 
+if (!defined('BACKEND_VERSION')) define('BACKEND_VERSION', '1.2.5.back');
+
 // Run migration on admin panel too (separate entry point from api/index.php)
 try {
   $mDb = new PDO('mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
@@ -460,8 +462,8 @@ try { $r = $db->query('SELECT COUNT(*) FROM ' . TABLE_PENDING_LOGOS . ' WHERE st
 $adminCount = 0;
 try { $r = $db->query('SELECT COUNT(*) FROM ' . TABLE_USERS . ' WHERE is_admin = 1'); $adminCount = (int)$r->fetchColumn(); } catch(Exception $e) {}
 $customCount = 0;
+try { $r = $db->query('SELECT COUNT(*) FROM ' . TABLE_STORES); $customCount = (int)$r->fetchColumn(); } catch(Exception $e) {}
 $uploadDir = __DIR__ . '/../../../uploads/logos/';
-if (is_dir($uploadDir)) { $files = array_diff(scandir($uploadDir), ['.', '..']); $customCount = count($files); }
 
 $admins = [];
 if ($isSuper) {
@@ -505,8 +507,12 @@ if ($imgFiles) {
 
 $predefined = getPredefinedLogos();
 
+$sortMode = $_GET['sort'] ?? 'name';
+$sortMode = in_array($sortMode, ['name', 'downloads'], true) ? $sortMode : 'name';
+$orderBy = $sortMode === 'downloads' ? 'downloads DESC, name ASC' : 'name ASC';
+
 $stores = [];
-try { $stores = $db->query('SELECT id, name, aliases, color, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY name ASC')->fetchAll(); } catch(Exception $e) {}
+try { $stores = $db->query('SELECT id, name, aliases, color, downloads, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY ' . $orderBy)->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -574,6 +580,7 @@ tr:hover td{background:#f8f9fa}
   <h1>Carte Fedeltà — Admin</h1>
   <div class="topbar-right">
     <span><?= htmlspecialchars($user['email']) ?> (<?= $isSuper ? 'Superadmin' : 'Admin' ?>)</span>
+    <span style="opacity:.6;font-size:12px">backend v<?= htmlspecialchars(BACKEND_VERSION) ?></span>
     <a href="?logout=1">Esci</a>
   </div>
 </div>
@@ -708,7 +715,14 @@ tr:hover td{background:#f8f9fa}
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
       <table>
-      <tr><th>Negozio</th><th>Logo</th><th>Alias</th><th>Colore</th><th></th></tr>
+      <tr>
+        <th><a href="?sort=name" style="text-decoration:none;color:inherit">Negozio <?= $sortMode === 'name' ? '↓' : '' ?></a></th>
+        <th>Logo</th>
+        <th>Alias</th>
+        <th>Colore</th>
+        <th><a href="?sort=downloads" style="text-decoration:none;color:inherit" title="Ordina per numero di download">Download <?= $sortMode === 'downloads' ? '↓' : '' ?></a></th>
+        <th></th>
+      </tr>
       <?php foreach ($stores as $s):
         $logoFile = $s['logo_path'] ?? '';
         $logoExists = $logoFile && file_exists($uploadDir . $logoFile);
@@ -758,6 +772,7 @@ tr:hover td{background:#f8f9fa}
             <span style="color:#ccc;font-size:12px">-</span>
           <?php endif; ?>
         </td>
+        <td style="text-align:center;font-weight:600"><?= (int)($s['downloads'] ?? 0) ?></td>
         <td style="white-space:nowrap">
           <button class="btn btn-outline btn-sm" onclick="editStore(<?= htmlspecialchars(json_encode($s), ENT_QUOTES) ?>)">Modifica</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
