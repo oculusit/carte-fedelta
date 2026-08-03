@@ -343,6 +343,7 @@ async function onStoreNameChange() {
             form.value.logo_type = 'upload'
             form.value.logo_data = data.logo_data
             form.value.logo_path = ''
+            if (data.color) form.value.color = data.color
             return
           }
         }
@@ -376,6 +377,7 @@ async function applyStoreLogo(s) {
     form.value.logo_type = 'upload'
     form.value.logo_data = storeData.logo_data
     form.value.logo_path = ''
+    if (storeData.color) form.value.color = storeData.color
     return
   }
   // Fallback: try backend logo endpoint by store name
@@ -389,6 +391,7 @@ async function applyStoreLogo(s) {
           form.value.logo_type = 'upload'
           form.value.logo_data = data.logo_data
           form.value.logo_path = ''
+          if (data.color) form.value.color = data.color
           return
         }
       }

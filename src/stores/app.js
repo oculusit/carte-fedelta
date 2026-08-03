@@ -397,12 +397,15 @@ export const useAppStore = defineStore('app', () => {
             })
             const cardsForStore = allCards.filter(c => c.store_name.trim() === name)
             for (const card of cardsForStore) {
+              const updates = {}
               if (data.logo_data !== card.logo_data) {
-                const updates = {
-                  logo_type: 'upload',
-                  logo_data: data.logo_data,
-                }
-                if (serverColor) updates.color = serverColor
+                updates.logo_type = 'upload'
+                updates.logo_data = data.logo_data
+              }
+              if (serverColor && serverColor !== card.color) {
+                updates.color = serverColor
+              }
+              if (Object.keys(updates).length) {
                 await updateCard(card.id, updates)
               }
             }
