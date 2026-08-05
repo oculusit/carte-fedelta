@@ -1,8 +1,5 @@
-# FidAppTi 📱💳
+# FidAppTi 📱💳 IN ENGLISH 
 
-[![License: MIT](https://shields.io)](https://opensource.org)
-[![Platform: Android](https://shields.io)](https://altervista.org)
-[![Platform: iOS PWA](https://shields.io)](http://altervista.org)
 
 An independent, 100% privacy-focused, offline-first Loyalty Card Manager. No tracking, no ads, no central servers. Made in Italy with 🇮🇹 by Alessandro Blasi (*oculus*).
 
@@ -59,12 +56,7 @@ Feel free to check the [issues page]([https://github.com](https://github.com/ocu
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-README.md in italiano
-# FidAppTi 📱💳
-
-[![License: MIT](https://shields.io)](https://opensource.org)
-[![Platform: Android](https://shields.io)](https://altervista.org)
-[![Platform: iOS PWA](https://shields.io)](http://altervista.org)
+# FidAppTi 📱💳 IN ITALIANO
 
 Un gestore di carte fedeltà indipendente, 100% orientato alla privacy e offline-first. Nessun tracciamento, nessuna pubblicità, nessun server centrale. Sviluppato in Italia con 🇮🇹 da Alessandro Blasi (*oculus*).
 
