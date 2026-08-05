@@ -39,12 +39,12 @@ To bypass the expensive Apple Developer fees for a non-profit hobby project, an 
 
 | Platform | Type | Install Link / Reference |
 | :--- | :--- | :--- |
-| **Android** | Native App | [Official Website / APK](http://altervista.org) |
-| **Apple iOS** | PWA (Safari) | [Launch WebApp](http://altervista.org) ([Info Site](http://altervista.org)) |
+| **Android** | Native App | [Official Website / APK](http://fidappti.altervista.org) |
+| **Apple iOS** | PWA (Safari) | [Launch WebApp](http://fidapptiweb.altervista.org/webapp) ([Info Site](http://fidapptiweb.altervista.org/site)) |
 | **Developer** | Author | Alessandro Blasi ([oculus.it](http://oculus.it)) |
 
 ### How to install on iOS:
-1. Open [fidapptiweb.altervista.org/webapp](http://altervista.org) in **Safari**.
+1. Open [fidapptiweb.altervista.org/webapp](http://fidapptiweb.altervista.org/webapp) in **Safari**.
 2. Tap the **Share** button.
 3. Scroll down and select **"Add to Home Screen"**.
 
@@ -53,7 +53,7 @@ To bypass the expensive Apple Developer fees for a non-profit hobby project, an 
 ## 🛠️ Contributing
 
 Contributions, bug reports, and feature requests are welcome! 
-Feel free to check the [issues page](https://github.com) if you want to contribute to the code or suggest improvements.
+Feel free to check the [issues page]([https://github.com](https://github.com/oculusit/carte-fedelta/issues)) if you want to contribute to the code or suggest improvements.
 
 ## 📄 License
 
@@ -101,12 +101,12 @@ Per aggirare gli elevati costi annuali dell'Apple Developer Account per un proge
 
 | Piattaforma | Tipologia | Link di Installazione / Riferimento |
 | :--- | :--- | :--- |
-| **Android** | App Nativa | [Sito Ufficiale / Download APK](http://altervista.org) |
-| **Apple iOS** | PWA (Safari) | [Avvia WebApp](http://altervista.org) ([Sito Informativo](http://altervista.org)) |
+| **Android** | App Nativa | [Sito Ufficiale / Download APK](http://fidappti.altervista.org) |
+| **Apple iOS** | PWA (Safari) | [Avvia WebApp](http://fidapptiweb.altervista.org/webapp) ([Sito Informativo](http://fidapptiweb.altervista.org)) |
 | **Sviluppatore** | Autore | Alessandro Blasi ([oculus.it](http://oculus.it)) |
 
 ### Come installare su iOS:
-1. Apri [fidapptiweb.altervista.org/webapp](http://altervista.org) utilizzando il browser **Safari**.
+1. Apri [fidapptiweb.altervista.org/webapp](http://fidapptiweb.altervista.org/webapp) utilizzando il browser **Safari**.
 2. Tocca il pulsante di **Condivisione** (l'icona con il quadrato e la freccia verso l'alto).
 3. Scorri verso il basso e seleziona **"Aggiungi alla schermata Home"**.
 
@@ -115,7 +115,7 @@ Per aggirare gli elevati costi annuali dell'Apple Developer Account per un proge
 ## 🛠️ Contributi
 
 I contributi, le segnalazioni di bug e le richieste di nuove funzionalità sono sempre benvenuti!
-Visita la [pagina delle issues](https://github.com) se desideri contribuire al codice o suggerire miglioramenti al progetto.
+Visita la [pagina delle issues]([https://github.com](https://github.com/oculusit/carte-fedelta/issues)) se desideri contribuire al codice o suggerire miglioramenti al progetto.
 
 ## 📄 Licenza
 
