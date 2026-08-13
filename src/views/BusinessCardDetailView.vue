@@ -24,6 +24,10 @@
         <h3 class="section-label">QR Code vCard</h3>
         <BarcodeDisplay :code="vcardQrText" type="QR" />
         <p class="barcode-hint">Chi scansiona il QR può salvare il tuo biglietto direttamente nei propri contatti.</p>
+        <div v-if="countdown > 0" class="screen-timer" @click.stop="resetWakeLock" title="Clicca per ripristinare lo schermo acceso per altri 2 minuti">
+          <span class="screen-timer-icon">⏱</span>
+          <span class="screen-timer-text">{{ formattedCountdown }}</span>
+        </div>
       </div>
 
       <div class="detail-section card-data">
@@ -119,6 +123,21 @@ const nfcVisible = ref(false)
 const nfcShareActive = ref(false)
 const nfcShareBusy = ref(false)
 const nfcShareSize = ref(0)
+
+const WAKE_LOCK_TIMEOUT = 120000
+let wakeLockSentinel = null
+let wakeLockTimer = null
+let countdownInterval = null
+const countdown = ref(0)
+
+let previousBrightness = 1
+let brightnessPlugin = null
+
+const formattedCountdown = computed(() => {
+  const mins = Math.floor(countdown.value / 60)
+  const secs = countdown.value % 60
+  return mins + ':' + secs.toString().padStart(2, '0')
+})
 
 const fullName = computed(() => {
   const first = (card.value?.first_name || '').trim()
@@ -273,8 +292,80 @@ async function stopNfcShareSession() {
   } catch {}
 }
 
+function startCountdown() {
+  stopCountdown()
+  countdown.value = WAKE_LOCK_TIMEOUT / 1000
+  countdownInterval = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      countdown.value = 0
+      stopCountdown()
+      restoreBrightnessAndSleep()
+    }
+  }, 1000)
+}
+
+function stopCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
+}
+
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLockSentinel = await navigator.wakeLock.request('screen')
+      wakeLockTimer = setTimeout(releaseWakeLock, WAKE_LOCK_TIMEOUT)
+      startCountdown()
+    }
+  } catch {
+  }
+}
+
+function releaseWakeLock() {
+  stopCountdown()
+  countdown.value = 0
+  if (wakeLockTimer) {
+    clearTimeout(wakeLockTimer)
+    wakeLockTimer = null
+  }
+  if (wakeLockSentinel) {
+    wakeLockSentinel.release()
+    wakeLockSentinel = null
+  }
+}
+
+async function restoreBrightnessAndSleep() {
+  releaseWakeLock()
+  if (brightnessPlugin) {
+    try {
+      await brightnessPlugin.setBrightness({ brightness: previousBrightness })
+      console.log('Brightness restored to', previousBrightness, '(auto after 2 min)')
+    } catch (e) {
+      console.warn('Brightness restore error:', e)
+    }
+  }
+}
+
+function resetWakeLock() {
+  releaseWakeLock()
+  acquireWakeLock()
+}
+
 onMounted(async () => {
   loadCard()
+  acquireWakeLock()
+  try {
+    const { CapgoBrightness } = await import('@capgo/capacitor-brightness')
+    brightnessPlugin = CapgoBrightness
+    const { brightness: current } = await CapgoBrightness.getBrightness()
+    previousBrightness = current
+    await CapgoBrightness.setBrightness({ brightness: 1 })
+    console.log('Brightness set to 1, previous was', current)
+  } catch (e) {
+    console.log('Brightness not available:', e?.message || e)
+  }
   if (isNfcNativeAvailable()) {
     const check = async () => {
       nfcVisible.value = await isNfcSupported()
@@ -284,9 +375,18 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
+onUnmounted(async () => {
   if (nfcCheckTimer) clearInterval(nfcCheckTimer)
   stopNfcShareSession()
+  releaseWakeLock()
+  if (brightnessPlugin) {
+    try {
+      await brightnessPlugin.setBrightness({ brightness: previousBrightness })
+      console.log('Brightness restored to', previousBrightness)
+    } catch (e) {
+      console.warn('Brightness restore error:', e)
+    }
+  }
 })
 </script>
 
@@ -367,6 +467,26 @@ onUnmounted(() => {
   text-align: center;
   margin-top: 8px;
   line-height: 1.4;
+}
+
+.screen-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.screen-timer:hover {
+  opacity: 0.8;
+}
+
+.screen-timer-icon {
+  font-size: 16px;
 }
 
 .data-row {
