@@ -90,24 +90,24 @@ public class NdefTagService extends HostApduService {
 
         if (ins == (byte) 0xA4) {
             // SELECT
-            if (commandApdu.length < 7) return SW_WRONG_PARAMS;
-            byte[] data = Arrays.copyOfRange(commandApdu, 5, commandApdu.length);
-            if (Arrays.equals(data, NDEF_APPLICATION_AID)) {
+            if (commandApdu.length < 5) return SW_WRONG_PARAMS;
+            byte[] cmd = commandApdu;
+            if (contains(cmd, NDEF_APPLICATION_AID)) {
                 selectedFile = FILE_APP;
-                Log.d(TAG, "SELECT AID -> 9000");
+                Log.d(TAG, "SELECT AID -> 9000 cmd=" + hex(cmd));
                 return SW_SUCCESS;
             }
-            if (Arrays.equals(data, CC_FILE_ID)) {
+            if (contains(cmd, CC_FILE_ID)) {
                 selectedFile = FILE_CC;
-                Log.d(TAG, "SELECT CC -> 9000");
+                Log.d(TAG, "SELECT CC -> 9000 cmd=" + hex(cmd));
                 return SW_SUCCESS;
             }
-            if (Arrays.equals(data, NDEF_FILE_ID)) {
+            if (contains(cmd, NDEF_FILE_ID)) {
                 selectedFile = FILE_NDEF;
-                Log.d(TAG, "SELECT NDEF -> 9000");
+                Log.d(TAG, "SELECT NDEF -> 9000 cmd=" + hex(cmd));
                 return SW_SUCCESS;
             }
-            Log.d(TAG, "SELECT unknown -> 6A82");
+            Log.d(TAG, "SELECT unknown -> 6A82 cmd=" + hex(cmd));
             return SW_FILE_NOT_FOUND;
         }
 
@@ -158,5 +158,32 @@ public class NdefTagService extends HostApduService {
         System.arraycopy(a, 0, out, 0, a.length);
         System.arraycopy(b, 0, out, a.length, b.length);
         return out;
+    }
+
+    private static boolean contains(byte[] haystack, byte[] needle) {
+        if (needle.length == 0 || haystack.length < needle.length) {
+            return false;
+        }
+        for (int i = 0; i <= haystack.length - needle.length; i++) {
+            boolean match = true;
+            for (int j = 0; j < needle.length; j++) {
+                if (haystack[i + j] != needle[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String hex(byte[] data) {
+        StringBuilder sb = new StringBuilder(data.length * 2);
+        for (byte b : data) {
+            sb.append(String.format("%02X", b & 0xFF));
+        }
+        return sb.toString();
     }
 }
