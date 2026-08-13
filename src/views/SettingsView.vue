@@ -1,22 +1,38 @@
 <template>
   <div class="settings">
-    <!-- 1) Backup locale -->
+    <!-- 1) Backup Tessere Fedeltà -->
     <div class="card settings-card">
-      <h3>Backup locale</h3>
-      <p class="section-desc">Esporta tutte le tue carte in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <h3>Backup Tessere Fedeltà</h3>
+      <p class="section-desc">Esporta le tue tessere in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
       <div class="backup-row">
-        <button class="btn btn-primary btn-block" @click="exportBackup" :disabled="exporting">
-          {{ exporting ? 'Esportazione...' : 'Esporta backup JSON' }}
+        <button class="btn btn-primary btn-block" @click="exportCardsBackup" :disabled="exportingCards">
+          {{ exportingCards ? 'Esportazione...' : 'Esporta backup' }}
         </button>
-        <button class="btn btn-outline btn-block" @click="triggerImport">
+        <button class="btn btn-outline btn-block" @click="triggerImport('cards')">
           Importa backup
         </button>
-        <input v-if="!Capacitor.isNativePlatform()" ref="importInput" type="file" accept=".json" @change="importBackupFromInput" hidden />
+        <input v-if="!Capacitor.isNativePlatform()" ref="importCardsInput" type="file" accept=".json" @change="importBackupFromInput($event, 'cards')" hidden />
       </div>
-      <p v-if="backupResult" :class="backupResult.ok ? 'test-ok clickable' : 'test-err'" v-html="backupResult.msg" @click="backupResult?.ok && openBackupFolder()"></p>
+      <p v-if="cardsBackupResult" :class="cardsBackupResult.ok ? 'test-ok clickable' : 'test-err'" v-html="cardsBackupResult.msg" @click="cardsBackupResult?.ok && openBackupFolder()"></p>
     </div>
 
-    <!-- 2) Server backend -->
+    <!-- 2) Backup Biglietti da Visita -->
+    <div class="card settings-card">
+      <h3>Backup Biglietti da Visita</h3>
+      <p class="section-desc">Esporta i tuoi biglietti in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <div class="backup-row">
+        <button class="btn btn-primary btn-block" @click="exportBcBackup" :disabled="exportingBc">
+          {{ exportingBc ? 'Esportazione...' : 'Esporta backup' }}
+        </button>
+        <button class="btn btn-outline btn-block" @click="triggerImport('bc')">
+          Importa backup
+        </button>
+        <input v-if="!Capacitor.isNativePlatform()" ref="importBcInput" type="file" accept=".json" @change="importBackupFromInput($event, 'bc')" hidden />
+      </div>
+      <p v-if="bcBackupResult" :class="bcBackupResult.ok ? 'test-ok clickable' : 'test-err'" v-html="bcBackupResult.msg" @click="bcBackupResult?.ok && openBackupFolder()"></p>
+    </div>
+
+    <!-- 3) Server backend -->
     <div class="card settings-card">
       <h3>Server backend</h3>
       <p class="section-desc">Collegati al server che fornisce i loghi personalizzati per i negozi.</p>
@@ -170,9 +186,12 @@ const discoverResult = ref(null)
 const refreshingLogos = ref(false)
 const refreshLogosResult = ref(null)
 const manualUrl = ref('')
-const exporting = ref(false)
-const backupResult = ref(null)
-const importInput = ref(null)
+const exportingCards = ref(false)
+const cardsBackupResult = ref(null)
+const importCardsInput = ref(null)
+const exportingBc = ref(false)
+const bcBackupResult = ref(null)
+const importBcInput = ref(null)
 const errorLog = ref([])
 
 function loadErrorLog() {
@@ -322,84 +341,141 @@ async function clearCache() {
   window.location.reload()
 }
 
-async function exportBackup() {
-  exporting.value = true
-  backupResult.value = null
-  try {
-    const allCards = await store.cards.map(c => ({
-      id: c.id,
-      store_name: c.store_name,
-      card_number: c.card_number,
-      holder_name: c.holder_name,
-      barcode_type: c.barcode_type,
-      logo_type: c.logo_type,
-      logo_path: c.logo_path,
-      logo_data: c.logo_data,
-      notes: c.notes,
-      color: c.color,
-      is_private: c.is_private,
-      is_favorite: c.is_favorite,
-      created_at: c.created_at,
-      updated_at: c.updated_at,
-    }))
-    const allBc = await bcStore.cards.map(c => ({
-      id: c.id,
-      first_name: c.first_name,
-      last_name: c.last_name,
-      org: c.org,
-      role: c.role,
-      phone_personal: c.phone_personal,
-      phone_business: c.phone_business,
-      email: c.email,
-      website: c.website,
-      address: c.address,
-      city: c.city,
-      postal_code: c.postal_code,
-      country: c.country,
-      notes: c.notes,
-      color: c.color,
-      avatar_data: c.avatar_data,
-      created_at: c.created_at,
-      updated_at: c.updated_at,
-    }))
-    const backup = {
-      version: '1.3.0',
-      exported_at: new Date().toISOString(),
-      cards_count: allCards.length,
-      cards: allCards,
-      business_cards_count: allBc.length,
-      business_cards: allBc,
-    }
-    const json = JSON.stringify(backup, null, 2)
-    const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
+function cardToBackup(c) {
+  return {
+    id: c.id,
+    store_name: c.store_name,
+    card_number: c.card_number,
+    holder_name: c.holder_name,
+    barcode_type: c.barcode_type,
+    logo_type: c.logo_type,
+    logo_path: c.logo_path,
+    logo_data: c.logo_data,
+    notes: c.notes,
+    color: c.color,
+    is_private: c.is_private,
+    is_favorite: c.is_favorite,
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+  }
+}
 
-    if (Capacitor.isNativePlatform()) {
-      await saveToDownloads({ filename, data: json })
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte, ${allBc.length} biglietti. <span class="clickable-hint">Tocca per aprire la cartella</span>` }
-      try {
-        await shareFile({
-          filename,
-          data: json,
-          title: 'Backup FidAPPti',
-          text: `Backup con ${allCards.length} carte fidelity e ${allBc.length} biglietti da visita`,
-        })
-      } catch (shareErr) {
-        console.warn('Share failed:', shareErr)
-      }
-    } else {
-      const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = filename; a.click()
-      URL.revokeObjectURL(url)
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte, ${allBc.length} biglietti.` }
+function bcToBackup(c) {
+  return {
+    id: c.id,
+    first_name: c.first_name,
+    last_name: c.last_name,
+    org: c.org,
+    role: c.role,
+    phone_personal: c.phone_personal,
+    phone_business: c.phone_business,
+    email: c.email,
+    website: c.website,
+    address: c.address,
+    city: c.city,
+    postal_code: c.postal_code,
+    country: c.country,
+    notes: c.notes,
+    color: c.color,
+    avatar_data: c.avatar_data,
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+  }
+}
+
+async function exportBackupData(kind) {
+  const isBc = kind === 'bc'
+  const allCards = isBc ? [] : store.cards.map(cardToBackup)
+  const allBc = isBc ? bcStore.cards.map(bcToBackup) : []
+  const backup = {
+    version: '1.3.0',
+    exported_at: new Date().toISOString(),
+    cards_count: allCards.length,
+    cards: allCards,
+    business_cards_count: allBc.length,
+    business_cards: allBc,
+  }
+  const json = JSON.stringify(backup, null, 2)
+  const filename = `${isBc ? 'biglietti' : 'tessere'}-fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
+
+  if (Capacitor.isNativePlatform()) {
+    await saveToDownloads({ filename, data: json })
+    return {
+      ok: true,
+      msg: `Backup esportato: ${isBc ? allBc.length + ' biglietti' : allCards.length + ' tessere'}. <span class="clickable-hint">Tocca per aprire la cartella</span>`,
+    }
+  } else {
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+    return {
+      ok: true,
+      msg: `Backup esportato: ${isBc ? allBc.length + ' biglietti' : allCards.length + ' tessere'}.`,
+    }
+  }
+}
+
+async function exportCardsBackup() {
+  exportingCards.value = true
+  cardsBackupResult.value = null
+  try {
+    cardsBackupResult.value = await exportBackupData('cards')
+    try {
+      await shareFile({
+        filename: `tessere-fidappti-backup-${new Date().toISOString().slice(0,10)}.json`,
+        data: JSON.stringify({
+          version: '1.3.0',
+          exported_at: new Date().toISOString(),
+          cards_count: store.cards.length,
+          cards: store.cards.map(cardToBackup),
+          business_cards_count: 0,
+          business_cards: [],
+        }, null, 2),
+        title: 'Backup FidAPPti',
+        text: `Backup con ${store.cards.length} tessere fedeltà`,
+      })
+    } catch (shareErr) {
+      console.warn('Share failed:', shareErr)
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
-      backupResult.value = { ok: false, msg: `Errore: ${e.message}` }
+      cardsBackupResult.value = { ok: false, msg: `Errore: ${e.message}` }
     }
   } finally {
-    exporting.value = false
+    exportingCards.value = false
+  }
+}
+
+async function exportBcBackup() {
+  exportingBc.value = true
+  bcBackupResult.value = null
+  try {
+    bcBackupResult.value = await exportBackupData('bc')
+    try {
+      await shareFile({
+        filename: `biglietti-fidappti-backup-${new Date().toISOString().slice(0,10)}.json`,
+        data: JSON.stringify({
+          version: '1.3.0',
+          exported_at: new Date().toISOString(),
+          cards_count: 0,
+          cards: [],
+          business_cards_count: bcStore.cards.length,
+          business_cards: bcStore.cards.map(bcToBackup),
+        }, null, 2),
+        title: 'Backup FidAPPti',
+        text: `Backup con ${bcStore.cards.length} biglietti da visita`,
+      })
+    } catch (shareErr) {
+      console.warn('Share failed:', shareErr)
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      bcBackupResult.value = { ok: false, msg: `Errore: ${e.message}` }
+    }
+  } finally {
+    exportingBc.value = false
   }
 }
 
@@ -412,46 +488,52 @@ async function openBackupFolder() {
   }
 }
 
-async function triggerImport() {
+async function triggerImport(kind) {
   if (Capacitor.isNativePlatform()) {
-    await importBackupNative()
+    await importBackupNative(kind)
   } else {
-    importInput.value?.click()
+    const input = kind === 'bc' ? importBcInput.value : importCardsInput.value
+    input?.click()
   }
 }
 
-async function importBackupNative() {
-  backupResult.value = null
+async function importBackupNative(kind) {
+  const isBc = kind === 'bc'
+  const resultRef = isBc ? bcBackupResult : cardsBackupResult
+  resultRef.value = null
   try {
     const result = await pickJsonFile()
     console.log('[import] Native pick OK, fileName:', result.fileName, 'content length:', result.content.length)
     const backup = JSON.parse(result.content)
-    if (!backup.cards || !Array.isArray(backup.cards)) {
-      backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
+    const list = isBc ? backup.business_cards : backup.cards
+    if (!list || !Array.isArray(list)) {
+      resultRef.value = { ok: false, msg: `File non valido: manca l'array "${isBc ? 'business_cards' : 'cards'}"` }
       return
     }
-    const validCards = backup.cards.filter(c => c.store_name && c.card_number)
-    console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
-    const res = await store.importCardsFromBackup(validCards)
+    const valid = isBc
+      ? list.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
+      : list.filter(c => c.store_name && c.card_number)
+    console.log('[import] Valid items:', valid.length, 'of', list.length)
+    const res = isBc
+      ? await bcStore.importCardsFromBackup(valid)
+      : await store.importCardsFromBackup(valid)
     console.log('[import] Import result:', res)
-    let bcMsg = ''
-    if (Array.isArray(backup.business_cards)) {
-      const validBc = backup.business_cards.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
-      const bcRes = await bcStore.importCardsFromBackup(validBc)
-      bcMsg = `, <strong>${bcRes.added}</strong> biglietti importati, <strong>${bcRes.updated}</strong> aggiornati`
-    }
-    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate${bcMsg}` }
+    resultRef.value = isBc
+      ? { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> biglietti importati, <strong>${res.updated}</strong> aggiornati` }
+      : { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
   } catch (e) {
     if (e.message && e.message.includes('annullata')) return
     console.error('[import] Native ERROR:', e)
-    backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
+    resultRef.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
   }
 }
 
-async function importBackupFromInput(e) {
+async function importBackupFromInput(e, kind) {
   const file = e.target.files?.[0]
   if (!file) return
-  backupResult.value = null
+  const isBc = kind === 'bc'
+  const resultRef = isBc ? bcBackupResult : cardsBackupResult
+  resultRef.value = null
   try {
     console.log('[import] Reading file:', file.name, 'size:', file.size)
     const text = await new Promise((resolve, reject) => {
@@ -462,24 +544,25 @@ async function importBackupFromInput(e) {
     })
     console.log('[import] File read OK, length:', text.length)
     const backup = JSON.parse(text)
-    if (!backup.cards || !Array.isArray(backup.cards)) {
-      backupResult.value = { ok: false, msg: 'File non valido: manca l\'array "cards"' }
+    const list = isBc ? backup.business_cards : backup.cards
+    if (!list || !Array.isArray(list)) {
+      resultRef.value = { ok: false, msg: `File non valido: manca l'array "${isBc ? 'business_cards' : 'cards'}"` }
       return
     }
-    const validCards = backup.cards.filter(c => c.store_name && c.card_number)
-    console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
-    const res = await store.importCardsFromBackup(validCards)
+    const valid = isBc
+      ? list.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
+      : list.filter(c => c.store_name && c.card_number)
+    console.log('[import] Valid items:', valid.length, 'of', list.length)
+    const res = isBc
+      ? await bcStore.importCardsFromBackup(valid)
+      : await store.importCardsFromBackup(valid)
     console.log('[import] Import result:', res)
-    let bcMsg = ''
-    if (Array.isArray(backup.business_cards)) {
-      const validBc = backup.business_cards.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
-      const bcRes = await bcStore.importCardsFromBackup(validBc)
-      bcMsg = `, <strong>${bcRes.added}</strong> biglietti importati, <strong>${bcRes.updated}</strong> aggiornati`
-    }
-    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate${bcMsg}` }
+    resultRef.value = isBc
+      ? { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> biglietti importati, <strong>${res.updated}</strong> aggiornati` }
+      : { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
   } catch (e) {
     console.error('[import] ERROR:', e)
-    backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
+    resultRef.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }
   }
   e.target.value = ''
 }
