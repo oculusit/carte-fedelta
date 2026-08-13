@@ -4,4 +4,6 @@
     <string name="title_activity_main">FidAPPti</string>
     <string name="package_name">it.oculus.carte</string>
     <string name="custom_url_scheme">it.oculus.carte</string>
+    <string name="hce_service_description">Condivide il biglietto da visita come tag NFC</string>
+    <string name="hce_aid_group_description">Biglietti da visita NFC</string>
 </resources>

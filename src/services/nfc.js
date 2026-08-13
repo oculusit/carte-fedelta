@@ -133,3 +133,46 @@ export async function writeVCardToTag(vcardText, onProgress) {
     })
   })
 }
+
+let NdefShare = null
+
+async function getNdefShare() {
+  if (NdefShare) return NdefShare
+  const { registerPlugin } = await import('@capacitor/core')
+  const raw = registerPlugin('NdefEmulation', {
+    web: () => ({
+      start: async () => {
+        throw new Error('NFC non disponibile')
+      },
+      stop: async () => {},
+      isActive: async () => ({ active: false }),
+    }),
+  })
+  NdefShare = {
+    start: (vcard) => raw.start({ vcard }),
+    stop: () => raw.stop(),
+    isActive: () => raw.isActive(),
+  }
+  return NdefShare
+}
+
+export async function startNfcShare(vcardText) {
+  if (!isNfcNativeAvailable()) {
+    throw new Error('NFC non disponibile su questo dispositivo')
+  }
+  const share = await getNdefShare()
+  await share.start(vcardText)
+}
+
+export async function stopNfcShare() {
+  if (!isNfcNativeAvailable()) return
+  const share = await getNdefShare()
+  await share.stop()
+}
+
+export async function isNfcShareActive() {
+  if (!isNfcNativeAvailable()) return false
+  const share = await getNdefShare()
+  const { active } = await share.isActive()
+  return !!active
+}

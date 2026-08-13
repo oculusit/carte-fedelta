@@ -22,7 +22,7 @@
 
       <div class="detail-section">
         <h3 class="section-label">QR Code vCard</h3>
-        <BarcodeDisplay :code="vcardText" type="QR" />
+        <BarcodeDisplay :code="vcardQrText" type="QR" />
         <p class="barcode-hint">Chi scansiona il QR può salvare il tuo biglietto direttamente nei propri contatti.</p>
       </div>
 
@@ -59,9 +59,20 @@
         </button>
         <button
           v-if="nfcVisible"
+          class="btn btn-primary btn-block"
+          @click="toggleNfcShare"
+          :disabled="nfcShareBusy"
+        >
+          {{ nfcShareActive ? '⏹ Ferma condivisione NFC' : '📶 Condividi via NFC' }}
+        </button>
+        <p v-if="nfcShareActive" class="barcode-hint">
+          Appoggia l'altro smartphone con NFC attivo per ricevere il biglietto.
+        </p>
+        <button
+          v-if="nfcVisible"
           class="btn btn-outline btn-block"
           @click="writeNfc"
-          :disabled="nfcBusy"
+          :disabled="nfcBusy || nfcShareActive"
         >
           {{ nfcLabel }}
         </button>
@@ -87,7 +98,7 @@ import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { buildVCard } from '../services/vcard.js'
-import { isNfcNativeAvailable, isNfcSupported, writeVCardToTag } from '../services/nfc.js'
+import { isNfcNativeAvailable, isNfcSupported, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
 import { Capacitor } from '@capacitor/core'
 import { saveToDownloads, shareFile } from '../services/filePicker.js'
 import BarcodeDisplay from '../components/BarcodeDisplay.vue'
@@ -102,6 +113,8 @@ const sharing = ref(false)
 const nfcBusy = ref(false)
 const nfcError = ref('')
 const nfcVisible = ref(false)
+const nfcShareActive = ref(false)
+const nfcShareBusy = ref(false)
 
 const fullName = computed(() => {
   const first = (card.value?.first_name || '').trim()
@@ -117,6 +130,7 @@ const initials = computed(() => {
 })
 
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
+const vcardQrText = computed(() => (card.value ? buildVCard(card.value, '\n') : ''))
 
 const addressText = computed(() => {
   if (!card.value) return ''
@@ -213,6 +227,45 @@ async function confirmDelete() {
 }
 
 let nfcCheckTimer = null
+let nfcShareTimer = null
+
+const NFC_SHARE_TIMEOUT = 60000
+
+async function toggleNfcShare() {
+  nfcError.value = ''
+  if (nfcShareActive.value) {
+    await stopNfcShareSession()
+    return
+  }
+  nfcShareBusy.value = true
+  try {
+    await startNfcShare(vcardText.value)
+    nfcShareActive.value = true
+    toast.show('Appoggia l\'altro smartphone per ricevere il biglietto', 'success')
+    nfcShareTimer = setTimeout(() => {
+      stopNfcShareSession()
+      toast.show('Condivisione NFC terminata', 'info')
+    }, NFC_SHARE_TIMEOUT)
+  } catch (e) {
+    const msg = e?.message || 'Condivisione NFC non riuscita'
+    nfcError.value = msg
+    toast.show(msg, 'error')
+  } finally {
+    nfcShareBusy.value = false
+  }
+}
+
+async function stopNfcShareSession() {
+  if (nfcShareTimer) {
+    clearTimeout(nfcShareTimer)
+    nfcShareTimer = null
+  }
+  if (!nfcShareActive.value) return
+  nfcShareActive.value = false
+  try {
+    await stopNfcShare()
+  } catch {}
+}
 
 onMounted(async () => {
   loadCard()
@@ -227,6 +280,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (nfcCheckTimer) clearInterval(nfcCheckTimer)
+  stopNfcShareSession()
 })
 </script>
 

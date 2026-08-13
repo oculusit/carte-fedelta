@@ -6,11 +6,11 @@ function escapeVCard(value) {
     .replace(/\r?\n/g, '\\n')
 }
 
-function joinLines(parts) {
-  return parts.filter(Boolean).join('\r\n') + '\r\n'
+function joinLines(parts, eol) {
+  return parts.filter(Boolean).join(eol) + eol
 }
 
-export function buildVCard(bc) {
+export function buildVCard(bc, eol = '\r\n') {
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
@@ -52,5 +52,5 @@ export function buildVCard(bc) {
 
   lines.push('END:VCARD')
 
-  return joinLines(lines)
+  return joinLines(lines, eol)
 }

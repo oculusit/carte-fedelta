@@ -16,6 +16,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FilePickerPlugin.class);
+        registerPlugin(NdefEmulationPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
