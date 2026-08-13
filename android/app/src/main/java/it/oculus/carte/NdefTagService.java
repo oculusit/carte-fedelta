@@ -15,6 +15,7 @@ package it.oculus.carte;
 import android.nfc.NdefMessage;
 import android.nfc.cardemulation.HostApduService;
 import android.os.Bundle;
+import android.util.Log;
 
 import java.util.Arrays;
 
@@ -60,10 +61,12 @@ public class NdefTagService extends HostApduService {
 
     public static void setMessage(NdefMessage m) {
         message = m;
+        Log.d(TAG, "setMessage: " + (m != null ? m.toByteArray().length + " bytes" : "null"));
     }
 
     public static void clearMessage() {
         message = null;
+        Log.d(TAG, "clearMessage");
     }
 
     public static boolean isMessageSet() {
@@ -91,16 +94,20 @@ public class NdefTagService extends HostApduService {
             byte[] data = Arrays.copyOfRange(commandApdu, 5, commandApdu.length);
             if (Arrays.equals(data, NDEF_APPLICATION_AID)) {
                 selectedFile = FILE_APP;
+                Log.d(TAG, "SELECT AID -> 9000");
                 return SW_SUCCESS;
             }
             if (Arrays.equals(data, CC_FILE_ID)) {
                 selectedFile = FILE_CC;
+                Log.d(TAG, "SELECT CC -> 9000");
                 return SW_SUCCESS;
             }
             if (Arrays.equals(data, NDEF_FILE_ID)) {
                 selectedFile = FILE_NDEF;
+                Log.d(TAG, "SELECT NDEF -> 9000");
                 return SW_SUCCESS;
             }
+            Log.d(TAG, "SELECT unknown -> 6A82");
             return SW_FILE_NOT_FOUND;
         }
 
@@ -134,6 +141,7 @@ public class NdefTagService extends HostApduService {
             }
             int end = Math.min(fileOffset + le, fileData.length);
             byte[] response = Arrays.copyOfRange(fileData, fileOffset, end);
+            Log.d(TAG, "READ offset=" + fileOffset + " le=" + le + " resp=" + response.length + "/" + fileData.length);
             return concat(response, SW_SUCCESS);
         }
 

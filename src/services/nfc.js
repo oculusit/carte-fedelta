@@ -161,7 +161,7 @@ export async function startNfcShare(vcardText) {
     throw new Error('NFC non disponibile su questo dispositivo')
   }
   const share = await getNdefShare()
-  await share.start(vcardText)
+  return share.start(vcardText)
 }
 
 export async function stopNfcShare() {

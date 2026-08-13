@@ -66,7 +66,10 @@
           {{ nfcShareActive ? '⏹ Ferma condivisione NFC' : '📶 Condividi via NFC' }}
         </button>
         <p v-if="nfcShareActive" class="barcode-hint">
-          Appoggia l'altro smartphone con NFC attivo per ricevere il biglietto.
+          Appoggia l'altro smartphone (NFC attivo, schermo acceso): riceverà il biglietto e
+          proporrà di salvarlo nei contatti. L'avviso "Nuovo tag raccolto / Tag vuoto" su
+          <strong>questo</strong> telefono è normale: sta solo leggendo l'altro telefono, non blocca l'invio.
+          <template v-if="nfcShareSize"> — biglietto pronto ({{ nfcShareSize }} byte)</template>
         </p>
         <button
           v-if="nfcVisible"
@@ -115,6 +118,7 @@ const nfcError = ref('')
 const nfcVisible = ref(false)
 const nfcShareActive = ref(false)
 const nfcShareBusy = ref(false)
+const nfcShareSize = ref(0)
 
 const fullName = computed(() => {
   const first = (card.value?.first_name || '').trim()
@@ -239,9 +243,10 @@ async function toggleNfcShare() {
   }
   nfcShareBusy.value = true
   try {
-    await startNfcShare(vcardText.value)
+    const result = await startNfcShare(vcardText.value)
     nfcShareActive.value = true
-    toast.show('Appoggia l\'altro smartphone per ricevere il biglietto', 'success')
+    nfcShareSize.value = result?.size || 0
+    toast.show('Condivisione NFC attiva: appoggia l\'altro smartphone', 'success')
     nfcShareTimer = setTimeout(() => {
       stopNfcShareSession()
       toast.show('Condivisione NFC terminata', 'info')
@@ -262,6 +267,7 @@ async function stopNfcShareSession() {
   }
   if (!nfcShareActive.value) return
   nfcShareActive.value = false
+  nfcShareSize.value = 0
   try {
     await stopNfcShare()
   } catch {}

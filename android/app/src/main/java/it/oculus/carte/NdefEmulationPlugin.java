@@ -39,6 +39,7 @@ public class NdefEmulationPlugin extends Plugin {
             NdefTagService.setMessage(ndef);
             JSObject ret = new JSObject();
             ret.put("active", NdefTagService.isMessageSet());
+            ret.put("size", ndef.toByteArray().length);
             call.resolve(ret);
         } catch (Exception e) {
             Log.e(TAG, "start error", e);
