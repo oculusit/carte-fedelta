@@ -6,14 +6,17 @@
         :class="{ active: activeTab === 'cards' }"
         @click="switchTab('cards')"
       >
-        🎫 Tessere Fedeltà
+        <span class="tab-emoji">🎫</span> Tessere Fedeltà
       </button>
       <button
         class="tab-btn"
         :class="{ active: activeTab === 'business' }"
         @click="switchTab('business')"
       >
-        👤 Biglietti da visita
+        <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+        </svg>
+        Biglietti da visita
       </button>
     </div>
 
@@ -223,7 +226,13 @@ onMounted(() => {
 
 .tab-btn {
   flex: 1;
-  padding: 10px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 8px;
+  white-space: nowrap;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -232,6 +241,18 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+}
+
+.tab-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: #b8860b;
 }
 
 .tab-btn.active {
