@@ -36,32 +36,45 @@ public class NdefTagService extends HostApduService {
     private static final byte[] CC_FILE_ID = { (byte) 0xE1, (byte) 0x03 };
     private static final byte[] NDEF_FILE_ID = { (byte) 0xE1, (byte) 0x04 };
 
-    private static final int MLe = 0x3B;
+    private static final int MLe = 0xFF;
+    private static final int MLc = 0x40;
 
-    // Capability Container (15 bytes, Type 4 Tag v2.0)
-    private static final byte[] CAPABILITY_CONTAINER = {
-        (byte) 0x00, 0x0F,        // CCLEN = 15
-        0x20,                     // Mapping version 2.0
-        0x00, MLe,                // MLe (max read length)
-        0x00, 0x34,               // MLc (max write length)
-        0x04, 0x06,               // NDEF File Control TLV
-        (byte) 0xE1, 0x04,        // NDEF file identifier
-        (byte) 0xFF, (byte) 0xFE, // Max NDEF size
-        0x00,                     // Read access: granted
-        (byte) 0xFF               // Write access: denied
-    };
+    // Capability Container (15 bytes, Type 4 Tag v2.0). Built dynamically so
+    // the declared Maximum NDEF file size matches the current message and MLe
+    // is large enough that readers can fetch a big vCard in one chunk.
+    private static byte[] buildCapabilityContainer(int ndefFileSize) {
+        return new byte[] {
+            (byte) 0x00, 0x0F,                       // CCLEN = 15
+            0x20,                                    // Mapping version 2.0
+            (byte) 0x00, (byte) MLe,                 // MLe (max read length)
+            (byte) 0x00, (byte) MLc,                 // MLc (max write length)
+            0x04, 0x06,                              // NDEF File Control TLV
+            (byte) 0xE1, 0x04,                       // NDEF file identifier
+            (byte) ((ndefFileSize >> 8) & 0xFF), (byte) (ndefFileSize & 0xFF),
+            0x00,                                    // Read access: granted
+            (byte) 0xFF                              // Write access: denied
+        };
+    }
 
     private static final int FILE_APP = 0;
     private static final int FILE_CC = 1;
     private static final int FILE_NDEF = 2;
 
     private static volatile NdefMessage message = null;
+    private static volatile byte[] capabilityContainer = null;
 
     private int selectedFile = FILE_APP;
 
     public static void setMessage(NdefMessage m) {
         message = m;
-        Log.d(TAG, "setMessage: " + (m != null ? m.toByteArray().length + " bytes" : "null"));
+        if (m != null) {
+            byte[] ndef = m.toByteArray();
+            capabilityContainer = buildCapabilityContainer(ndef.length + 2);
+            Log.d(TAG, "setMessage: " + ndef.length + " bytes, CC max=" + (ndef.length + 2));
+        } else {
+            capabilityContainer = null;
+            Log.d(TAG, "setMessage: null");
+        }
     }
 
     public static void clearMessage() {
@@ -120,7 +133,7 @@ public class NdefTagService extends HostApduService {
             byte[] fileData = null;
             switch (selectedFile) {
                 case FILE_CC:
-                    fileData = CAPABILITY_CONTAINER;
+                    fileData = capabilityContainer;
                     break;
                 case FILE_NDEF: {
                     NdefMessage m = message;
@@ -135,6 +148,7 @@ public class NdefTagService extends HostApduService {
                 default:
                     return SW_FILE_NOT_FOUND;
             }
+            if (fileData == null) return SW_FILE_NOT_FOUND;
 
             if (fileOffset > fileData.length) {
                 return SW_WRONG_PARAMS;
