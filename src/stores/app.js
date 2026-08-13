@@ -4,6 +4,7 @@ import { db, saveBackup, restoreBackup, settingsDb, logosDb } from '../services/
 import { toast } from '../services/toast.js'
 import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase.js'
 import { httpFetch } from '../services/http.js'
+import { useBusinessCardsStore } from './businessCards.js'
 
 export const useAppStore = defineStore('app', () => {
   const isOnline = ref(navigator.onLine)
@@ -18,6 +19,11 @@ export const useAppStore = defineStore('app', () => {
     isOnline.value = true
     if (isSupabaseConfigured()) {
       await processSyncQueue()
+      try {
+        const bcStore = useBusinessCardsStore()
+        await bcStore.processSyncQueue()
+        await bcStore.syncMerge()
+      } catch {}
     }
     await loadCards()
   }
@@ -93,6 +99,10 @@ export const useAppStore = defineStore('app', () => {
     syncing.value = true
     const remaining = []
     for (const entry of queue) {
+      if (entry.kind === 'business_card') {
+        remaining.push(entry)
+        continue
+      }
       try {
         const { action, card } = entry
         const safe = sanitizeCardForSupabase(card)

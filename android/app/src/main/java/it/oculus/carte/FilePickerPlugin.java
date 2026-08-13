@@ -216,6 +216,7 @@ public class FilePickerPlugin extends Plugin {
         String data = call.getString("data", "");
         String title = call.getString("title", "Condividi file");
         String text = call.getString("text", "");
+        String mimeType = call.getString("mimeType", "application/json");
 
         try {
             byte[] bytes = data.getBytes("UTF-8");
@@ -237,7 +238,7 @@ public class FilePickerPlugin extends Plugin {
             );
 
             Intent intent = new Intent(Intent.ACTION_SEND);
-            intent.setType("application/json");
+            intent.setType(mimeType);
             intent.putExtra(Intent.EXTRA_STREAM, contentUri);
             intent.putExtra(Intent.EXTRA_TITLE, title);
             if (text != null && !text.isEmpty()) {

@@ -1,8 +1,9 @@
 const DB_NAME = 'CarteFedeltaDB'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'cards'
 const SETTINGS_STORE = 'settings'
 const LOGOS_STORE = 'logos'
+const BUSINESS_CARDS_STORE = 'business_cards'
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,10 @@ function openDB() {
       if (!db.objectStoreNames.contains(LOGOS_STORE)) {
         const logoStore = db.createObjectStore(LOGOS_STORE, { keyPath: 'storeName' })
         logoStore.createIndex('updated_at', 'updated_at', { unique: false })
+      }
+      if (!db.objectStoreNames.contains(BUSINESS_CARDS_STORE)) {
+        const bcStore = db.createObjectStore(BUSINESS_CARDS_STORE, { keyPath: 'id' })
+        bcStore.createIndex('created_at', 'created_at', { unique: false })
       }
     }
     req.onsuccess = (e) => resolve(e.target.result)
@@ -340,6 +345,106 @@ export const logosDb = {
     return withLogosStore('readwrite', (store) => {
       store.delete(key)
       return true
+    })
+  },
+}
+
+function withBusinessCardsStore(mode, callback) {
+  return openDB().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(BUSINESS_CARDS_STORE, mode)
+    const store = tx.objectStore(BUSINESS_CARDS_STORE)
+    const result = callback(store)
+    tx.oncomplete = () => {
+      resolve(result)
+      db.close()
+    }
+    tx.onerror = () => {
+      reject(tx.error)
+      db.close()
+    }
+  }))
+}
+
+export const businessCardsDb = {
+  async getAll() {
+    return withBusinessCardsStore('readonly', (store) => {
+      const req = store.getAll()
+      return new Promise((resolve) => {
+        req.onsuccess = () => resolve(req.result || [])
+      })
+    })
+  },
+
+  async get(id) {
+    return withBusinessCardsStore('readonly', (store) => {
+      const req = store.get(id)
+      return new Promise((resolve) => {
+        req.onsuccess = () => resolve(req.result || null)
+      })
+    })
+  },
+
+  async create(bc) {
+    return withBusinessCardsStore('readwrite', (store) => {
+      const data = {
+        ...bc,
+        id: bc.id || crypto.randomUUID(),
+        created_at: bc.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      store.put(data)
+      return data
+    })
+  },
+
+  async update(id, updates) {
+    return withBusinessCardsStore('readwrite', (store) => {
+      const req = store.get(id)
+      return new Promise((resolve, reject) => {
+        req.onsuccess = () => {
+          const existing = req.result
+          if (!existing) {
+            reject(new Error('Biglietto non trovato'))
+            return
+          }
+          const updated = { ...existing, ...updates, updated_at: new Date().toISOString() }
+          store.put(updated)
+          resolve(updated)
+        }
+        req.onerror = () => reject(req.error)
+      })
+    })
+  },
+
+  async delete(id) {
+    return withBusinessCardsStore('readwrite', (store) => {
+      store.delete(id)
+      return true
+    })
+  },
+
+  async importBusinessCards(cards) {
+    const existing = await this.getAll()
+    const existingById = new Map(existing.map((c) => [c.id, c]))
+    let added = 0, updated = 0
+    return withBusinessCardsStore('readwrite', (store) => {
+      for (const card of cards) {
+        if (!card.id) continue
+        const old = existingById.get(card.id)
+        if (old) {
+          store.put({ ...old, ...card, updated_at: new Date().toISOString() })
+          updated++
+        } else {
+          store.put({
+            ...card,
+            id: card.id,
+            created_at: card.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          added++
+        }
+      }
+      return { added, updated }
     })
   },
 }

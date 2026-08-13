@@ -147,6 +147,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
+import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
@@ -155,6 +156,7 @@ import { Capacitor } from '@capacitor/core'
 import { saveToDownloads, pickJsonFile, openDownloadsFolder, shareFile } from '../services/filePicker.js'
 
 const store = useAppStore()
+const bcStore = useBusinessCardsStore()
 
 const clearing = ref(false)
 const syncing = ref(false)
@@ -259,13 +261,14 @@ async function syncNow() {
   syncing.value = true
   try {
     await store.pullFromServer()
+    await bcStore.syncMerge()
     cloudCount.value = await store.getCloudCardCount()
     const local = store.cards.length
     const cloud = cloudCount.value
     if (local === cloud) {
-      toast.show(`Sincronizzato: ${local} carte (cloud + locale uguali)`, 'success')
+      toast.show(`Sincronizzato: ${local} carte + ${bcStore.cards.length} biglietti`, 'success')
     } else {
-      toast.show(`Locale: ${local} · Cloud: ${cloud >= 0 ? cloud : '?'}`, 'info')
+      toast.show(`Locale: ${local} carte + ${bcStore.cards.length} biglietti · Cloud: ${cloud >= 0 ? cloud : '?'}`, 'info')
     }
   } catch (e) {
     toast.show('Errore sincronizzazione: ' + (e.message || e), 'error')
@@ -339,24 +342,46 @@ async function exportBackup() {
       created_at: c.created_at,
       updated_at: c.updated_at,
     }))
+    const allBc = await bcStore.cards.map(c => ({
+      id: c.id,
+      first_name: c.first_name,
+      last_name: c.last_name,
+      org: c.org,
+      role: c.role,
+      phone_personal: c.phone_personal,
+      phone_business: c.phone_business,
+      email: c.email,
+      website: c.website,
+      address: c.address,
+      city: c.city,
+      postal_code: c.postal_code,
+      country: c.country,
+      notes: c.notes,
+      color: c.color,
+      avatar_data: c.avatar_data,
+      created_at: c.created_at,
+      updated_at: c.updated_at,
+    }))
     const backup = {
       version: '1.2.5',
       exported_at: new Date().toISOString(),
       cards_count: allCards.length,
       cards: allCards,
+      business_cards_count: allBc.length,
+      business_cards: allBc,
     }
     const json = JSON.stringify(backup, null, 2)
     const filename = `fidappti-backup-${new Date().toISOString().slice(0,10)}.json`
 
     if (Capacitor.isNativePlatform()) {
       await saveToDownloads({ filename, data: json })
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte. <span class="clickable-hint">Tocca per aprire la cartella</span>` }
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte, ${allBc.length} biglietti. <span class="clickable-hint">Tocca per aprire la cartella</span>` }
       try {
         await shareFile({
           filename,
           data: json,
           title: 'Backup FidAPPti',
-          text: `Backup con ${allCards.length} carte fidelity`,
+          text: `Backup con ${allCards.length} carte fidelity e ${allBc.length} biglietti da visita`,
         })
       } catch (shareErr) {
         console.warn('Share failed:', shareErr)
@@ -367,7 +392,7 @@ async function exportBackup() {
       const a = document.createElement('a')
       a.href = url; a.download = filename; a.click()
       URL.revokeObjectURL(url)
-      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte.` }
+      backupResult.value = { ok: true, msg: `Backup esportato: ${allCards.length} carte, ${allBc.length} biglietti.` }
     }
   } catch (e) {
     if (e.name !== 'AbortError') {
@@ -409,7 +434,13 @@ async function importBackupNative() {
     console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
     const res = await store.importCardsFromBackup(validCards)
     console.log('[import] Import result:', res)
-    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
+    let bcMsg = ''
+    if (Array.isArray(backup.business_cards)) {
+      const validBc = backup.business_cards.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
+      const bcRes = await bcStore.importCardsFromBackup(validBc)
+      bcMsg = `, <strong>${bcRes.added}</strong> biglietti importati, <strong>${bcRes.updated}</strong> aggiornati`
+    }
+    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate${bcMsg}` }
   } catch (e) {
     if (e.message && e.message.includes('annullata')) return
     console.error('[import] Native ERROR:', e)
@@ -439,7 +470,13 @@ async function importBackupFromInput(e) {
     console.log('[import] Valid cards:', validCards.length, 'of', backup.cards.length)
     const res = await store.importCardsFromBackup(validCards)
     console.log('[import] Import result:', res)
-    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate` }
+    let bcMsg = ''
+    if (Array.isArray(backup.business_cards)) {
+      const validBc = backup.business_cards.filter(c => c.id && (c.first_name || c.last_name || c.email || c.phone_personal))
+      const bcRes = await bcStore.importCardsFromBackup(validBc)
+      bcMsg = `, <strong>${bcRes.added}</strong> biglietti importati, <strong>${bcRes.updated}</strong> aggiornati`
+    }
+    backupResult.value = { ok: true, msg: `Importazione completata: <strong>${res.added}</strong> aggiunte, <strong>${res.updated}</strong> aggiornate, <strong>${res.skipped}</strong> scartate${bcMsg}` }
   } catch (e) {
     console.error('[import] ERROR:', e)
     backupResult.value = { ok: false, msg: 'Errore importazione: ' + (e.message || e) }

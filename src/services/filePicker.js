@@ -60,8 +60,8 @@ export async function openDownloadsFolder() {
   return FilePickerNative.openDownloadsFolder()
 }
 
-export async function shareFile({ filename, data, title, text }) {
-  return FilePickerNative.shareFile({ filename, data, title, text })
+export async function shareFile({ filename, data, title, text, mimeType }) {
+  return FilePickerNative.shareFile({ filename, data, title, text, mimeType })
 }
 
 export { isIOS }

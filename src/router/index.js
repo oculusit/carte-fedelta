@@ -22,6 +22,21 @@ const routes = [
     component: () => import('../views/CardFormView.vue'),
   },
   {
+    path: '/business-card/new',
+    name: 'business-card-new',
+    component: () => import('../views/BusinessCardFormView.vue'),
+  },
+  {
+    path: '/business-card/:id',
+    name: 'business-card-detail',
+    component: () => import('../views/BusinessCardDetailView.vue'),
+  },
+  {
+    path: '/business-card/:id/edit',
+    name: 'business-card-edit',
+    component: () => import('../views/BusinessCardFormView.vue'),
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),

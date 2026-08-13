@@ -35,11 +35,17 @@ const router = useRouter()
 const showFab = computed(() => {
   if (route.path.startsWith('/admin/')) return false
   if (route.name && (route.name === 'card-new' || route.name === 'card-edit' || route.name === 'card-detail' || route.name === 'settings')) return false
+  if (route.name && (route.name === 'business-card-new' || route.name === 'business-card-edit' || route.name === 'business-card-detail')) return false
   return true
 })
 
 function goToNewCard() {
-  router.push('/card/new')
+  const isBusiness = route.path === '/' && route.query.t === 'business'
+  if (isBusiness) {
+    router.push('/business-card/new')
+  } else {
+    router.push('/card/new')
+  }
 }
 
 onMounted(async () => {

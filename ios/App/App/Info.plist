@@ -49,6 +49,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>FidAPPti ha bisogno della fotocamera per scansionare i codici a barre delle tue carte fedeltà.</string>
+	<key>NFCReaderUsageDescription</key>
+	<string>FidAPPti usa la lettura NFC per scrivere i tuoi biglietti da visita sui tag compatibili.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>FidAPPti ha bisogno dell'accesso alla libreria fotografica per importare immagini dei loghi.</string>
 </dict>

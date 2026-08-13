@@ -15,7 +15,8 @@ let package = Package(
         .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
         .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
-        .package(name: "CapgoCapacitorBrightness", path: "../../../node_modules/@capgo/capacitor-brightness")
+        .package(name: "CapgoCapacitorBrightness", path: "../../../node_modules/@capgo/capacitor-brightness"),
+        .package(name: "CapgoCapacitorNfc", path: "../../../node_modules/@capgo/capacitor-nfc")
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
-                .product(name: "CapgoCapacitorBrightness", package: "CapgoCapacitorBrightness")
+                .product(name: "CapgoCapacitorBrightness", package: "CapgoCapacitorBrightness"),
+                .product(name: "CapgoCapacitorNfc", package: "CapgoCapacitorNfc")
             ]
         )
     ]

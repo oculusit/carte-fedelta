@@ -49,6 +49,11 @@ export async function testSupabaseConnection(url, anonKey) {
       return { ok: false, error: 'La tabella "cards" non esiste. Vai su SQL Editor ed esegui lo script di setup.' }
     }
     if (selErr) throw selErr
+    const { error: bcErr } = await testClient.from('business_cards').select('id', { count: 'exact', head: true })
+    if (bcErr && bcErr.code === 'PGRST116') {
+      return { ok: false, error: 'La tabella "business_cards" non esiste. Rilanciare lo script di setup aggiornato nell\'SQL Editor di Supabase.' }
+    }
+    if (bcErr) throw bcErr
     const testId = crypto.randomUUID()
     const { error: insErr } = await testClient.from('cards').insert({
       id: testId,
@@ -105,6 +110,36 @@ alter table cards enable row level security;
 drop policy if exists "Enable all access for cards" on cards;
 create policy "Enable all access for cards"
   on cards for all
+  using (true)
+  with check (true);
+
+-- 2. Tabella biglietti da visita
+create table if not exists business_cards (
+  id uuid primary key default gen_random_uuid(),
+  first_name text default '',
+  last_name text default '',
+  org text default '',
+  role text default '',
+  phone_personal text default '',
+  phone_business text default '',
+  email text default '',
+  website text default '',
+  address text default '',
+  city text default '',
+  postal_code text default '',
+  country text default '',
+  notes text default '',
+  color text default '#1a73e8',
+  avatar_data text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table business_cards enable row level security;
+
+drop policy if exists "Enable all access for business_cards" on business_cards;
+create policy "Enable all access for business_cards"
+  on business_cards for all
   using (true)
   with check (true);
 `

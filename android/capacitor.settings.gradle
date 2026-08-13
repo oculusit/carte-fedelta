@@ -13,3 +13,6 @@ project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/sh
 
 include ':capgo-capacitor-brightness'
 project(':capgo-capacitor-brightness').projectDir = new File('../node_modules/@capgo/capacitor-brightness/android')
+
+include ':capgo-capacitor-nfc'
+project(':capgo-capacitor-nfc').projectDir = new File('../node_modules/@capgo/capacitor-nfc/android')

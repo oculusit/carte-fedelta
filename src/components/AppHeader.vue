@@ -72,6 +72,9 @@ const title = computed(() => {
     'card-new': 'Nuova Carta',
     'card-detail': 'Dettaglio Carta',
     'card-edit': 'Modifica Carta',
+    'business-card-new': 'Nuovo Biglietto',
+    'business-card-detail': 'Dettaglio Biglietto',
+    'business-card-edit': 'Modifica Biglietto',
     settings: 'Impostazioni',
   }
   return specific[route.name] || store.appName || 'FidAPPti'

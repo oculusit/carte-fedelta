@@ -1,80 +1,157 @@
 <template>
   <div class="dashboard">
-    <div v-if="store.loading && store.cards.length === 0" class="loading-state">
-      <p>Caricamento...</p>
-    </div>
-
-    <div v-else-if="store.cards.length === 0" class="empty-state">
-      <div class="empty-icon">📇</div>
-      <h3>Nessuna carta</h3>
-      <p>Inserisci la prima carta</p>
-      <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/card/new')">
-        + Aggiungi Carta
+    <div class="tabs">
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'cards' }"
+        @click="switchTab('cards')"
+      >
+        🎫 Tessere Fedeltà
       </button>
-      <p v-if="!isSupabaseConfigured()" style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
-        💾 I dati sono salvati solo localmente. Vai in Impostazioni per abilitare il backup cloud.
-      </p>
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'business' }"
+        @click="switchTab('business')"
+      >
+        👤 Biglietti da visita
+      </button>
     </div>
 
-    <div v-else class="cards-list">
-      <div class="cards-header">
-        <p class="cards-count">
-          {{ filteredCards.length }} carte<template v-if="search"> (su {{ store.cards.length }})</template>
+    <template v-if="activeTab === 'cards'">
+      <div v-if="store.loading && store.cards.length === 0" class="loading-state">
+        <p>Caricamento...</p>
+      </div>
+
+      <div v-else-if="store.cards.length === 0" class="empty-state">
+        <div class="empty-icon">📇</div>
+        <h3>Nessuna carta</h3>
+        <p>Inserisci la prima carta</p>
+        <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/card/new')">
+          + Aggiungi Carta
+        </button>
+        <p v-if="!isSupabaseConfigured()" style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+          💾 I dati sono salvati solo localmente. Vai in Impostazioni per abilitare il backup cloud.
         </p>
       </div>
 
-      <div class="search-bar">
-        <div class="search-wrap">
-          <input
-            v-model="search"
-            type="text"
-            placeholder="Cerca negozio..."
-            class="search-input"
+      <div v-else class="cards-list">
+        <div class="cards-header">
+          <p class="cards-count">
+            {{ filteredCards.length }} carte<template v-if="search"> (su {{ store.cards.length }})</template>
+          </p>
+        </div>
+
+        <div class="search-bar">
+          <div class="search-wrap">
+            <input
+              v-model="search"
+              type="text"
+              placeholder="Cerca negozio..."
+              class="search-input"
+            />
+            <button v-if="search" class="search-clear" @click="search = ''" aria-label="Cancella">×</button>
+          </div>
+        </div>
+
+        <template v-if="favoriteCards.length > 0">
+          <h3 class="section-title">⭐ Carte Preferite</h3>
+          <BarcodeCard
+            v-for="card in favoriteCards"
+            :key="card.id"
+            :card="card"
+            @click="goToDetail(card.id)"
+            @favorite-toggle="toggleFavorite"
           />
-          <button v-if="search" class="search-clear" @click="search = ''" aria-label="Cancella">×</button>
+        </template>
+
+        <template v-if="otherCards.length > 0">
+          <div :class="{ 'section-spacer': favoriteCards.length > 0 }"></div>
+          <h3 class="section-title">💳 Portafoglio FidAPPti</h3>
+          <BarcodeCard
+            v-for="card in otherCards"
+            :key="card.id"
+            :card="card"
+            @click="goToDetail(card.id)"
+            @favorite-toggle="toggleFavorite"
+          />
+        </template>
+
+        <div v-if="filteredCards.length === 0 && search" class="empty-state">
+          <p>Nessuna carta corrisponde a "{{ search }}"</p>
         </div>
       </div>
+    </template>
 
-      <template v-if="favoriteCards.length > 0">
-        <h3 class="section-title">⭐ Carte Preferite</h3>
-        <BarcodeCard
-          v-for="card in favoriteCards"
-          :key="card.id"
-          :card="card"
-          @click="goToDetail(card.id)"
-          @favorite-toggle="toggleFavorite"
-        />
-      </template>
-
-      <template v-if="otherCards.length > 0">
-        <div :class="{ 'section-spacer': favoriteCards.length > 0 }"></div>
-        <h3 class="section-title">💳 Portafoglio FidAPPti</h3>
-        <BarcodeCard
-          v-for="card in otherCards"
-          :key="card.id"
-          :card="card"
-          @click="goToDetail(card.id)"
-          @favorite-toggle="toggleFavorite"
-        />
-      </template>
-
-      <div v-if="filteredCards.length === 0 && search" class="empty-state">
-        <p>Nessuna carta corrisponde a "{{ search }}"</p>
+    <template v-else>
+      <div v-if="bcStore.loading && bcStore.cards.length === 0" class="loading-state">
+        <p>Caricamento...</p>
       </div>
-    </div>
+
+      <div v-else-if="bcStore.cards.length === 0" class="empty-state">
+        <div class="empty-icon">👤</div>
+        <h3>Nessun biglietto da visita</h3>
+        <p>Crea il tuo biglietto per condividerlo con QR code o NFC</p>
+        <button class="btn btn-primary" style="margin-top:16px" @click="$router.push('/business-card/new')">
+          + Crea Biglietto
+        </button>
+      </div>
+
+      <div v-else class="cards-list">
+        <div class="cards-header">
+          <p class="cards-count">{{ bcStore.cards.length }} biglietti</p>
+        </div>
+
+        <div class="search-bar">
+          <div class="search-wrap">
+            <input
+              v-model="bcSearch"
+              type="text"
+              placeholder="Cerca nome o azienda..."
+              class="search-input"
+            />
+            <button v-if="bcSearch" class="search-clear" @click="bcSearch = ''" aria-label="Cancella">×</button>
+          </div>
+        </div>
+
+        <BusinessCardItem
+          v-for="card in filteredBcCards"
+          :key="card.id"
+          :card="card"
+          @click="$router.push(`/business-card/${card.id}`)"
+        />
+
+        <div v-if="filteredBcCards.length === 0" class="empty-state">
+          <p>Nessun biglietto corrisponde a "{{ bcSearch }}"</p>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app.js'
+import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { isSupabaseConfigured } from '../services/supabase.js'
 import BarcodeCard from '../components/BarcodeCard.vue'
+import BusinessCardItem from '../components/BusinessCardItem.vue'
 
+const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
+const bcStore = useBusinessCardsStore()
 const search = ref('')
+const bcSearch = ref('')
+
+const activeTab = computed(() => {
+  const t = route.query.t
+  return t === 'business' ? 'business' : 'cards'
+})
+
+function switchTab(tab) {
+  router.push({ path: '/', query: tab === 'business' ? { t: 'business' } : {} })
+}
 
 const sortedCards = computed(() => {
   return [...store.cards].sort((a, b) =>
@@ -101,6 +178,18 @@ const otherCards = computed(() =>
   filteredCards.value.filter(c => !c.is_favorite)
 )
 
+const filteredBcCards = computed(() => {
+  let list = bcStore.cards
+  if (!bcSearch.value) return list
+  const q = bcSearch.value.toLowerCase()
+  return list.filter((c) =>
+    (c.first_name || '').toLowerCase().includes(q) ||
+    (c.last_name || '').toLowerCase().includes(q) ||
+    (c.org || '').toLowerCase().includes(q) ||
+    (c.email || '').toLowerCase().includes(q)
+  )
+})
+
 async function toggleFavorite(card) {
   await store.updateCard(card.id, { is_favorite: card.is_favorite ? 0 : 1 })
 }
@@ -111,6 +200,7 @@ function goToDetail(id) {
 
 onMounted(() => {
   store.loadCards()
+  bcStore.loadCards()
   store.loadMissingLogos()
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => { store.updateCardsLogosFromServer() }, { timeout: 10000 })
@@ -121,6 +211,34 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
 .cards-header {
   display: flex;
   justify-content: space-between;
