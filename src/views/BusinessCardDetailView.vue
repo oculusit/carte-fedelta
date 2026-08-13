@@ -24,6 +24,39 @@
         <h3 class="section-label">QR Code vCard</h3>
         <BarcodeDisplay :code="vcardQrText" type="QR" />
         <p class="barcode-hint">Chi scansiona il QR può salvare il tuo biglietto direttamente nei propri contatti.</p>
+
+        <div class="action-row">
+          <button class="action-btn" @click="shareVCard" :disabled="sharing" title="Condividi biglietto (.vcf)">
+            <span class="action-icons">
+              <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+            </span>
+            <span class="action-label">{{ sharing ? 'Invio...' : 'Condividi .vcf' }}</span>
+          </button>
+
+          <button v-if="nfcVisible" class="action-btn" @click="toggleNfcShare" :disabled="nfcShareBusy" title="Condividi il biglietto tramite NFC (appoggia l'altro smartphone)">
+            <span class="action-icons">
+              <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
+              <svg class="action-icon action-icon-small" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM18 6h-5c-1.1 0-2 .9-2 2v2.28c-.6.35-1 .98-1 1.72 0 1.1.9 2 2 2s2-.9 2-2c0-.74-.4-1.38-1-1.72V8h3v8H8V8h2V6H6v12h12V6z"/></svg>
+            </span>
+            <span class="action-label">{{ nfcShareActive ? 'Ferma NFC' : 'Via NFC' }}</span>
+          </button>
+
+          <button v-if="nfcVisible" class="action-btn" @click="writeNfc" :disabled="nfcBusy || nfcShareActive" title="Scrivi il biglietto su un tag NFC fisico">
+            <span class="action-icons">
+              <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+              <svg class="action-icon action-icon-small" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM18 6h-5c-1.1 0-2 .9-2 2v2.28c-.6.35-1 .98-1 1.72 0 1.1.9 2 2 2s2-.9 2-2c0-.74-.4-1.38-1-1.72V8h3v8H8V8h2V6H6v12h12V6z"/></svg>
+            </span>
+            <span class="action-label">{{ nfcLabel }}</span>
+          </button>
+        </div>
+
+        <p v-if="nfcShareActive" class="barcode-hint">
+          Appoggia l'altro smartphone (NFC attivo, schermo acceso): riceverà il biglietto e
+          proporrà di salvarlo nei contatti. L'avviso "Nuovo tag raccolto / Tag vuoto" su
+          <strong>questo</strong> telefono è normale: sta solo leggendo l'altro telefono, non blocca l'invio.
+          <template v-if="nfcShareSize"> — biglietto pronto ({{ nfcShareSize }} byte)</template>
+        </p>
+
         <div v-if="countdown > 0" class="screen-timer" @click.stop="resetWakeLock" title="Clicca per ripristinare lo schermo acceso per altri 2 minuti">
           <span class="screen-timer-icon">⏱</span>
           <span class="screen-timer-text">{{ formattedCountdown }}</span>
@@ -57,40 +90,13 @@
         </div>
       </div>
 
-      <div class="detail-actions">
-        <button class="btn btn-primary btn-block" @click="shareVCard" :disabled="sharing">
-          {{ sharing ? 'Condivisione...' : 'Condividi biglietto (.vcf)' }}
+      <div class="row-buttons">
+        <button class="btn-icon" title="Modifica" @click="$router.push(`/business-card/${card.id}/edit`)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
-        <button
-          v-if="nfcVisible"
-          class="btn btn-primary btn-block"
-          @click="toggleNfcShare"
-          :disabled="nfcShareBusy"
-        >
-          {{ nfcShareActive ? '⏹ Ferma condivisione NFC' : '📶 Condividi via NFC' }}
+        <button class="btn-icon btn-icon-danger" title="Elimina" @click="confirmDelete">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
-        <p v-if="nfcShareActive" class="barcode-hint">
-          Appoggia l'altro smartphone (NFC attivo, schermo acceso): riceverà il biglietto e
-          proporrà di salvarlo nei contatti. L'avviso "Nuovo tag raccolto / Tag vuoto" su
-          <strong>questo</strong> telefono è normale: sta solo leggendo l'altro telefono, non blocca l'invio.
-          <template v-if="nfcShareSize"> — biglietto pronto ({{ nfcShareSize }} byte)</template>
-        </p>
-        <button
-          v-if="nfcVisible"
-          class="btn btn-outline btn-block"
-          @click="writeNfc"
-          :disabled="nfcBusy || nfcShareActive"
-        >
-          {{ nfcLabel }}
-        </button>
-        <div class="row-buttons">
-          <button class="btn-icon" title="Modifica" @click="$router.push(`/business-card/${card.id}/edit`)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="btn-icon btn-icon-danger" title="Elimina" @click="confirmDelete">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-          </button>
-        </div>
       </div>
 
       <div v-if="nfcError" class="nfc-error">{{ nfcError }}</div>
@@ -164,8 +170,8 @@ const addressText = computed(() => {
 })
 
 const nfcLabel = computed(() => {
-  if (!nfcBusy.value) return '📶 Scrivi su tag NFC'
-  return nfcStatusMsg.value || 'Appoggia il tag NFC...'
+  if (!nfcBusy.value) return 'Scrivi su tag'
+  return nfcStatusMsg.value || 'Appoggia il tag...'
 })
 
 const nfcStatusMsg = ref('')
@@ -520,6 +526,64 @@ onUnmounted(async () => {
   gap: 10px;
   margin-top: 12px;
   padding: 0 4px;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 12px;
+  min-height: 62px;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.action-icon-small {
+  width: 13px;
+  height: 13px;
+  opacity: 0.75;
+}
+
+.action-label {
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .row-buttons {

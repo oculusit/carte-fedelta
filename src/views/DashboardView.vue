@@ -101,7 +101,9 @@
 
       <div v-else class="cards-list">
         <div class="cards-header">
-          <p class="cards-count">{{ bcStore.cards.length }} biglietti</p>
+          <p class="cards-count">
+            {{ filteredBcCards.length }} bigliett{{ filteredBcCards.length === 1 ? 'o' : 'i' }}<template v-if="bcSearch"> (su {{ bcStore.cards.length }})</template>
+          </p>
         </div>
 
         <div class="search-bar">
