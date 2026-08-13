@@ -19,7 +19,8 @@ export function buildVCard(bc, eol = '\r\n') {
   const lastName = escapeVCard(bc.last_name)
   const firstName = escapeVCard(bc.first_name)
   lines.push(`N:${lastName};${firstName};;;`)
-  lines.push(`FN:${escapeVCard(bc.fullName)}`)
+  const fullName = escapeVCard(bc.fullName) || [firstName, lastName].filter(Boolean).join(' ')
+  lines.push(`FN:${fullName}`)
 
   if (bc.org) lines.push(`ORG:${escapeVCard(bc.org)}`)
   if (bc.role) lines.push(`TITLE:${escapeVCard(bc.role)}`)
