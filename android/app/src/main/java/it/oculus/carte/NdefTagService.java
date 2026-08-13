@@ -24,7 +24,7 @@ public class NdefTagService extends HostApduService {
 
     // NDEF Tag Application AID (Type 4 Tag)
     private static final byte[] NDEF_APPLICATION_AID =
-        { (byte) 0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01 };
+        { (byte) 0xD2, 0x76, 0x00, 0x00, (byte) 0x85, 0x01, 0x01 };
 
     private static final byte[] SW_SUCCESS = { (byte) 0x90, 0x00 };
     private static final byte[] SW_FILE_NOT_FOUND = { (byte) 0x6A, (byte) 0x82 };
