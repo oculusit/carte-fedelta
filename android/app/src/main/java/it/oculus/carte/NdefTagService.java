@@ -62,23 +62,48 @@ public class NdefTagService extends HostApduService {
 
     private static volatile NdefMessage message = null;
     private static volatile byte[] capabilityContainer = null;
+    private static volatile byte[] ndefFile = null;
 
     private int selectedFile = FILE_APP;
+
+    // NDEF Message TLV (0x03) + length + message + Terminator TLV (0xFE),
+    // as required by the NFC Forum Type 4 Tag specification.
+    private static byte[] buildNdefFile(byte[] ndefBytes) {
+        int len = ndefBytes.length;
+        int header = (len <= 0xFF) ? 2 : 4;
+        byte[] file = new byte[header + len + 1];
+        int i = 0;
+        file[i++] = 0x03;
+        if (len <= 0xFF) {
+            file[i++] = (byte) len;
+        } else {
+            file[i++] = (byte) 0xFF;
+            file[i++] = (byte) ((len >> 8) & 0xFF);
+            file[i++] = (byte) (len & 0xFF);
+        }
+        System.arraycopy(ndefBytes, 0, file, i, len);
+        i += len;
+        file[i] = (byte) 0xFE;
+        return file;
+    }
 
     public static void setMessage(NdefMessage m) {
         message = m;
         if (m != null) {
             byte[] ndef = m.toByteArray();
-            capabilityContainer = buildCapabilityContainer(ndef.length + 2);
-            Log.d(TAG, "setMessage: " + ndef.length + " bytes, CC max=" + (ndef.length + 2));
+            ndefFile = buildNdefFile(ndef);
+            capabilityContainer = buildCapabilityContainer(ndefFile.length);
+            Log.d(TAG, "setMessage: " + ndef.length + " bytes, NDEF file=" + ndefFile.length + " (TLV), CC max=" + ndefFile.length);
         } else {
             capabilityContainer = null;
+            ndefFile = null;
             Log.d(TAG, "setMessage: null");
         }
     }
 
     public static void clearMessage() {
         message = null;
+        ndefFile = null;
         Log.d(TAG, "clearMessage");
     }
 
@@ -135,16 +160,9 @@ public class NdefTagService extends HostApduService {
                 case FILE_CC:
                     fileData = capabilityContainer;
                     break;
-                case FILE_NDEF: {
-                    NdefMessage m = message;
-                    if (m == null) return SW_FILE_NOT_FOUND;
-                    byte[] ndefBytes = m.toByteArray();
-                    fileData = new byte[ndefBytes.length + 2];
-                    fileData[0] = (byte) ((ndefBytes.length >> 8) & 0xFF);
-                    fileData[1] = (byte) (ndefBytes.length & 0xFF);
-                    System.arraycopy(ndefBytes, 0, fileData, 2, ndefBytes.length);
+                case FILE_NDEF:
+                    fileData = ndefFile;
                     break;
-                }
                 default:
                     return SW_FILE_NOT_FOUND;
             }
