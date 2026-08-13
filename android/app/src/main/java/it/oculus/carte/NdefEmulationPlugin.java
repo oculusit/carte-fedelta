@@ -43,7 +43,7 @@ public class NdefEmulationPlugin extends Plugin {
             return;
         }
         try {
-            NdefRecord record = NdefRecord.createMime("text/x-vcard", vcard.getBytes(StandardCharsets.UTF_8));
+            NdefRecord record = NdefRecord.createMime("text/x-vCard", vcard.getBytes(StandardCharsets.UTF_8));
             NdefMessage ndef = new NdefMessage(new NdefRecord[]{ record });
             NdefTagService.setMessage(ndef);
             activateEmulation();

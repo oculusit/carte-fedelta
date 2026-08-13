@@ -66,24 +66,14 @@ public class NdefTagService extends HostApduService {
 
     private int selectedFile = FILE_APP;
 
-    // NDEF Message TLV (0x03) + length + message + Terminator TLV (0xFE),
-    // as required by the NFC Forum Type 4 Tag specification.
+    // NFC Forum Type 4 Tag NDEF file: 2-byte big-endian NLEN (message
+    // length) followed by the NDEF message. (The 0x03 <len> <msg> 0xFE TLV
+    // structure belongs to Type 2 tags, not Type 4.)
     private static byte[] buildNdefFile(byte[] ndefBytes) {
-        int len = ndefBytes.length;
-        int header = (len <= 0xFF) ? 2 : 4;
-        byte[] file = new byte[header + len + 1];
-        int i = 0;
-        file[i++] = 0x03;
-        if (len <= 0xFF) {
-            file[i++] = (byte) len;
-        } else {
-            file[i++] = (byte) 0xFF;
-            file[i++] = (byte) ((len >> 8) & 0xFF);
-            file[i++] = (byte) (len & 0xFF);
-        }
-        System.arraycopy(ndefBytes, 0, file, i, len);
-        i += len;
-        file[i] = (byte) 0xFE;
+        byte[] file = new byte[ndefBytes.length + 2];
+        file[0] = (byte) ((ndefBytes.length >> 8) & 0xFF);
+        file[1] = (byte) (ndefBytes.length & 0xFF);
+        System.arraycopy(ndefBytes, 0, file, 2, ndefBytes.length);
         return file;
     }
 
@@ -93,7 +83,7 @@ public class NdefTagService extends HostApduService {
             byte[] ndef = m.toByteArray();
             ndefFile = buildNdefFile(ndef);
             capabilityContainer = buildCapabilityContainer(ndefFile.length);
-            Log.d(TAG, "setMessage: " + ndef.length + " bytes, NDEF file=" + ndefFile.length + " (TLV), CC max=" + ndefFile.length);
+            Log.d(TAG, "setMessage: " + ndef.length + " bytes, NDEF file=" + ndefFile.length + " (NLEN), CC max=" + ndefFile.length);
         } else {
             capabilityContainer = null;
             ndefFile = null;
