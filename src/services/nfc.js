@@ -5,8 +5,19 @@ let Nfc = null
 async function getNfc() {
   if (Nfc) return Nfc
   const { CapacitorNfc } = await import('@capgo/capacitor-nfc')
-  Nfc = CapacitorNfc
+  Nfc = wrapPlugin(CapacitorNfc)
   return Nfc
+}
+
+function wrapPlugin(CapacitorNfc) {
+  return {
+    isSupported: () => CapacitorNfc.isSupported(),
+    getStatus: () => CapacitorNfc.getStatus(),
+    addListener: (eventName, callback) => CapacitorNfc.addListener(eventName, callback),
+    write: (options) => CapacitorNfc.write(options),
+    startScanning: (options) => CapacitorNfc.startScanning(options),
+    stopScanning: () => CapacitorNfc.stopScanning(),
+  }
 }
 
 function utf8Bytes(str) {

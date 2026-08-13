@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, saveBackup, restoreBackup, settingsDb, logosDb } from '../services/db.js'
 import { toast } from '../services/toast.js'
-import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase.js'
+import { getSupabaseClient, isSupabaseConfigured, ensureFidapptiSchema } from '../services/supabase.js'
 import { httpFetch } from '../services/http.js'
 import { useBusinessCardsStore } from './businessCards.js'
 
@@ -18,6 +18,7 @@ export const useAppStore = defineStore('app', () => {
   async function handleOnline() {
     isOnline.value = true
     if (isSupabaseConfigured()) {
+      await ensureFidapptiSchema()
       await processSyncQueue()
       try {
         const bcStore = useBusinessCardsStore()

@@ -35,13 +35,13 @@ export function buildVCard(bc) {
     lines.push(`URL:${escapeVCard(normalized)}`)
   }
 
-  if (bc.address || bc.city || bc.postal_code || bc.country) {
+  if (bc.address || bc.city || bc.postal_code || bc.country || bc.province) {
     const adr = [
       escapeVCard(bc.address || ''),
       '',
       '',
       escapeVCard(bc.city || ''),
-      '',
+      escapeVCard(bc.province || ''),
       escapeVCard(bc.postal_code || ''),
       escapeVCard(bc.country || ''),
     ]

@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { businessCardsDb, saveBackup } from '../services/db.js'
-import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase.js'
+import { getSupabaseClient, isSupabaseConfigured, ensureFidapptiSchema } from '../services/supabase.js'
 
 const SUPABASE_BC_COLUMNS = [
   'id', 'first_name', 'last_name', 'org', 'role',
   'phone_personal', 'phone_business', 'email', 'website',
-  'address', 'city', 'postal_code', 'country', 'notes', 'color', 'avatar_data',
+  'address', 'city', 'province', 'postal_code', 'country', 'notes', 'color', 'avatar_data',
   'created_at', 'updated_at',
 ]
 
@@ -61,6 +61,8 @@ export const useBusinessCardsStore = defineStore('businessCards', () => {
     if (!supabase || !navigator.onLine) return
     syncing.value = true
     try {
+      const schema = await ensureFidapptiSchema()
+      if (!schema.ok) throw new Error(schema.error)
       const local = await businessCardsDb.getAll()
       for (const card of local) {
         const { error } = await supabase.from('business_cards').upsert(sanitizeForSupabase(card))

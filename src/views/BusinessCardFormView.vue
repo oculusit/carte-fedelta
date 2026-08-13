@@ -53,7 +53,17 @@
           <label>Città</label>
           <input v-model="form.city" type="text" placeholder="Città" />
         </div>
-        <div class="input-group">
+        <div class="input-group input-small">
+          <label>Prov.</label>
+          <input
+            v-model="form.province"
+            type="text"
+            placeholder="RM"
+            maxlength="2"
+            style="text-transform: uppercase"
+          />
+        </div>
+        <div class="input-group input-small">
           <label>CAP</label>
           <input v-model="form.postal_code" type="text" placeholder="CAP" />
         </div>
@@ -124,6 +134,7 @@ const form = ref({
   website: '',
   address: '',
   city: '',
+  province: '',
   postal_code: '',
   country: '',
   notes: '',
@@ -196,6 +207,7 @@ async function save() {
     website: form.value.website.trim(),
     address: form.value.address.trim(),
     city: form.value.city.trim(),
+    province: form.value.province.trim().toUpperCase(),
     postal_code: form.value.postal_code.trim(),
     country: form.value.country.trim(),
     notes: form.value.notes.trim(),
@@ -233,6 +245,9 @@ async function save() {
 .input-grow {
   flex: 1;
   min-width: 0;
+}
+.input-small {
+  flex: 0 0 74px;
 }
 .input-group {
   display: flex;
