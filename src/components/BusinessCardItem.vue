@@ -12,6 +12,12 @@
       </p>
     </div>
     <div class="bc-actions">
+      <span
+        class="star"
+        :class="{ starred: card.is_favorite }"
+        @click.stop="$emit('favorite-toggle', card)"
+        title="Preferiti"
+      >{{ card.is_favorite ? '★' : '☆' }}</span>
       <span class="bc-arrow">›</span>
     </div>
   </div>
@@ -24,7 +30,7 @@ const props = defineProps({
   card: { type: Object, required: true },
 })
 
-defineEmits(['click'])
+defineEmits(['click', 'favorite-toggle'])
 
 const fullName = computed(() => {
   const first = (props.card.first_name || '').trim()
@@ -101,6 +107,30 @@ const initials = computed(() => {
 .bc-phone {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.bc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.star {
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s, transform 0.15s;
+  user-select: none;
+  line-height: 1;
+}
+
+.star:hover {
+  transform: scale(1.2);
+}
+
+.star.starred {
+  color: #f5a623;
 }
 
 .bc-arrow {

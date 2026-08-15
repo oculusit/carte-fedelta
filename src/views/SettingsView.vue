@@ -384,6 +384,7 @@ function bcToBackup(c) {
     notes: c.notes,
     color: c.color,
     avatar_data: c.avatar_data,
+    is_favorite: c.is_favorite,
     created_at: c.created_at,
     updated_at: c.updated_at,
   }

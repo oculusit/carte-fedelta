@@ -7,6 +7,7 @@ const SUPABASE_BC_COLUMNS = [
   'id', 'first_name', 'last_name', 'org', 'role',
   'phone_personal', 'phone_business', 'email', 'website',
   'address', 'city', 'province', 'postal_code', 'country', 'notes', 'color', 'avatar_data',
+  'is_favorite',
   'created_at', 'updated_at',
 ]
 

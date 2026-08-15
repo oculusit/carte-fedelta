@@ -159,6 +159,7 @@ create table if not exists business_cards (
   notes text default '',
   color text default '#1a73e8',
   avatar_data text,
+  is_favorite boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -259,6 +260,7 @@ begin
   alter table business_cards add column if not exists notes text default '';
   alter table business_cards add column if not exists color text default '#1a73e8';
   alter table business_cards add column if not exists avatar_data text;
+  alter table business_cards add column if not exists is_favorite boolean default false;
   alter table business_cards add column if not exists created_at timestamptz default now();
   alter table business_cards add column if not exists updated_at timestamptz default now();
 

@@ -18,6 +18,12 @@
           <p v-if="card.org" class="holder">{{ card.org }}</p>
           <p v-if="card.role" class="holder role">{{ card.role }}</p>
         </div>
+        <span
+          class="star"
+          :class="{ starred: card.is_favorite }"
+          @click="toggleFavorite"
+          title="Preferiti"
+        >{{ card.is_favorite ? '★' : '☆' }}</span>
       </div>
 
       <div class="detail-section">
@@ -185,6 +191,11 @@ async function loadCard() {
 function copy(text) {
   if (!text) return
   copyToClipboard(text).then(() => toast.show('Copiato negli appunti', 'success')).catch(() => toast.show('Errore copia', 'error'))
+}
+
+async function toggleFavorite() {
+  await bcStore.updateCard(card.value.id, { is_favorite: card.value.is_favorite ? 0 : 1 })
+  toast.show(card.value.is_favorite ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti', 'success')
 }
 
 function openWebsite() {
@@ -448,6 +459,25 @@ onUnmounted(async () => {
 
 .card-preview-info .role {
   font-size: 13px;
+}
+
+.star {
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s, transform 0.15s;
+  user-select: none;
+  line-height: 1;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.star:hover {
+  transform: scale(1.2);
+}
+
+.star.starred {
+  color: #f5a623;
 }
 
 .detail-section {

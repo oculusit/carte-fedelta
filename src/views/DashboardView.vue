@@ -118,12 +118,28 @@
           </div>
         </div>
 
-        <BusinessCardItem
-          v-for="card in filteredBcCards"
-          :key="card.id"
-          :card="card"
-          @click="$router.push(`/business-card/${card.id}`)"
-        />
+        <template v-if="favoriteBcCards.length > 0">
+          <h3 class="section-title">⭐ Biglietti Preferiti</h3>
+          <BusinessCardItem
+            v-for="card in favoriteBcCards"
+            :key="card.id"
+            :card="card"
+            @click="$router.push(`/business-card/${card.id}`)"
+            @favorite-toggle="toggleBcFavorite"
+          />
+        </template>
+
+        <template v-if="otherBcCards.length > 0">
+          <div :class="{ 'section-spacer': favoriteBcCards.length > 0 }"></div>
+          <h3 class="section-title">👤 Altri Biglietti</h3>
+          <BusinessCardItem
+            v-for="card in otherBcCards"
+            :key="card.id"
+            :card="card"
+            @click="$router.push(`/business-card/${card.id}`)"
+            @favorite-toggle="toggleBcFavorite"
+          />
+        </template>
 
         <div v-if="filteredBcCards.length === 0" class="empty-state">
           <p>Nessun biglietto corrisponde a "{{ bcSearch }}"</p>
@@ -184,7 +200,7 @@ const otherCards = computed(() =>
 )
 
 const filteredBcCards = computed(() => {
-  let list = bcStore.cards
+  let list = sortedBcCards.value
   if (!bcSearch.value) return list
   const q = bcSearch.value.toLowerCase()
   return list.filter((c) =>
@@ -195,8 +211,29 @@ const filteredBcCards = computed(() => {
   )
 })
 
+function bcName(c) {
+  const name = `${(c.first_name || '').trim()} ${(c.last_name || '').trim()}`.trim().toLowerCase()
+  return name || (c.org || '').toLowerCase()
+}
+
+const sortedBcCards = computed(() =>
+  [...bcStore.cards].sort((a, b) => bcName(a).localeCompare(bcName(b)))
+)
+
+const favoriteBcCards = computed(() =>
+  filteredBcCards.value.filter((c) => c.is_favorite)
+)
+
+const otherBcCards = computed(() =>
+  filteredBcCards.value.filter((c) => !c.is_favorite)
+)
+
 async function toggleFavorite(card) {
   await store.updateCard(card.id, { is_favorite: card.is_favorite ? 0 : 1 })
+}
+
+async function toggleBcFavorite(card) {
+  await bcStore.updateCard(card.id, { is_favorite: card.is_favorite ? 0 : 1 })
 }
 
 function goToDetail(id) {
