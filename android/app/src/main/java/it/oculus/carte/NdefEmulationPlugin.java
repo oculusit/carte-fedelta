@@ -10,10 +10,7 @@
 package it.oculus.carte;
 
 import android.app.Activity;
-import android.app.PendingIntent;
 import android.content.ComponentName;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
@@ -33,8 +30,6 @@ public class NdefEmulationPlugin extends Plugin {
 
     private static final String TAG = "NdefEmulation";
 
-    private boolean foregroundDispatchEnabled = false;
-
     @PluginMethod
     public void start(PluginCall call) {
         String vcard = call.getString("vcard", "");
@@ -43,7 +38,7 @@ public class NdefEmulationPlugin extends Plugin {
             return;
         }
         try {
-            NdefRecord record = NdefRecord.createMime("text/x-vCard", vcard.getBytes(StandardCharsets.UTF_8));
+            NdefRecord record = NdefRecord.createMime("text/vcard", vcard.getBytes(StandardCharsets.UTF_8));
             NdefMessage ndef = new NdefMessage(new NdefRecord[]{ record });
             NdefTagService.setMessage(ndef);
             activateEmulation();
@@ -93,7 +88,9 @@ public class NdefEmulationPlugin extends Plugin {
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(getContext());
         if (adapter == null) return;
 
-        // Route HCE to our service while the activity is in the foreground.
+        // Route HCE to our service while the activity is in the foreground. Reader mode is NOT
+        // enabled on the sender: polling while emulating causes RF collision with the reader
+        // phone, which then fails to read the tag (and makes this phone vibrate).
         try {
             CardEmulation cardEmulation = CardEmulation.getInstance(adapter);
             if (cardEmulation != null) {
@@ -101,24 +98,6 @@ public class NdefEmulationPlugin extends Plugin {
             }
         } catch (Exception e) {
             Log.w(TAG, "setPreferredService failed", e);
-        }
-
-        // Swallow tag discoveries so the OS does not show the "open with"
-        // chooser on the server phone while it is emitting.
-        try {
-            if (foregroundDispatchEnabled) return;
-            Intent intent = new Intent(activity, activity.getClass())
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            PendingIntent pendingIntent = PendingIntent.getActivity(
-                    activity, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(NfcAdapter.ACTION_TAG_DISCOVERED);
-            adapter.enableForegroundDispatch(activity, pendingIntent, new IntentFilter[]{ filter }, null);
-            foregroundDispatchEnabled = true;
-            Log.d(TAG, "foreground dispatch enabled (tag reader swallowed)");
-        } catch (Exception e) {
-            Log.w(TAG, "enableForegroundDispatch failed", e);
         }
     }
 
@@ -128,11 +107,6 @@ public class NdefEmulationPlugin extends Plugin {
         NfcAdapter adapter = NfcAdapter.getDefaultAdapter(getContext());
         if (adapter == null) return;
         try {
-            if (foregroundDispatchEnabled) {
-                adapter.disableForegroundDispatch(activity);
-                foregroundDispatchEnabled = false;
-                Log.d(TAG, "foreground dispatch disabled");
-            }
             CardEmulation cardEmulation = CardEmulation.getInstance(adapter);
             if (cardEmulation != null) {
                 cardEmulation.unsetPreferredService(activity);

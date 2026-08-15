@@ -142,8 +142,14 @@ public class NdefTagService extends HostApduService {
         if (ins == (byte) 0xB0) {
             // READ BINARY
             int fileOffset = ((p1 & 0xFF) << 8) | (p2 & 0xFF);
-            int le = commandApdu.length > 5 ? (commandApdu[5] & 0xFF) : 0;
-            if (le == 0) le = MLe;
+            int le = MLe;
+            if (commandApdu.length == 5) {
+                le = commandApdu[4] & 0xFF;
+                if (le == 0) le = 256;
+            } else if (commandApdu.length >= 7 && commandApdu[4] == 0) {
+                le = ((commandApdu[5] & 0xFF) << 8) | (commandApdu[6] & 0xFF);
+                if (le == 0) le = 65536;
+            }
 
             byte[] fileData = null;
             switch (selectedFile) {
@@ -158,7 +164,7 @@ public class NdefTagService extends HostApduService {
             }
             if (fileData == null) return SW_FILE_NOT_FOUND;
 
-            if (fileOffset > fileData.length) {
+            if (fileOffset >= fileData.length) {
                 return SW_WRONG_PARAMS;
             }
             int end = Math.min(fileOffset + le, fileData.length);
