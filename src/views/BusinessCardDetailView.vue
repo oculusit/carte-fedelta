@@ -194,8 +194,10 @@ function copy(text) {
 }
 
 async function toggleFavorite() {
-  await bcStore.updateCard(card.value.id, { is_favorite: card.value.is_favorite ? 0 : 1 })
-  toast.show(card.value.is_favorite ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti', 'success')
+  const next = card.value.is_favorite ? 0 : 1
+  await bcStore.updateCard(card.value.id, { is_favorite: next })
+  card.value.is_favorite = next
+  toast.show(next ? 'Aggiunto ai preferiti' : 'Rimosso dai preferiti', 'success')
 }
 
 function openWebsite() {
