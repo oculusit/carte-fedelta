@@ -101,9 +101,8 @@
       <div v-if="nfcError" class="nfc-error">{{ nfcError }}</div>
     </template>
 
-    <div v-if="nfcShareActive && nfcInstructionsOpen" class="nfc-overlay" @click.self="nfcInstructionsOpen = false">
+    <div v-if="nfcShareActive && nfcInstructionsOpen" class="nfc-overlay">
       <div class="nfc-overlay-card">
-        <button class="nfc-overlay-close" @click="nfcInstructionsOpen = false" title="Chiudi" aria-label="Chiudi">×</button>
         <h3 class="nfc-overlay-title">📤 Condivisione NFC attiva</h3>
         <p class="nfc-overlay-subtitle">Passa il biglietto da visita a un altro telefono</p>
 
@@ -139,15 +138,13 @@
         <p class="nfc-overlay-note">Se sull'altro telefono compare "Nuovo tag raccolto / Tag vuoto" è normale: sta solo leggendo il tuo telefono, non blocca l'invio.</p>
 
         <div class="nfc-overlay-actions">
-          <button class="btn btn-primary" @click="nfcInstructionsOpen = false">Ho capito</button>
-          <button class="btn btn-outline" @click="stopNfcShareSession">Ferma NFC</button>
+          <button class="btn btn-primary btn-block" @click="stopNfcShareSession">Ferma NFC</button>
         </div>
       </div>
     </div>
 
-    <div v-if="nfcBusy && !nfcWriteOverlayDismissed" class="nfc-overlay" @click.self="nfcWriteOverlayDismissed = true">
+    <div v-if="nfcBusy" class="nfc-overlay">
       <div class="nfc-overlay-card">
-        <button class="nfc-overlay-close" @click="nfcWriteOverlayDismissed = true" title="Chiudi" aria-label="Chiudi">×</button>
         <h3 class="nfc-overlay-title">📝 Scrittura su tag NFC</h3>
         <p class="nfc-overlay-subtitle">Salva il biglietto da visita su un tag NFC fisico</p>
 
@@ -185,7 +182,32 @@
         <p class="nfc-warn-note">⚠️ Versione non ancora testata su tag reali. Se provi la scrittura, sarebbe interessante ricevere un feedback su come va (modello di tag, esito, eventuali errori): ci aiuterà a sistemarla.</p>
 
         <div class="nfc-overlay-actions">
-          <button class="btn btn-primary" @click="nfcWriteOverlayDismissed = true">Ho capito</button>
+          <button class="btn btn-primary btn-block" @click="stopNfcWrite">Ferma NFC</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="nfcDisabledOverlay" class="nfc-overlay" @click.self="cancelNfcDisabledPrompt">
+      <div class="nfc-overlay-card">
+        <h3 class="nfc-overlay-title">⚠️ Attenzione! NFC non è attivo.</h3>
+        <p class="nfc-confirm-question">Vuoi attivarlo ora?</p>
+
+        <div class="nfc-overlay-actions">
+          <button class="btn btn-primary" @click="confirmEnableNfc">Sì</button>
+          <button class="btn btn-outline" @click="cancelNfcDisabledPrompt">No</button>
+        </div>
+
+        <p class="nfc-overlay-note">Scegliendo Sì verrai reindirizzato alle impostazioni di sistema dove poter attivare il sensore NFC.</p>
+      </div>
+    </div>
+
+    <div v-if="nfcUnavailableOverlay" class="nfc-overlay" @click.self="closeNfcUnavailable">
+      <div class="nfc-overlay-card">
+        <h3 class="nfc-overlay-title">⚠️ Attenzione!</h3>
+        <p class="nfc-unavailable-msg">Questo dispositivo non dispone di connessione NFC. Usa la condivisione tramite file VCARD (.vcf) oppure tramite scansione del QR-Code.</p>
+
+        <div class="nfc-overlay-actions">
+          <button class="btn btn-primary btn-block" @click="closeNfcUnavailable">OK</button>
         </div>
       </div>
     </div>
@@ -200,7 +222,7 @@ import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { buildVCard, buildVCardForNfc, buildVcfShareText, VCF_SHARE_MESSAGE_KEY } from '../services/vcard.js'
 import { settingsDb } from '../services/db.js'
-import { isNfcNativeAvailable, isNfcSupported, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
+import { isNfcNativeAvailable, isNfcSupported, getNfcStatus, openNfcSettings, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
 import { Capacitor } from '@capacitor/core'
 import { saveToDownloads, shareFile } from '../services/filePicker.js'
 import BarcodeDisplay from '../components/BarcodeDisplay.vue'
@@ -213,13 +235,15 @@ const card = ref(null)
 const loading = ref(true)
 const sharing = ref(false)
 const nfcBusy = ref(false)
-const nfcWriteOverlayDismissed = ref(false)
 const nfcError = ref('')
 const nfcVisible = ref(false)
 const nfcShareActive = ref(false)
 const nfcShareBusy = ref(false)
 const nfcShareSize = ref(0)
 const nfcInstructionsOpen = ref(false)
+const nfcDisabledOverlay = ref(false)
+const nfcUnavailableOverlay = ref(false)
+const nfcWriteCancel = ref(null)
 
 const WAKE_LOCK_TIMEOUT = 120000
 let wakeLockSentinel = null
@@ -322,10 +346,42 @@ async function shareVCard() {
   }
 }
 
+async function checkNfcBeforeUse() {
+  const status = await getNfcStatus()
+  if (status === 'NO_NFC') return 'no-nfc'
+  if (status === 'NFC_DISABLED') return 'disabled'
+  return 'ok'
+}
+
+function cancelNfcDisabledPrompt() {
+  nfcDisabledOverlay.value = false
+}
+
+async function confirmEnableNfc() {
+  nfcDisabledOverlay.value = false
+  try {
+    await openNfcSettings()
+  } catch (e) {
+    toast.show('Impossibile aprire le impostazioni NFC', 'error')
+  }
+}
+
+function closeNfcUnavailable() {
+  nfcUnavailableOverlay.value = false
+}
+
 async function writeNfc() {
   nfcError.value = ''
+  const guard = await checkNfcBeforeUse()
+  if (guard === 'no-nfc') {
+    nfcUnavailableOverlay.value = true
+    return
+  }
+  if (guard === 'disabled') {
+    nfcDisabledOverlay.value = true
+    return
+  }
   nfcBusy.value = true
-  nfcWriteOverlayDismissed.value = false
   nfcStatusMsg.value = ''
   try {
     await writeVCardToTag(vcardTagText.value, (stage) => {
@@ -335,9 +391,12 @@ async function writeNfc() {
         'scritto': 'Scrittura completata!',
       }
       nfcStatusMsg.value = map[stage] || stage
+    }, (cancel) => {
+      nfcWriteCancel.value = cancel
     })
     toast.show('Biglietto scritto sul tag NFC', 'success')
   } catch (e) {
+    if (e?.code === 'NFC_CANCELLED') return
     const msg = e?.message || 'Scrittura NFC non riuscita'
     nfcError.value = msg
     if (e?.code === 'NFC_UNAVAILABLE') {
@@ -348,7 +407,13 @@ async function writeNfc() {
   } finally {
     nfcBusy.value = false
     nfcStatusMsg.value = ''
+    nfcWriteCancel.value = null
   }
+}
+
+async function stopNfcWrite() {
+  const cancel = nfcWriteCancel.value
+  if (cancel) await cancel()
 }
 
 async function confirmDelete() {
@@ -366,6 +431,15 @@ async function toggleNfcShare() {
   nfcError.value = ''
   if (nfcShareActive.value) {
     await stopNfcShareSession()
+    return
+  }
+  const guard = await checkNfcBeforeUse()
+  if (guard === 'no-nfc') {
+    nfcUnavailableOverlay.value = true
+    return
+  }
+  if (guard === 'disabled') {
+    nfcDisabledOverlay.value = true
     return
   }
   nfcShareBusy.value = true
@@ -866,6 +940,20 @@ onUnmounted(async () => {
   font-size: 13px;
   font-weight: 700;
   color: var(--primary);
+}
+
+.nfc-confirm-question {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nfc-unavailable-msg {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .nfc-warn-note {

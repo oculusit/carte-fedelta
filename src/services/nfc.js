@@ -13,6 +13,7 @@ function wrapPlugin(CapacitorNfc) {
   return {
     isSupported: () => CapacitorNfc.isSupported(),
     getStatus: () => CapacitorNfc.getStatus(),
+    showSettings: () => CapacitorNfc.showSettings(),
     addListener: (eventName, callback) => CapacitorNfc.addListener(eventName, callback),
     write: (options) => CapacitorNfc.write(options),
     startScanning: (options) => CapacitorNfc.startScanning(options),
@@ -53,6 +54,12 @@ export async function getNfcStatus() {
   }
 }
 
+export async function openNfcSettings() {
+  if (!isNfcNativeAvailable()) return
+  const nfc = await getNfc()
+  await nfc.showSettings()
+}
+
 function vcardMimeRecord(vcardText) {
   return {
     tnf: 2,
@@ -62,7 +69,7 @@ function vcardMimeRecord(vcardText) {
   }
 }
 
-export async function writeVCardToTag(vcardText, onProgress) {
+export async function writeVCardToTag(vcardText, onProgress, onReady) {
   const nfc = await getNfc()
   const { supported } = await nfc.isSupported()
   if (!supported) {
@@ -97,6 +104,17 @@ export async function writeVCardToTag(vcardText, onProgress) {
       await cleanup()
       resolve()
     }
+
+    const cancel = async () => {
+      if (handled) return
+      handled = true
+      await cleanup()
+      const err = new Error('Scrittura NFC annullata')
+      err.code = 'NFC_CANCELLED'
+      reject(err)
+    }
+
+    if (onReady) onReady(cancel)
 
     let listener
     const start = async () => {
