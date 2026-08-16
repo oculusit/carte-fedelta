@@ -56,13 +56,6 @@
           </button>
         </div>
 
-        <p v-if="nfcShareActive" class="barcode-hint">
-          Appoggia l'altro smartphone (NFC attivo, schermo acceso): riceverà il biglietto e
-          proporrà di salvarlo nei contatti. L'avviso "Nuovo tag raccolto / Tag vuoto" su
-          <strong>questo</strong> telefono è normale: sta solo leggendo l'altro telefono, non blocca l'invio.
-          <template v-if="nfcShareSize"> — biglietto pronto ({{ nfcShareSize }} byte)</template>
-        </p>
-
         <div v-if="countdown > 0" class="screen-timer" @click.stop="resetWakeLock" title="Clicca per ripristinare lo schermo acceso per altri 2 minuti">
           <span class="screen-timer-icon">⏱</span>
           <span class="screen-timer-text">{{ formattedCountdown }}</span>
@@ -107,6 +100,50 @@
 
       <div v-if="nfcError" class="nfc-error">{{ nfcError }}</div>
     </template>
+
+    <div v-if="nfcShareActive && nfcInstructionsOpen" class="nfc-overlay" @click.self="nfcInstructionsOpen = false">
+      <div class="nfc-overlay-card">
+        <button class="nfc-overlay-close" @click="nfcInstructionsOpen = false" title="Chiudi" aria-label="Chiudi">×</button>
+        <h3 class="nfc-overlay-title">📤 Condivisione NFC attiva</h3>
+        <p class="nfc-overlay-subtitle">Passa il biglietto da visita a un altro telefono</p>
+
+        <div class="nfc-illustration" aria-hidden="true">
+          <svg viewBox="0 0 400 205" class="nfc-svg">
+            <path class="nfc-wave nfc-wave-1" d="M212.0 79.2 A24 24 0 0 1 212.0 120.8" />
+            <path class="nfc-wave nfc-wave-2" d="M222.0 61.9 A44 44 0 0 1 222.0 138.1" />
+            <path class="nfc-wave nfc-wave-3" d="M232.0 44.6 A64 64 0 0 1 232.0 155.4" />
+            <path class="nfc-wave nfc-wave-1" d="M188.0 120.8 A24 24 0 0 1 188.0 79.2" />
+            <path class="nfc-wave nfc-wave-2" d="M178.0 138.1 A44 44 0 0 1 178.0 61.9" />
+            <path class="nfc-wave nfc-wave-3" d="M168.0 155.4 A64 64 0 0 1 168.0 44.6" />
+
+            <rect class="nfc-phone-screen" x="36" y="42" width="8" height="136" rx="4" />
+            <rect class="nfc-phone-body" x="30" y="35" width="80" height="150" rx="14" />
+            <rect class="nfc-phone-cam" x="110" y="70" width="9" height="20" rx="4" />
+
+            <rect class="nfc-phone-cam" x="281" y="70" width="9" height="20" rx="4" />
+            <rect class="nfc-phone-body" x="290" y="35" width="80" height="150" rx="14" />
+            <rect class="nfc-phone-screen" x="356" y="42" width="8" height="136" rx="4" />
+
+            <text class="nfc-phone-label" x="70" y="200">Questo telefono</text>
+            <text class="nfc-phone-label" x="330" y="200">Altro telefono</text>
+          </svg>
+        </div>
+
+        <ol class="nfc-steps">
+          <li>Sblocca l'altro telefono e <strong>tienilo con lo schermo acceso</strong>.</li>
+          <li>Appoggia i due telefoni <strong>schiena contro schiena</strong>, allineando le scocche posteriori.</li>
+          <li>L'altro telefono riceverà il biglietto e proporrà di <strong>salvarlo nei contatti</strong>.</li>
+        </ol>
+
+        <p v-if="nfcShareSize" class="nfc-overlay-note">Biglietto pronto — {{ nfcShareSize }} byte</p>
+        <p class="nfc-overlay-note">Se sull'altro telefono compare "Nuovo tag raccolto / Tag vuoto" è normale: sta solo leggendo il tuo telefono, non blocca l'invio.</p>
+
+        <div class="nfc-overlay-actions">
+          <button class="btn btn-primary" @click="nfcInstructionsOpen = false">Ho capito</button>
+          <button class="btn btn-outline" @click="stopNfcShareSession">Ferma NFC</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -135,6 +172,7 @@ const nfcVisible = ref(false)
 const nfcShareActive = ref(false)
 const nfcShareBusy = ref(false)
 const nfcShareSize = ref(0)
+const nfcInstructionsOpen = ref(false)
 
 const WAKE_LOCK_TIMEOUT = 120000
 let wakeLockSentinel = null
@@ -286,6 +324,7 @@ async function toggleNfcShare() {
     const result = await startNfcShare(vcard)
     nfcShareActive.value = true
     nfcShareSize.value = result?.size || 0
+    nfcInstructionsOpen.value = true
     toast.show('Condivisione NFC attiva: appoggia l\'altro smartphone', 'success')
     nfcShareTimer = setTimeout(() => {
       stopNfcShareSession()
@@ -661,5 +700,140 @@ onUnmounted(async () => {
   color: var(--danger);
   border-radius: var(--radius-sm);
   font-size: 13px;
+}
+
+.nfc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.nfc-overlay-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 24px 20px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  animation: nfc-card-in 0.25s ease;
+}
+
+@keyframes nfc-card-in {
+  from { transform: translateY(16px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.nfc-overlay-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nfc-overlay-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.nfc-overlay-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0 0 12px;
+}
+
+.nfc-illustration {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.nfc-svg {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+}
+
+.nfc-phone-body {
+  fill: #e8ebf0;
+  stroke: #b6bfcc;
+  stroke-width: 2;
+}
+
+.nfc-phone-screen {
+  fill: #3a4250;
+}
+
+.nfc-phone-cam {
+  fill: #d0d6df;
+  stroke: #b6bfcc;
+  stroke-width: 1;
+}
+
+.nfc-phone-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+}
+
+.nfc-wave {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  animation: nfc-pulse 1.8s ease-in-out infinite;
+}
+
+.nfc-wave-1 { opacity: 0.35; }
+.nfc-wave-2 { opacity: 0.6; animation-delay: 0.3s; }
+.nfc-wave-3 { opacity: 0.9; animation-delay: 0.6s; }
+
+@keyframes nfc-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.nfc-steps {
+  margin: 12px 0 10px;
+  padding: 0 4px 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.nfc-overlay-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+  text-align: center;
+}
+
+.nfc-overlay-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nfc-overlay-actions .btn {
+  flex: 1;
 }
 </style>
