@@ -144,6 +144,51 @@
         </div>
       </div>
     </div>
+
+    <div v-if="nfcBusy && !nfcWriteOverlayDismissed" class="nfc-overlay" @click.self="nfcWriteOverlayDismissed = true">
+      <div class="nfc-overlay-card">
+        <button class="nfc-overlay-close" @click="nfcWriteOverlayDismissed = true" title="Chiudi" aria-label="Chiudi">×</button>
+        <h3 class="nfc-overlay-title">📝 Scrittura su tag NFC</h3>
+        <p class="nfc-overlay-subtitle">Salva il biglietto da visita su un tag NFC fisico</p>
+
+        <div class="nfc-illustration" aria-hidden="true">
+          <svg viewBox="0 0 400 205" class="nfc-svg">
+            <path class="nfc-wave nfc-wave-1" d="M212.0 79.2 A24 24 0 0 1 212.0 120.8" />
+            <path class="nfc-wave nfc-wave-2" d="M222.0 61.9 A44 44 0 0 1 222.0 138.1" />
+            <path class="nfc-wave nfc-wave-3" d="M232.0 44.6 A64 64 0 0 1 232.0 155.4" />
+            <path class="nfc-wave nfc-wave-1" d="M188.0 120.8 A24 24 0 0 1 188.0 79.2" />
+            <path class="nfc-wave nfc-wave-2" d="M178.0 138.1 A44 44 0 0 1 178.0 61.9" />
+            <path class="nfc-wave nfc-wave-3" d="M168.0 155.4 A64 64 0 0 1 168.0 44.6" />
+
+            <rect class="nfc-phone-screen" x="36" y="42" width="8" height="136" rx="4" />
+            <rect class="nfc-phone-body" x="30" y="35" width="80" height="150" rx="14" />
+            <rect class="nfc-phone-cam" x="110" y="70" width="9" height="20" rx="4" />
+
+            <rect class="nfc-tag-body" x="290" y="85" width="90" height="60" rx="8" />
+            <rect class="nfc-tag-antenna" x="296" y="91" width="78" height="48" rx="7" />
+            <rect class="nfc-tag-antenna" x="302" y="97" width="66" height="36" rx="6" />
+            <rect class="nfc-tag-chip" x="308" y="100" width="14" height="14" rx="2" />
+
+            <text class="nfc-phone-label" x="70" y="200">Questo telefono</text>
+            <text class="nfc-phone-label" x="335" y="200">Tag NFC</text>
+          </svg>
+        </div>
+
+        <ol class="nfc-steps">
+          <li>Un <strong>tag NFC</strong> è una piccola etichetta o card: chi la tocca con lo smartphone riceve il contenuto, senza installare nulla.</li>
+          <li>Tieni il tag appoggiato su una superficie e <strong>accosta il retro del telefono</strong> (zona NFC, di solito in alto).</li>
+          <li>Attendi la conferma: il tag ora contiene il biglietto da visita.</li>
+        </ol>
+
+        <p v-if="nfcStatusMsg" class="nfc-status">{{ nfcStatusMsg }}</p>
+
+        <p class="nfc-warn-note">⚠️ Versione non ancora testata su tag reali. Se provi la scrittura, sarebbe interessante ricevere un feedback su come va (modello di tag, esito, eventuali errori): ci aiuterà a sistemarla.</p>
+
+        <div class="nfc-overlay-actions">
+          <button class="btn btn-primary" @click="nfcWriteOverlayDismissed = true">Ho capito</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -167,6 +212,7 @@ const card = ref(null)
 const loading = ref(true)
 const sharing = ref(false)
 const nfcBusy = ref(false)
+const nfcWriteOverlayDismissed = ref(false)
 const nfcError = ref('')
 const nfcVisible = ref(false)
 const nfcShareActive = ref(false)
@@ -276,6 +322,7 @@ async function shareVCard() {
 async function writeNfc() {
   nfcError.value = ''
   nfcBusy.value = true
+  nfcWriteOverlayDismissed.value = false
   nfcStatusMsg.value = ''
   try {
     await writeVCardToTag(vcardTagText.value, (stage) => {
@@ -792,6 +839,41 @@ onUnmounted(async () => {
   font-weight: 600;
   fill: var(--text-secondary);
   text-anchor: middle;
+}
+
+.nfc-tag-body {
+  fill: #fff;
+  stroke: #b6bfcc;
+  stroke-width: 2;
+}
+
+.nfc-tag-antenna {
+  fill: none;
+  stroke: #aeb8c9;
+  stroke-width: 1.5;
+}
+
+.nfc-tag-chip {
+  fill: #3a4250;
+}
+
+.nfc-status {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.nfc-warn-note {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  border-radius: 8px;
+  background: rgba(255, 193, 7, 0.14);
+  border: 1px solid rgba(255, 193, 7, 0.5);
 }
 
 .nfc-wave {
