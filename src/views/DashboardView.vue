@@ -212,7 +212,9 @@ const filteredBcCards = computed(() => {
 })
 
 function bcName(c) {
-  const name = `${(c.first_name || '').trim()} ${(c.last_name || '').trim()}`.trim().toLowerCase()
+  const last = (c.last_name || '').trim()
+  const first = (c.first_name || '').trim()
+  const name = `${last} ${first}`.trim().toLowerCase()
   return name || (c.org || '').toLowerCase()
 }
 

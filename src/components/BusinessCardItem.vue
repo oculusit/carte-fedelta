@@ -35,7 +35,7 @@ defineEmits(['click', 'favorite-toggle'])
 const fullName = computed(() => {
   const first = (props.card.first_name || '').trim()
   const last = (props.card.last_name || '').trim()
-  if (first && last) return `${first} ${last}`
+  if (first && last) return `${last} ${first}`
   return first || last || 'Biglietto senza nome'
 })
 

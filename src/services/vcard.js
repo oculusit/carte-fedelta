@@ -10,7 +10,31 @@ function joinLines(parts, eol) {
   return parts.filter(Boolean).join(eol) + eol
 }
 
-export function buildVCard(bc, eol = '\r\n') {
+function foldValue(value, eol) {
+  const limit = 75
+  const parts = []
+  let rest = value
+  while (rest.length > limit) {
+    parts.push(rest.slice(0, limit))
+    rest = rest.slice(limit)
+  }
+  parts.push(rest)
+  return parts.join(eol + ' ')
+}
+
+function photoLine(bc, eol) {
+  const dataUrl = bc.avatar_data
+  if (!dataUrl || typeof dataUrl !== 'string') return null
+  const m = /^data:([^;,]+);base64,(.*)$/s.exec(dataUrl)
+  if (!m || !m[2]) return null
+  const b64 = m[2].replace(/\s+/g, '')
+  if (!b64) return null
+  const type = (m[1].split('/')[1] || 'jpeg').toUpperCase()
+  return `PHOTO;ENCODING=b;TYPE=${type}:` + foldValue(b64, eol)
+}
+
+export function buildVCard(bc, eol = '\r\n', opts = {}) {
+  const includePhoto = opts.includePhoto !== false
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
@@ -21,6 +45,11 @@ export function buildVCard(bc, eol = '\r\n') {
   lines.push(`N:${lastName};${firstName};;;`)
   const fullName = escapeVCard(bc.fullName) || [firstName, lastName].filter(Boolean).join(' ')
   lines.push(`FN:${fullName}`)
+
+  if (includePhoto) {
+    const photo = photoLine(bc, eol)
+    if (photo) lines.push(photo)
+  }
 
   if (bc.org) lines.push(`ORG:${escapeVCard(bc.org)}`)
   if (bc.role) lines.push(`TITLE:${escapeVCard(bc.role)}`)
@@ -54,4 +83,37 @@ export function buildVCard(bc, eol = '\r\n') {
   lines.push('END:VCARD')
 
   return joinLines(lines, eol)
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = (e) => reject(e)
+    img.src = src
+  })
+}
+
+function downscaleAvatar(dataUrl, maxDim, quality) {
+  return loadImage(dataUrl).then((img) => {
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+    const w = Math.max(1, Math.round(img.width * scale))
+    const h = Math.max(1, Math.round(img.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0, w, h)
+    return canvas.toDataURL('image/jpeg', quality)
+  })
+}
+
+export async function buildVCardForNfc(bc, eol = '\r\n') {
+  let card = bc
+  if (bc.avatar_data && /^data:image\//.test(bc.avatar_data)) {
+    try {
+      card = { ...bc, avatar_data: await downscaleAvatar(bc.avatar_data, 256, 0.7) }
+    } catch {}
+  }
+  return buildVCard(card, eol)
 }

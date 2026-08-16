@@ -116,7 +116,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
-import { buildVCard } from '../services/vcard.js'
+import { buildVCard, buildVCardForNfc } from '../services/vcard.js'
 import { isNfcNativeAvailable, isNfcSupported, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
 import { Capacitor } from '@capacitor/core'
 import { saveToDownloads, shareFile } from '../services/filePicker.js'
@@ -154,7 +154,7 @@ const formattedCountdown = computed(() => {
 const fullName = computed(() => {
   const first = (card.value?.first_name || '').trim()
   const last = (card.value?.last_name || '').trim()
-  if (first && last) return `${first} ${last}`
+  if (first && last) return `${last} ${first}`
   return first || last || 'Biglietto'
 })
 
@@ -165,7 +165,8 @@ const initials = computed(() => {
 })
 
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
-const vcardQrText = computed(() => (card.value ? buildVCard(card.value, '\n') : ''))
+const vcardQrText = computed(() => (card.value ? buildVCard(card.value, '\n', { includePhoto: false }) : ''))
+const vcardTagText = computed(() => (card.value ? buildVCard(card.value, '\r\n', { includePhoto: false }) : ''))
 
 const addressText = computed(() => {
   if (!card.value) return ''
@@ -239,7 +240,7 @@ async function writeNfc() {
   nfcBusy.value = true
   nfcStatusMsg.value = ''
   try {
-    await writeVCardToTag(vcardText.value, (stage) => {
+    await writeVCardToTag(vcardTagText.value, (stage) => {
       const map = {
         'appoggia': 'Appoggia il tag NFC da scrivere...',
         'trovato': 'Tag trovato, scrittura...',
@@ -281,7 +282,8 @@ async function toggleNfcShare() {
   }
   nfcShareBusy.value = true
   try {
-    const result = await startNfcShare(vcardText.value)
+    const vcard = await buildVCardForNfc(card.value)
+    const result = await startNfcShare(vcard)
     nfcShareActive.value = true
     nfcShareSize.value = result?.size || 0
     toast.show('Condivisione NFC attiva: appoggia l\'altro smartphone', 'success')
