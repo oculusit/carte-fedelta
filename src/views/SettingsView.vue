@@ -38,7 +38,26 @@
       <p v-if="bcBackupResult" :class="bcBackupResult.ok ? 'test-ok clickable' : 'test-err'" v-html="bcBackupResult.msg" @click="bcBackupResult?.ok && openBackupFolder()"></p>
     </div>
 
-    <!-- 3) Server backend -->
+    <!-- 3) Personalizza condivisione .vcf -->
+    <div class="card settings-card">
+      <div class="settings-header">
+        <svg class="settings-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+        <h3>Personalizza condivisione .vcf</h3>
+      </div>
+      <p class="section-desc">Imposta il messaggio inviato insieme al file .vcf di un biglietto da visita. Se lo lasci vuoto, verrà usato il messaggio predefinito con il nome del contatto.</p>
+      <textarea v-model="vcfShareMessage" class="vcf-msg-input" rows="4" maxlength="500" :placeholder="vcfShareDefault"></textarea>
+      <div class="backup-row" style="margin-top:8px">
+        <button class="btn btn-primary btn-block" @click="saveVcfShareMessage" :disabled="savingVcfMessage">
+          {{ savingVcfMessage ? 'Salvataggio...' : 'Salva' }}
+        </button>
+        <button class="btn btn-outline btn-block" @click="resetVcfShareMessage" :disabled="savingVcfMessage || !vcfShareMessage.trim()">
+          Ripristina predefinito
+        </button>
+      </div>
+      <p v-if="vcfShareSaved" class="test-ok">{{ vcfShareSaved }}</p>
+    </div>
+
+    <!-- 4) Server backend -->
     <div class="card settings-card">
       <h3>Server backend</h3>
       <p class="section-desc">Collegati al server che fornisce i loghi personalizzati per i negozi.</p>
@@ -171,6 +190,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app.js'
 import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { isSupabaseConfigured, getSupabaseClient } from '../services/supabase.js'
+import { settingsDb } from '../services/db.js'
+import { VCF_SHARE_DEFAULT_MESSAGE, VCF_SHARE_MESSAGE_KEY } from '../services/vcard.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
 import { httpFetch } from '../services/http.js'
@@ -199,6 +220,10 @@ const exportingBc = ref(false)
 const bcBackupResult = ref(null)
 const importBcInput = ref(null)
 const errorLog = ref([])
+const vcfShareMessage = ref('')
+const vcfShareDefault = VCF_SHARE_DEFAULT_MESSAGE.replace('{nome}', '<cognome> <nome>')
+const savingVcfMessage = ref(false)
+const vcfShareSaved = ref('')
 
 function loadErrorLog() {
   try {
@@ -216,6 +241,36 @@ function clearErrorLog() {
   localStorage.removeItem('error_log')
   errorLog.value = []
   toast.show('Log cancellato', 'success')
+}
+
+async function saveVcfShareMessage() {
+  savingVcfMessage.value = true
+  vcfShareSaved.value = ''
+  try {
+    await settingsDb.set(VCF_SHARE_MESSAGE_KEY, vcfShareMessage.value.trim())
+    vcfShareMessage.value = vcfShareMessage.value.trim()
+    vcfShareSaved.value = 'Messaggio salvato'
+    toast.show('Messaggio salvato', 'success')
+  } catch (e) {
+    toast.show('Errore salvataggio: ' + (e.message || e), 'error')
+  } finally {
+    savingVcfMessage.value = false
+  }
+}
+
+async function resetVcfShareMessage() {
+  savingVcfMessage.value = true
+  vcfShareSaved.value = ''
+  try {
+    await settingsDb.set(VCF_SHARE_MESSAGE_KEY, '')
+    vcfShareMessage.value = ''
+    vcfShareSaved.value = 'Messaggio predefinito ripristinato'
+    toast.show('Messaggio predefinito ripristinato', 'success')
+  } catch (e) {
+    toast.show('Errore: ' + (e.message || e), 'error')
+  } finally {
+    savingVcfMessage.value = false
+  }
 }
 
 function saveManualUrl() {
@@ -280,6 +335,9 @@ onMounted(async () => {
   if (syncConfigured.value) {
     cloudCount.value = await store.getCloudCardCount()
   }
+  try {
+    vcfShareMessage.value = (await settingsDb.get(VCF_SHARE_MESSAGE_KEY)) || ''
+  } catch {}
 })
 
 async function syncNow() {
@@ -685,6 +743,7 @@ function setPreferredCamera(cameraId) {
 .tag-offline { color: var(--danger); font-weight: 600; }
 .input-group { display: flex; flex-direction: column; gap: 4px; }
 .input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); }
+.vcf-msg-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--bg); color: var(--text); resize: vertical; box-sizing: border-box; line-height: 1.4; }
 .test-ok { margin-top: 8px; font-size: 13px; color: var(--success); word-break: break-all; }
 .test-ok.clickable { cursor: pointer; text-decoration: underline; }
 .clickable-hint { font-size: 11px; color: var(--text-secondary); }

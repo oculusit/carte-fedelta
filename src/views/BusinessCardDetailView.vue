@@ -198,7 +198,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
-import { buildVCard, buildVCardForNfc } from '../services/vcard.js'
+import { buildVCard, buildVCardForNfc, buildVcfShareText, VCF_SHARE_MESSAGE_KEY } from '../services/vcard.js'
+import { settingsDb } from '../services/db.js'
 import { isNfcNativeAvailable, isNfcSupported, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
 import { Capacitor } from '@capacitor/core'
 import { saveToDownloads, shareFile } from '../services/filePicker.js'
@@ -296,10 +297,12 @@ async function shareVCard() {
   nfcError.value = ''
   try {
     const filename = `vcard-${(card.value.last_name || 'contatto').toLowerCase().replace(/\s+/g, '')}.vcf`
+    const customMessage = await settingsDb.get(VCF_SHARE_MESSAGE_KEY)
+    const shareText = buildVcfShareText(card.value, customMessage)
     if (Capacitor.isNativePlatform()) {
-      await shareFile({ filename, data: vcardText.value, title: fullName.value, text: `Biglietto da visita di ${fullName.value}`, mimeType: 'text/vcard' })
+      await shareFile({ filename, data: vcardText.value, title: fullName.value, text: shareText, mimeType: 'text/vcard' })
     } else if (navigator.share && navigator.canShare?.({ files: [new File([vcardText.value], filename, { type: 'text/vcard' })] })) {
-      await navigator.share({ files: [new File([vcardText.value], filename, { type: 'text/vcard' })], title: fullName.value, text: `Biglietto da visita di ${fullName.value}` })
+      await navigator.share({ files: [new File([vcardText.value], filename, { type: 'text/vcard' })], title: fullName.value, text: shareText })
     } else {
       const blob = new Blob([vcardText.value], { type: 'text/vcard' })
       const url = URL.createObjectURL(blob)

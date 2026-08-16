@@ -117,3 +117,15 @@ export async function buildVCardForNfc(bc, eol = '\r\n') {
   }
   return buildVCard(card, eol)
 }
+
+export const VCF_SHARE_MESSAGE_KEY = 'vcf_share_message'
+
+export const VCF_SHARE_DEFAULT_MESSAGE =
+  'Il file allegato a questo messaggio contiene il Biglietto da Visita di {nome}. Aprilo per aggiungere il contatto alla tua rubrica.'
+
+export function buildVcfShareText(bc, customMessage) {
+  const full = [bc.last_name, bc.first_name].filter(Boolean).join(' ')
+  const custom = String(customMessage || '').trim()
+  if (custom) return custom
+  return VCF_SHARE_DEFAULT_MESSAGE.replace('{nome}', full)
+}
