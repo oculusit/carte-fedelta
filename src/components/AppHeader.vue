@@ -104,20 +104,17 @@ function goBack() {
 }
 
 async function shareApp() {
-  const shareData = {
-    title: 'FidAPPti',
-    text: 'Gestisci le tue carte fedeltà con FidAPPti!',
-    url: 'https://fidappti.altervista.org',
-  }
+  const domain = 'https://fidappti.altervista.org'
+  const text = `Ciao, sto usando FidAPPti per la gestione delle Tessere Fedeltà e per la condivisione dei miei Biglietti da Visita. Vuoi provarlo anche tu? Vai su ${domain} e scarica la versione Android nativa o usa la WebApp sul tuo iPhone!`
   try {
     if (window.Capacitor?.isNativePlatform?.()) {
       const { Share } = await import('@capacitor/share')
-      await Share.share(shareData)
+      await Share.share({ title: 'FidAPPti', text })
     } else if (navigator.share) {
-      await navigator.share(shareData)
+      await navigator.share({ title: 'FidAPPti', text })
     } else {
-      await copyToClipboard('https://fidappti.altervista.org')
-      toast.show('Link copiato negli appunti', 'success')
+      await copyToClipboard(text)
+      toast.show('Messaggio copiato negli appunti', 'success')
     }
   } catch (e) {
     if (e?.message !== 'Share canceled') {
