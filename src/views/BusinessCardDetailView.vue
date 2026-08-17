@@ -276,7 +276,7 @@ const initials = computed(() => {
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
 const vcardQrText = computed(() => {
   if (!card.value) return ''
-  return buildVCard({ ...card.value, notes: '' }, '\r\n', { includePhoto: false })
+  return buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
 })
 const vcardTagText = computed(() => {
   if (!card.value) return ''
