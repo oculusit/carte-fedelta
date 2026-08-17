@@ -256,6 +256,9 @@ onMounted(() => {
 
 <style scoped>
 .tabs {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 98;
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
