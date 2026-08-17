@@ -135,4 +135,5 @@ export function buildVcfShareText(bc, customMessage) {
     .replace(/<cognome>/g, values.cognome)
     .replace(/<nome>/g, values.nome)
     .replace(/<azienda>/g, values.azienda)
+    + '\n\n---\nBiglietto da Visita condiviso con FidAPPti\nhttps://fidappti.altervista.org'
 }
