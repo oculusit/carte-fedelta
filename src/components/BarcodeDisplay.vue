@@ -1,8 +1,14 @@
 <template>
   <div class="barcode-wrapper">
     <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg"></svg>
-    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display" />
+    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click="qrExpanded = true" />
     <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below" />
+
+    <Teleport to="body">
+      <div v-if="isQr && qrExpanded" class="qr-overlay" @click="qrExpanded = false">
+        <img :src="qrDataUrl" alt="QR Code" class="qr-expanded" />
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -21,6 +27,7 @@ const props = defineProps({
 const container = ref(null)
 const barcodeSvg = ref(null)
 const qrDataUrl = ref('')
+const qrExpanded = ref(false)
 
 const ALPHANUMERIC_TYPES = ['CODE128', 'CODE39', 'ITF', 'MSI', 'FISCALCODE']
 
@@ -85,5 +92,32 @@ watch(() => [props.code, props.type], render)
 .qr-below {
   border-radius: 6px;
   width: 120px;
+}
+
+.qr-tappable {
+  cursor: pointer;
+}
+</style>
+
+<style>
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: pointer;
+}
+
+.qr-expanded {
+  max-width: 100%;
+  max-height: 100%;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 </style>
