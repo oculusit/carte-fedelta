@@ -109,16 +109,21 @@ function downscaleAvatar(dataUrl, maxDim, quality) {
 }
 
 export async function buildVCardForNfc(bc, eol = '\r\n') {
-  let card = bc
+  const notes = [bc.notes, VCF_FOOTER].filter(Boolean).join('')
+  const patched = notes !== (bc.notes || '') ? { ...bc, notes } : bc
+  let card = patched
   if (bc.avatar_data && /^data:image\//.test(bc.avatar_data)) {
     try {
-      card = { ...bc, avatar_data: await downscaleAvatar(bc.avatar_data, 256, 0.7) }
+      card = { ...patched, avatar_data: await downscaleAvatar(bc.avatar_data, 256, 0.7) }
     } catch {}
   }
   return buildVCard(card, eol)
 }
 
 export const VCF_SHARE_MESSAGE_KEY = 'vcf_share_message'
+
+export const VCF_FOOTER =
+  '\n\n---\nBiglietto da Visita condiviso con FidAPPti\nhttps://fidappti.altervista.org'
 
 export const VCF_SHARE_DEFAULT_MESSAGE =
   'Il file allegato a questo messaggio contiene il Biglietto da Visita di {nome}. Aprilo per aggiungere il contatto alla tua rubrica.'
@@ -135,5 +140,5 @@ export function buildVcfShareText(bc, customMessage) {
     .replace(/<cognome>/g, values.cognome)
     .replace(/<nome>/g, values.nome)
     .replace(/<azienda>/g, values.azienda)
-    + '\n\n---\nBiglietto da Visita condiviso con FidAPPti\nhttps://fidappti.altervista.org'
+    + VCF_FOOTER
 }
