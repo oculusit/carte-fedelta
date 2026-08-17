@@ -276,7 +276,8 @@ const initials = computed(() => {
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
 const vcardQrText = computed(() => {
   if (!card.value) return ''
-  return buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
+  const base = buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
+  return base.replace('END:VCARD', `NOTE:${VCF_FOOTER_VCARD}\r\nEND:VCARD`)
 })
 const vcardTagText = computed(() => {
   if (!card.value) return ''
