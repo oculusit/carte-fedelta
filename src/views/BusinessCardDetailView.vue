@@ -220,7 +220,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBusinessCardsStore } from '../stores/businessCards.js'
 import { toast } from '../services/toast.js'
 import { copyToClipboard } from '../services/clipboard.js'
-import { buildVCard, buildVCardForNfc, buildVcfShareText, VCF_SHARE_MESSAGE_KEY } from '../services/vcard.js'
+import { buildVCard, buildVCardForNfc, buildVcfShareText, VCF_SHARE_MESSAGE_KEY, VCF_FOOTER } from '../services/vcard.js'
 import { settingsDb } from '../services/db.js'
 import { isNfcNativeAvailable, isNfcSupported, getNfcStatus, openNfcSettings, writeVCardToTag, startNfcShare, stopNfcShare } from '../services/nfc.js'
 import { Capacitor } from '@capacitor/core'
@@ -274,8 +274,16 @@ const initials = computed(() => {
 })
 
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
-const vcardQrText = computed(() => (card.value ? buildVCard(card.value, '\n', { includePhoto: false }) : ''))
-const vcardTagText = computed(() => (card.value ? buildVCard(card.value, '\r\n', { includePhoto: false }) : ''))
+const vcardQrText = computed(() => {
+  if (!card.value) return ''
+  const bc = { ...card.value, notes: [card.value.notes, VCF_FOOTER].filter(Boolean).join('') }
+  return buildVCard(bc, '\n', { includePhoto: false })
+})
+const vcardTagText = computed(() => {
+  if (!card.value) return ''
+  const bc = { ...card.value, notes: [card.value.notes, VCF_FOOTER].filter(Boolean).join('') }
+  return buildVCard(bc, '\r\n', { includePhoto: false })
+})
 
 const addressText = computed(() => {
   if (!card.value) return ''
