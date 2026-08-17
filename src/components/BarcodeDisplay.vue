@@ -1,12 +1,12 @@
 <template>
   <div class="barcode-wrapper">
     <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg"></svg>
-    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click="qrExpanded = true" />
+    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click="expandQr" />
     <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below" />
 
     <Teleport to="body">
-      <div v-if="isQr && qrExpanded" class="qr-overlay" @click="qrExpanded = false">
-        <img :src="qrDataUrl" alt="QR Code" class="qr-expanded" />
+      <div v-if="isQr && qrExpanded" class="qr-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
+        <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" />
       </div>
     </Teleport>
   </div>
@@ -27,7 +27,18 @@ const props = defineProps({
 const container = ref(null)
 const barcodeSvg = ref(null)
 const qrDataUrl = ref('')
+const qrLargeUrl = ref('')
 const qrExpanded = ref(false)
+
+async function expandQr() {
+  qrExpanded.value = true
+  const size = Math.min(window.innerWidth, window.innerHeight) - 48
+  try {
+    qrLargeUrl.value = await QRCode.toDataURL(props.code, { width: Math.max(size, 200), margin: 2 })
+  } catch {
+    qrLargeUrl.value = ''
+  }
+}
 
 const ALPHANUMERIC_TYPES = ['CODE128', 'CODE39', 'ITF', 'MSI', 'FISCALCODE']
 
