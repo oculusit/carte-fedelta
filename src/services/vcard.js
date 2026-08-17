@@ -109,7 +109,7 @@ function downscaleAvatar(dataUrl, maxDim, quality) {
 }
 
 export async function buildVCardForNfc(bc, eol = '\r\n') {
-  const notes = [bc.notes, VCF_FOOTER].filter(Boolean).join('')
+  const notes = [bc.notes, VCF_FOOTER_VCARD].filter(Boolean).join(' | ')
   const patched = notes !== (bc.notes || '') ? { ...bc, notes } : bc
   let card = patched
   if (bc.avatar_data && /^data:image\//.test(bc.avatar_data)) {
@@ -121,6 +121,8 @@ export async function buildVCardForNfc(bc, eol = '\r\n') {
 }
 
 export const VCF_SHARE_MESSAGE_KEY = 'vcf_share_message'
+
+export const VCF_FOOTER_VCARD = '--- Biglietto da Visita condiviso con FidAPPti / https://fidappti.altervista.org'
 
 export const VCF_FOOTER =
   '\n\n---\nBiglietto da Visita condiviso con FidAPPti\nhttps://fidappti.altervista.org'
