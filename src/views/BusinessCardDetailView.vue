@@ -276,12 +276,8 @@ const initials = computed(() => {
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
 const vcardQrText = computed(() => {
   if (!card.value) return ''
-  const base = buildVCard({ ...card.value, notes: '' }, '\r\n', { includePhoto: false })
-  const userNotes = (card.value.notes || '').replace(/\r?\n/g, '=0A')
-  const noteBody = userNotes
-    ? `${userNotes}=0A=0A---=0A${VCF_FOOTER_VCARD}`
-    : `---=0A${VCF_FOOTER_VCARD}`
-  return base.replace('END:VCARD', `NOTE;ENCODING=QUOTED-PRINTABLE:${noteBody}\r\nEND:VCARD`)
+  const base = buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
+  return base.replace('END:VCARD', 'URL;X-ABLABEL=FIDAPPTI:https://fidappti.altervista.org/webapp\r\nEND:VCARD')
 })
 const vcardTagText = computed(() => {
   if (!card.value) return ''
