@@ -122,7 +122,7 @@ export async function buildVCardForNfc(bc, eol = '\r\n') {
 
 export const VCF_SHARE_MESSAGE_KEY = 'vcf_share_message'
 
-export const VCF_FOOTER_VCARD = '--- Biglietto da Visita condiviso con FidAPPti / https://fidappti.altervista.org'
+export const VCF_FOOTER_VCARD = 'Biglietto da Visita condiviso tramite FidAPPti.web - https://fidappti.altervista.org/webapp'
 
 export const VCF_FOOTER =
   '\n\n---\nBiglietto da Visita condiviso con FidAPPti\nhttps://fidappti.altervista.org'
