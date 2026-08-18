@@ -276,8 +276,7 @@ const initials = computed(() => {
 const vcardText = computed(() => (card.value ? buildVCard(card.value) : ''))
 const vcardQrText = computed(() => {
   if (!card.value) return ''
-  const base = buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
-  return base.replace('END:VCARD', 'URL;X-ABLABEL=FIDAPPTI:https://fidappti.altervista.org/webapp\r\nEND:VCARD')
+  return buildVCard({ ...card.value }, '\r\n', { includePhoto: false })
 })
 const vcardTagText = computed(() => {
   if (!card.value) return ''

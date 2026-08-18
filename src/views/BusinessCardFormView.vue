@@ -97,6 +97,7 @@
       <div class="input-group">
         <label>Note</label>
         <textarea v-model="form.notes" rows="3" placeholder="Note opzionali..."></textarea>
+        <p class="field-hint field-hint--warn">Attenzione: il campo note non viene importato da tutti i tipi di smartphone. Non inserire informazioni importanti.</p>
       </div>
 
       <div class="form-actions">
@@ -317,5 +318,10 @@ textarea {
 .btn-sm {
   padding: 6px 12px;
   font-size: 12px;
+}
+.field-hint--warn {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #b45309;
 }
 </style>
