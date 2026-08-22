@@ -1386,7 +1386,7 @@ async function generateInfographic() {
   container.innerHTML = '<p style="color:#666">Generazione in corso...</p>';
   document.getElementById('infographic-download-btn').style.display = 'none';
 
-  const W = 1200, H = 800;
+  const W = 1200, H = 900;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
@@ -1451,7 +1451,7 @@ async function generateInfographic() {
     ctx.shadowOffsetY = 2 + Math.random() * 2;
 
     // Thin white border
-    const border = 3;
+    const border = 2;
     const imgW = logoSize;
     const imgH = logoSize;
     ctx.fillStyle = '#fff';
