@@ -1,8 +1,8 @@
 <template>
   <div class="barcode-wrapper">
-    <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg barcode-tappable" @click="expandBarcode"></svg>
-    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click="expandQr" />
-    <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below" />
+    <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg barcode-tappable" @click.stop="expandBarcode"></svg>
+    <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click.stop="expandQr" />
+    <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below qr-tappable" @click.stop="expandQr" />
 
     <Teleport to="body">
       <div v-if="barcodeExpanded" class="barcode-overlay" @click="barcodeExpanded = false">
@@ -14,7 +14,7 @@
 
     <Teleport to="body">
       <div v-if="isQr && qrExpanded" class="barcode-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
-        <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" />
+        <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" @click.stop="qrExpanded = false; qrLargeUrl = ''" />
       </div>
     </Teleport>
   </div>
@@ -55,10 +55,10 @@ async function expandBarcode() {
     try {
       JsBarcode(barcodeFullscreenSvg.value, props.code, {
         format: jsFormat,
-        width: 4,
-        height: 200,
+        width: 6,
+        height: 250,
         displayValue: true,
-        fontSize: 24,
+        fontSize: 28,
         margin: 12,
         background: '#ffffff',
       })
@@ -164,8 +164,8 @@ watch(() => [props.code, props.type], render)
 }
 
 .barcode-fullscreen {
-  max-width: 90vw;
-  max-height: 90vh;
+  max-width: 100vh;
+  max-height: 100vw;
   background: white;
   border-radius: 12px;
   padding: 24px;
