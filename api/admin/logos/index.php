@@ -936,10 +936,15 @@ function reloadToSection(id) {
 
 // Restore section after reload
 (function() {
-  const saved = sessionStorage.getItem('admin_section');
-  if (saved) {
-    sessionStorage.removeItem('admin_section');
-    showSection(saved);
+  const params = new URLSearchParams(location.search);
+  if (params.has('sort')) {
+    showSection('custom-logos');
+  } else {
+    const saved = sessionStorage.getItem('admin_section');
+    if (saved) {
+      sessionStorage.removeItem('admin_section');
+      showSection(saved);
+    }
   }
 })();
 
