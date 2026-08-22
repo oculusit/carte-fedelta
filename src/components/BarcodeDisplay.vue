@@ -1,11 +1,19 @@
 <template>
   <div class="barcode-wrapper">
-    <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg"></svg>
+    <svg v-if="!isQr" ref="barcodeSvg" class="barcode-svg barcode-tappable" @click="expandBarcode"></svg>
     <img v-else :src="qrDataUrl" alt="QR Code" class="qr-display qr-tappable" @click="expandQr" />
     <img v-if="showQr" :src="qrDataUrl" alt="QR Code" class="qr-below" />
 
     <Teleport to="body">
-      <div v-if="isQr && qrExpanded" class="qr-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
+      <div v-if="barcodeExpanded" class="barcode-overlay" @click="barcodeExpanded = false">
+        <div class="barcode-overlay-inner" @click.stop>
+          <svg ref="barcodeFullscreenSvg" class="barcode-fullscreen"></svg>
+        </div>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="isQr && qrExpanded" class="barcode-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
         <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" />
       </div>
     </Teleport>
@@ -13,7 +21,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 
@@ -26,9 +34,39 @@ const props = defineProps({
 
 const container = ref(null)
 const barcodeSvg = ref(null)
+const barcodeFullscreenSvg = ref(null)
 const qrDataUrl = ref('')
 const qrLargeUrl = ref('')
 const qrExpanded = ref(false)
+const barcodeExpanded = ref(false)
+
+const ALPHANUMERIC_TYPES = ['CODE128', 'CODE39', 'ITF', 'MSI', 'FISCALCODE']
+
+const isQr = computed(() => props.type === 'QR' || props.type === 'QRCODE')
+const isAlphanumeric = computed(() => ALPHANUMERIC_TYPES.includes(props.type))
+const showQr = computed(() => isAlphanumeric.value && !isQr.value && props.code)
+const barcodeHeight = computed(() => isAlphanumeric.value ? 100 : props.height)
+
+async function expandBarcode() {
+  barcodeExpanded.value = true
+  await nextTick()
+  if (barcodeFullscreenSvg.value) {
+    const jsFormat = props.type === 'FISCALCODE' ? 'CODE39' : props.type
+    try {
+      JsBarcode(barcodeFullscreenSvg.value, props.code, {
+        format: jsFormat,
+        width: 4,
+        height: 200,
+        displayValue: true,
+        fontSize: 24,
+        margin: 12,
+        background: '#ffffff',
+      })
+    } catch (e) {
+      console.warn('Fullscreen barcode error:', e.message)
+    }
+  }
+}
 
 async function expandQr() {
   qrExpanded.value = true
@@ -39,13 +77,6 @@ async function expandQr() {
     qrLargeUrl.value = ''
   }
 }
-
-const ALPHANUMERIC_TYPES = ['CODE128', 'CODE39', 'ITF', 'MSI', 'FISCALCODE']
-
-const isQr = computed(() => props.type === 'QR' || props.type === 'QRCODE')
-const isAlphanumeric = computed(() => ALPHANUMERIC_TYPES.includes(props.type))
-const showQr = computed(() => isAlphanumeric.value && !isQr.value && props.code)
-const barcodeHeight = computed(() => isAlphanumeric.value ? 100 : props.height)
 
 function render() {
   if (!props.code) return
@@ -105,22 +136,39 @@ watch(() => [props.code, props.type], render)
   width: 120px;
 }
 
+.barcode-tappable,
 .qr-tappable {
   cursor: pointer;
 }
 </style>
 
 <style>
-.qr-overlay {
+.barcode-overlay {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
   cursor: pointer;
+}
+
+.barcode-overlay-inner {
+  width: 100vh;
+  height: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(90deg);
+}
+
+.barcode-fullscreen {
+  max-width: 90vw;
+  max-height: 90vh;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
 }
 
 .qr-expanded {

@@ -166,7 +166,7 @@
       <h3>Informazioni</h3>
       <div class="info-row">
         <span>Versione</span>
-        <span>1.3.0</span>
+        <span>1.3.1</span>
       </div>
       <div class="info-row">
         <span>Stato rete</span>
@@ -453,7 +453,7 @@ async function exportBackupData(kind) {
   const allCards = isBc ? [] : store.cards.map(cardToBackup)
   const allBc = isBc ? bcStore.cards.map(bcToBackup) : []
   const backup = {
-    version: '1.3.0',
+    version: '1.3.1',
     exported_at: new Date().toISOString(),
     cards_count: allCards.length,
     cards: allCards,
@@ -491,7 +491,7 @@ async function exportCardsBackup() {
       await shareFile({
         filename: `tessere-fidappti-backup-${new Date().toISOString().slice(0,10)}.json`,
         data: JSON.stringify({
-          version: '1.3.0',
+          version: '1.3.1',
           exported_at: new Date().toISOString(),
           cards_count: store.cards.length,
           cards: store.cards.map(cardToBackup),
@@ -522,7 +522,7 @@ async function exportBcBackup() {
       await shareFile({
         filename: `biglietti-fidappti-backup-${new Date().toISOString().slice(0,10)}.json`,
         data: JSON.stringify({
-          version: '1.3.0',
+          version: '1.3.1',
           exported_at: new Date().toISOString(),
           cards_count: 0,
           cards: [],
