@@ -1391,18 +1391,9 @@ async function generateInfographic() {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Wood table background
-  ctx.fillStyle = '#c9a96e';
+  // White background
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 40; i++) {
-    ctx.strokeStyle = 'rgba(139,100,40,' + (0.08 + Math.random() * 0.12) + ')';
-    ctx.lineWidth = 0.5 + Math.random() * 1.5;
-    ctx.beginPath();
-    const y = Math.random() * H;
-    ctx.moveTo(0, y + (Math.random() - 0.5) * 20);
-    ctx.bezierCurveTo(W * 0.3, y + (Math.random() - 0.5) * 30, W * 0.6, y + (Math.random() - 0.5) * 30, W, y + (Math.random() - 0.5) * 20);
-    ctx.stroke();
-  }
 
   const logos = [...LOGO_DATA];
   // Shuffle
@@ -1456,6 +1447,8 @@ async function generateInfographic() {
     const ratio = Math.min(imgW / img.width, imgH / img.height);
     const w = img.width * ratio;
     const h = img.height * ratio;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-w / 2, -h / 2, w, h);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
 
     ctx.shadowColor = 'transparent';
