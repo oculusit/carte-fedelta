@@ -1450,22 +1450,15 @@ async function generateInfographic() {
     ctx.shadowOffsetX = 1 + Math.random() * 2;
     ctx.shadowOffsetY = 2 + Math.random() * 2;
 
-    // Thin white border
-    const border = 2;
+    // Logo image
     const imgW = logoSize;
     const imgH = logoSize;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.roundRect(-imgW / 2 - border, -imgH / 2 - border, imgW + border * 2, imgH + border * 2, 4);
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-
-    // Logo image
     const ratio = Math.min(imgW / img.width, imgH / img.height);
     const w = img.width * ratio;
     const h = img.height * ratio;
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
+
+    ctx.shadowColor = 'transparent';
 
     ctx.restore();
   }
