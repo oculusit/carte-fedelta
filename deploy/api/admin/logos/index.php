@@ -512,7 +512,7 @@ $sortMode = in_array($sortMode, ['name', 'downloads'], true) ? $sortMode : 'name
 $orderBy = $sortMode === 'downloads' ? 'downloads DESC, name ASC' : 'name ASC';
 
 $stores = [];
-try { $stores = $db->query('SELECT id, name, aliases, color, downloads, logo_type, logo_path, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY ' . $orderBy)->fetchAll(); } catch(Exception $e) {}
+try { $stores = $db->query('SELECT id, name, aliases, color, downloads, logo_type, logo_path, logo_data, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY ' . $orderBy)->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -589,6 +589,7 @@ tr:hover td{background:#f8f9fa}
   <a class="active" onclick="showSection('dashboard')">Dashboard</a>
   <a onclick="showSection('logos-queue')">Coda Loghi<?php if ($pendingCount > 0): ?><span class="badge"><?= $pendingCount ?></span><?php endif; ?></a>
   <a onclick="showSection('custom-logos')">Loghi Approvati</a>
+  <a onclick="showSection('logo-infographic')">Infografica Loghi</a>
   <a onclick="showSection('missing-stores')">Negozi Richiesti<?php if ($missingCount > 0): ?><span class="badge"><?= $missingCount ?></span><?php endif; ?></a>
   <?php if ($isSuper): ?>
   <a onclick="showSection('admins')">Amministratori</a>
@@ -899,6 +900,19 @@ tr:hover td{background:#f8f9fa}
   </div>
 </div>
 <?php endif; ?>
+
+<!-- Logo Infographic -->
+<div id="logo-infographic" class="section">
+  <div class="card">
+    <h2>Infografica Loghi</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">Genera un'immagine con tutti i loghi approvati disposti in modo casuale. Ogni generazione produce un risultato diverso.</p>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-primary" onclick="generateInfographic()">Genera Infografica</button>
+      <button class="btn btn-success" id="infographic-download-btn" style="display:none" onclick="downloadInfographic()">Scarica Immagine</button>
+    </div>
+    <div id="infographic-preview" style="text-align:center"></div>
+  </div>
+</div>
 
 <!-- Password -->
 <div id="password" class="section">
@@ -1349,6 +1363,142 @@ async function saveVersionConfig(e) {
     app_download_url: document.getElementById('app-download-url').value,
   });
   toast(r.success ? 'Configurazione salvata!' : 'Errore');
+}
+
+// ── Logo Infographic ──
+const LOGO_DATA = <?php
+  $logoList = [];
+  foreach ($stores as $s) {
+    $src = '';
+    if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
+      $src = $s['logo_data'];
+    } else if ($s['logo_path']) {
+      $src = '../../../uploads/logos/' . $s['logo_path'];
+    }
+    if ($src) $logoList[] = ['name' => $s['name'], 'src' => $src];
+  }
+  echo json_encode($logoList);
+?>;
+
+async function generateInfographic() {
+  if (!LOGO_DATA.length) { toast('Nessun logo disponibile'); return; }
+  const container = document.getElementById('infographic-preview');
+  container.innerHTML = '<p style="color:#666">Generazione in corso...</p>';
+  document.getElementById('infographic-download-btn').style.display = 'none';
+
+  const W = 1200, H = 800;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Wood table background
+  ctx.fillStyle = '#c9a96e';
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 40; i++) {
+    ctx.strokeStyle = 'rgba(139,100,40,' + (0.08 + Math.random() * 0.12) + ')';
+    ctx.lineWidth = 0.5 + Math.random() * 1.5;
+    ctx.beginPath();
+    const y = Math.random() * H;
+    ctx.moveTo(0, y + (Math.random() - 0.5) * 20);
+    ctx.bezierCurveTo(W * 0.3, y + (Math.random() - 0.5) * 30, W * 0.6, y + (Math.random() - 0.5) * 30, W, y + (Math.random() - 0.5) * 20);
+    ctx.stroke();
+  }
+
+  const logos = [...LOGO_DATA];
+  // Shuffle
+  for (let i = logos.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [logos[i], logos[j]] = [logos[j], logos[i]];
+  }
+
+  const logoSize = 140;
+  const padding = 30;
+  const cols = Math.ceil(Math.sqrt(logos.length * (W / H)));
+  const rows = Math.ceil(logos.length / cols);
+  const cellW = (W - padding * 2) / cols;
+  const cellH = (H - padding * 2) / rows;
+
+  const loaded = await Promise.all(logos.map(logo => {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = logo.src;
+    });
+  }));
+
+  for (let i = 0; i < logos.length; i++) {
+    const img = loaded[i];
+    if (!img) continue;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = padding + cellW * col + cellW / 2;
+    const cy = padding + cellH * row + cellH / 2;
+    const offsetX = (Math.random() - 0.5) * cellW * 0.4;
+    const offsetY = (Math.random() - 0.5) * cellH * 0.4;
+    const angle = (Math.random() - 0.5) * 0.5;
+    const scale = 0.6 + Math.random() * 0.4;
+
+    ctx.save();
+    ctx.translate(cx + offsetX, cy + offsetY);
+    ctx.rotate(angle);
+
+    // Shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 8 + Math.random() * 6;
+    ctx.shadowOffsetX = 2 + Math.random() * 3;
+    ctx.shadowOffsetY = 3 + Math.random() * 3;
+
+    // White card
+    const cardW = logoSize + 16;
+    const cardH = logoSize + 30;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6);
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+
+    // Logo image
+    const maxImgW = logoSize;
+    const maxImgH = logoSize;
+    const ratio = Math.min(maxImgW / img.width, maxImgH / img.height);
+    const w = img.width * ratio;
+    const h = img.height * ratio;
+    ctx.drawImage(img, -w / 2, -h / 2 - 6, w, h);
+
+    // Store name
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(logos[i].name, 0, cardH / 2 - 6);
+
+    ctx.restore();
+  }
+
+  // Watermark
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('FidAPPti — fidappti.altervista.org', W - 16, H - 12);
+
+  container.innerHTML = '';
+  canvas.style.maxWidth = '100%';
+  canvas.style.borderRadius = '8px';
+  canvas.style.boxShadow = '0 2px 12px rgba(0,0,0,0.15)';
+  container.appendChild(canvas);
+  document.getElementById('infographic-download-btn').style.display = 'inline-flex';
+  window._infographicCanvas = canvas;
+}
+
+function downloadInfographic() {
+  const canvas = window._infographicCanvas;
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = 'fidappti-loghi-' + new Date().toISOString().slice(0, 10) + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 </script>
 </body></html>
