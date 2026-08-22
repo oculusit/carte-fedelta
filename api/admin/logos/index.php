@@ -1411,7 +1411,7 @@ async function generateInfographic() {
     [logos[i], logos[j]] = [logos[j], logos[i]];
   }
 
-  const logoSize = 140;
+  const logoSize = 160;
   const padding = 30;
   const cols = Math.ceil(Math.sqrt(logos.length * (W / H)));
   const rows = Math.ceil(logos.length / cols);
@@ -1445,34 +1445,27 @@ async function generateInfographic() {
     ctx.rotate(angle);
 
     // Shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 8 + Math.random() * 6;
-    ctx.shadowOffsetX = 2 + Math.random() * 3;
-    ctx.shadowOffsetY = 3 + Math.random() * 3;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 6 + Math.random() * 5;
+    ctx.shadowOffsetX = 1 + Math.random() * 2;
+    ctx.shadowOffsetY = 2 + Math.random() * 2;
 
-    // White card
-    const cardW = logoSize + 16;
-    const cardH = logoSize + 30;
+    // Thin white border
+    const border = 3;
+    const imgW = logoSize;
+    const imgH = logoSize;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 6);
+    ctx.roundRect(-imgW / 2 - border, -imgH / 2 - border, imgW + border * 2, imgH + border * 2, 4);
     ctx.fill();
 
     ctx.shadowColor = 'transparent';
 
     // Logo image
-    const maxImgW = logoSize;
-    const maxImgH = logoSize;
-    const ratio = Math.min(maxImgW / img.width, maxImgH / img.height);
+    const ratio = Math.min(imgW / img.width, imgH / img.height);
     const w = img.width * ratio;
     const h = img.height * ratio;
-    ctx.drawImage(img, -w / 2, -h / 2 - 6, w, h);
-
-    // Store name
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 10px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(logos[i].name, 0, cardH / 2 - 6);
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
 
     ctx.restore();
   }
