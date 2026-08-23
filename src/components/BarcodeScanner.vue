@@ -45,10 +45,10 @@
             </svg>
           </button>
         </div>
-        <label class="btn btn-outline btn-block upload-label" @click.prevent="onUploadClick">
+        <div class="btn btn-outline btn-block upload-label" @click="onUploadClick">
           Importa da altra App
           <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileUpload" />
-        </label>
+        </div>
       </div>
 
       <p v-if="isScanning" class="scanner-hint">
@@ -56,8 +56,8 @@
         <template v-if="torchOn"> · Flash attivo</template>
       </p>
     </div>
-    <ImportGuidePopup v-if="showImportGuide" @close="dismissImportGuide" />
   </div>
+  <ImportGuidePopup v-if="showImportGuide" @close="dismissImportGuide" />
 </template>
 
 <script setup>
@@ -272,9 +272,9 @@ function dismissImportGuide(dontShow) {
     importGuideDismissed.value = true
     settingsDb.set('import_guide_dismissed', true).catch(() => {})
   }
-  setTimeout(() => {
+  nextTick(() => {
     fileInput.value?.click()
-  }, 150)
+  })
 }
 
 async function stopCamera() {
