@@ -266,13 +266,15 @@ async function onUploadClick() {
   }
 }
 
-async function dismissImportGuide(dontShow) {
+function dismissImportGuide(dontShow) {
   showImportGuide.value = false
   if (dontShow) {
     importGuideDismissed.value = true
-    try { await settingsDb.set('import_guide_dismissed', true) } catch {}
+    settingsDb.set('import_guide_dismissed', true).catch(() => {})
   }
-  fileInput.value?.click()
+  setTimeout(() => {
+    fileInput.value?.click()
+  }, 150)
 }
 
 async function stopCamera() {
