@@ -42,9 +42,9 @@
     <div class="card settings-card">
       <div class="settings-header">
         <svg class="settings-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-        <h3>Personalizza condivisione .vcf</h3>
+        <h3>Personalizza condivisione Biglietti da Visita</h3>
       </div>
-      <p class="section-desc">Imposta il messaggio inviato insieme al file .vcf di un biglietto da visita. Puoi usare i segnaposto <code>&lt;cognome&gt;</code>, <code>&lt;nome&gt;</code> e <code>&lt;azienda&gt;</code>, sostituiti con i dati del contatto. Se lo lasci vuoto, verrà usato il messaggio predefinito.</p>
+      <p class="section-desc">Imposta un messaggio personalizzato che verrà aggiunto al tuo biglietto da visita virtuale durante una condivisione. Puoi usare i segnaposto <code>&lt;cognome&gt;</code>, <code>&lt;nome&gt;</code> e <code>&lt;azienda&gt;</code> all'interno del messaggio e verranno sostituiti con i dati di contatto reali presenti nel biglietto da visita. Se lasci vuoto questo spazio, verrà utilizzato un messaggio predefinito.</p>
       <textarea v-model="vcfShareMessage" class="vcf-msg-input" rows="4" maxlength="500" :placeholder="vcfShareDefault"></textarea>
       <div class="backup-row" style="margin-top:8px">
         <button class="btn btn-primary btn-block" @click="saveVcfShareMessage" :disabled="savingVcfMessage">

@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-Bs_leDAO.js","./index-Lp9Lktfb.js","./index-B6NC85S1.css"])))=>i.map(i=>d[i]);
+import{r as A,_ as a}from"./index-Lp9Lktfb.js";var t;(function(r){r[r.UNKNOWN=0]="UNKNOWN",r[r.AUTOMATIC=1]="AUTOMATIC",r[r.MANUAL=2]="MANUAL"})(t||(t={}));const N=A("CapgoBrightness",{web:()=>a(()=>import("./web-Bs_leDAO.js"),__vite__mapDeps([0,1,2]),import.meta.url).then(r=>new r.CapgoBrightnessWeb)});export{t as BrightnessMode,N as CapgoBrightness};
