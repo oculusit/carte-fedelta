@@ -272,10 +272,15 @@ function dismissImportGuide(dontShow) {
     importGuideDismissed.value = true
     settingsDb.set('import_guide_dismissed', true).catch(() => {})
   }
-  nextTick(() => {
-    fileInput.value?.click()
-  })
 }
+
+watch(showImportGuide, (val) => {
+  if (!val) {
+    setTimeout(() => {
+      fileInput.value?.click()
+    }, 300)
+  }
+})
 
 async function stopCamera() {
   torchOn.value = false
