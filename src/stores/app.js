@@ -427,10 +427,72 @@ export const useAppStore = defineStore('app', () => {
     if (anySuccess) localStorage.setItem('last_logo_check', String(Date.now()))
   }
 
+  let autoUpdateCleanup = null
+
+  async function autoUpdateLogosMonthly() {
+    const now = new Date()
+    const currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+    try {
+      const lastMonth = await settingsDb.get('last_logo_auto_update')
+      if (lastMonth === currentMonth) return
+    } catch {}
+
+    const STANDBY_MS = 30000
+    let timer = null
+    let paused = false
+
+    function resetTimer() {
+      if (paused) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(onStandby, STANDBY_MS)
+    }
+
+    async function onStandby() {
+      cleanup()
+      try {
+        await updateCardsLogosFromServer(true)
+        await settingsDb.set('last_logo_auto_update', currentMonth)
+      } catch {}
+    }
+
+    function cleanup() {
+      if (timer) { clearTimeout(timer); timer = null }
+      if (autoUpdateCleanup) { autoUpdateCleanup(); autoUpdateCleanup = null }
+    }
+
+    const events = ['touchstart', 'touchmove', 'mousedown', 'mousemove', 'keydown', 'scroll']
+    events.forEach(e => document.addEventListener(e, resetTimer, { passive: true }))
+
+    if (window.Capacitor?.isNativePlatform?.()) {
+      try {
+        const { App } = await import('@capacitor/app')
+        const pauseSub = App.addListener('appStateChange', ({ isActive }) => {
+          paused = !isActive
+          if (paused && timer) { clearTimeout(timer); timer = null }
+          else if (!paused) resetTimer()
+        })
+        autoUpdateCleanup = () => {
+          events.forEach(e => document.removeEventListener(e, resetTimer))
+          pauseSub.remove()
+        }
+      } catch {
+        autoUpdateCleanup = () => {
+          events.forEach(e => document.removeEventListener(e, resetTimer))
+        }
+      }
+    } else {
+      autoUpdateCleanup = () => {
+        events.forEach(e => document.removeEventListener(e, resetTimer))
+      }
+    }
+
+    resetTimer()
+  }
+
   return {
     isOnline, cards, loading, syncing, error, appName, encryptionSeedSet,
     loadCards, getCard, createCard, updateCard, deleteCard, pullFromServer,
     loadLogo, loadMissingLogos, processSyncQueue, getCloudCardCount,
-    updateCardsLogosFromServer, importCardsFromBackup,
+    updateCardsLogosFromServer, importCardsFromBackup, autoUpdateLogosMonthly,
   }
 })

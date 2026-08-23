@@ -51,6 +51,7 @@ function goToNewCard() {
 onMounted(async () => {
   store.loadCards()
   store.loadMissingLogos()
+  store.autoUpdateLogosMonthly()
 
   if (window.Capacitor?.isNativePlatform?.()) {
     try {
