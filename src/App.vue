@@ -15,6 +15,7 @@
     <ToastContainer />
     <UpdateChecker />
     <CardWarningPopup v-if="showWarning" @close="dismissWarning" />
+    <BcWarningPopup v-if="showBcWarning" @close="dismissBcWarning" />
 
     <button v-if="showFab" class="fab" @click="onFabClick" title="Nuova carta">+</button>
   </div>
@@ -30,6 +31,7 @@ import AppHeader from './components/AppHeader.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import UpdateChecker from './components/UpdateChecker.vue'
 import CardWarningPopup from './components/CardWarningPopup.vue'
+import BcWarningPopup from './components/BcWarningPopup.vue'
 
 const store = useAppStore()
 const route = useRoute()
@@ -37,6 +39,8 @@ const router = useRouter()
 
 const showWarning = ref(false)
 const warningDismissed = ref(false)
+const showBcWarning = ref(false)
+const bcWarningDismissed = ref(false)
 let pendingNavigation = null
 
 const showFab = computed(() => {
@@ -57,7 +61,10 @@ function goToNewCard() {
 
 function onFabClick() {
   const isBusiness = route.path === '/' && route.query.t === 'business'
-  if (!isBusiness && !warningDismissed.value) {
+  if (isBusiness && !bcWarningDismissed.value) {
+    pendingNavigation = () => goToNewCard()
+    showBcWarning.value = true
+  } else if (!isBusiness && !warningDismissed.value) {
     pendingNavigation = () => goToNewCard()
     showWarning.value = true
   } else {
@@ -78,6 +85,19 @@ async function dismissWarning(dontShow) {
   }
 }
 
+async function dismissBcWarning(dontShow) {
+  showBcWarning.value = false
+  if (dontShow) {
+    bcWarningDismissed.value = true
+    try { await settingsDb.set('bc_warning_dismissed', true) } catch {}
+  }
+  if (pendingNavigation) {
+    const nav = pendingNavigation
+    pendingNavigation = null
+    nav()
+  }
+}
+
 onMounted(async () => {
   store.loadCards()
   store.loadMissingLogos()
@@ -86,6 +106,10 @@ onMounted(async () => {
   try {
     const dismissed = await settingsDb.get('card_warning_dismissed')
     if (dismissed) warningDismissed.value = true
+  } catch {}
+  try {
+    const bcDismissed = await settingsDb.get('bc_warning_dismissed')
+    if (bcDismissed) bcWarningDismissed.value = true
   } catch {}
 
   if (window.Capacitor?.isNativePlatform?.()) {
