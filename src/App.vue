@@ -14,8 +14,9 @@
     </footer>
     <ToastContainer />
     <UpdateChecker />
+    <CardWarningPopup v-if="showWarning" @close="dismissWarning" />
 
-    <button v-if="showFab" class="fab" @click="goToNewCard" title="Nuova carta">+</button>
+    <button v-if="showFab" class="fab" @click="onFabClick" title="Nuova carta">+</button>
   </div>
 </template>
 
@@ -24,13 +25,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { useAppStore } from './stores/app.js'
+import { settingsDb } from './services/db.js'
 import AppHeader from './components/AppHeader.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import UpdateChecker from './components/UpdateChecker.vue'
+import CardWarningPopup from './components/CardWarningPopup.vue'
 
 const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
+
+const showWarning = ref(false)
+const warningDismissed = ref(false)
+let pendingNavigation = null
 
 const showFab = computed(() => {
   if (route.path.startsWith('/admin/')) return false
@@ -48,10 +55,38 @@ function goToNewCard() {
   }
 }
 
+function onFabClick() {
+  const isBusiness = route.path === '/' && route.query.t === 'business'
+  if (!isBusiness && !warningDismissed.value) {
+    pendingNavigation = () => goToNewCard()
+    showWarning.value = true
+  } else {
+    goToNewCard()
+  }
+}
+
+async function dismissWarning(dontShow) {
+  showWarning.value = false
+  if (dontShow) {
+    warningDismissed.value = true
+    try { await settingsDb.set('card_warning_dismissed', true) } catch {}
+  }
+  if (pendingNavigation) {
+    const nav = pendingNavigation
+    pendingNavigation = null
+    nav()
+  }
+}
+
 onMounted(async () => {
   store.loadCards()
   store.loadMissingLogos()
   store.autoUpdateLogosMonthly()
+
+  try {
+    const dismissed = await settingsDb.get('card_warning_dismissed')
+    if (dismissed) warningDismissed.value = true
+  } catch {}
 
   if (window.Capacitor?.isNativePlatform?.()) {
     try {
