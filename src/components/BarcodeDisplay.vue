@@ -6,15 +6,15 @@
 
     <Teleport to="body">
       <div v-if="barcodeExpanded" class="barcode-overlay" @click="barcodeExpanded = false">
-        <div class="barcode-overlay-inner" @click.stop>
+        <div class="barcode-overlay-inner">
           <svg ref="barcodeFullscreenSvg" class="barcode-fullscreen"></svg>
         </div>
       </div>
     </Teleport>
 
     <Teleport to="body">
-      <div v-if="isQr && qrExpanded" class="barcode-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
-        <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" @click.stop="qrExpanded = false; qrLargeUrl = ''" />
+      <div v-if="qrExpanded" class="barcode-overlay" @click="qrExpanded = false; qrLargeUrl = ''">
+        <img :src="qrLargeUrl || qrDataUrl" alt="QR Code" class="qr-expanded" />
       </div>
     </Teleport>
   </div>
