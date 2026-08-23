@@ -1,5 +1,17 @@
 <template>
   <div class="settings">
+    <!-- 0) Importa le tessere da altre App -->
+    <div class="card settings-card">
+      <div class="settings-header">
+        <svg class="settings-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="#28a745"/></svg>
+        <h3>Importa le tessere da altre App</h3>
+      </div>
+      <p class="section-desc"><strong>FidAPPti</strong> ti permette di importare i dati delle tue tessere da applicazioni precedentemente utilizzate in modo semplice ed intuitivo.</p>
+      <button class="btn btn-primary btn-block" @click="showImportInfo = true">
+        Scopri come fare!
+      </button>
+    </div>
+
     <!-- 1) Backup Tessere Fedeltà -->
     <div class="card settings-card">
       <div class="settings-header">
@@ -182,6 +194,35 @@
       </div>
       <hr class="divider" />
     </div>
+
+    <!-- Import guide popup -->
+    <Teleport to="body">
+      <div v-if="showImportInfo" class="ig-overlay" @click.self="showImportInfo = false">
+        <div class="ig-popup">
+          <div class="ig-icon">
+            <svg viewBox="0 0 24 24" width="44" height="44">
+              <circle cx="12" cy="12" r="12" fill="#28a745"/>
+              <text x="12" y="17" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="sans-serif">i</text>
+            </svg>
+          </div>
+          <h3 class="ig-title">Come importare le tessere da altre applicazioni</h3>
+          <div class="ig-text ig-scroll">
+            <p>Per importare le tessere che utilizzavi su altre applicazioni devi procedere in questo modo:</p>
+            <ol>
+              <li>Apri la vecchia applicazione e fai uno screenshot dei codici a barre delle tessere che vuoi importare in <strong>FidAPPti</strong>;</li>
+              <li>In <strong>FidAPPti</strong> tocca l'icona rotonda in basso a destra con il simbolo "+" ;</li>
+              <li>Inserisci il nome del negozio che vuoi importare. Se esiste un logo ad esso associato verrà mostrato subito;</li>
+              <li>Tocca l'icona del codice a barre;</li>
+              <li>Tocca il tasto "Importa da altra App". Se non fosse visibile fai prima un tap su "Ferma fotocamera";</li>
+              <li>Seleziona l'immagine relativa alla tessera da importare;</li>
+              <li>Aggiungi eventuali dati aggiuntivi (nome del titolare della tessera o altre informazioni non sensibili);</li>
+              <li>Salva.</li>
+            </ol>
+          </div>
+          <button class="ig-btn" @click="showImportInfo = false">Ho capito!</button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -224,6 +265,7 @@ const vcfShareMessage = ref('')
 const vcfShareDefault = VCF_SHARE_DEFAULT_MESSAGE.replace('{nome}', '<cognome> <nome>')
 const savingVcfMessage = ref(false)
 const vcfShareSaved = ref('')
+const showImportInfo = ref(false)
 
 function loadErrorLog() {
   try {
@@ -761,4 +803,73 @@ function setPreferredCamera(cameraId) {
 .camera-id { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
 .camera-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .btn-sm { padding: 4px 12px; font-size: 12px; }
+.ig-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ig-popup {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 24px 24px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.ig-icon { margin-bottom: 12px; flex-shrink: 0; }
+.ig-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.ig-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  text-align: left;
+  flex: 1;
+  min-height: 0;
+}
+.ig-scroll p {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.ig-scroll ol {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+  padding-left: 20px;
+  margin: 0;
+}
+.ig-scroll ol li {
+  margin-bottom: 8px;
+}
+.ig-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #28a745;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  margin-top: 16px;
+}
+.ig-btn:active { background: #218838; }
 </style>

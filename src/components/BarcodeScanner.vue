@@ -45,9 +45,9 @@
             </svg>
           </button>
         </div>
-        <label class="btn btn-outline btn-block upload-label">
-          Carica immagine
-          <input type="file" accept="image/*" hidden @change="onFileUpload" />
+        <label class="btn btn-outline btn-block upload-label" @click.prevent="onUploadClick">
+          Importa da altra App
+          <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileUpload" />
         </label>
       </div>
 
@@ -56,6 +56,7 @@
         <template v-if="torchOn"> · Flash attivo</template>
       </p>
     </div>
+    <ImportGuidePopup v-if="showImportGuide" @close="dismissImportGuide" />
   </div>
 </template>
 
@@ -63,6 +64,8 @@
 import { ref, onBeforeUnmount, watch, nextTick } from 'vue'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { detectBarcodeType } from '../utils/barcodeUtils.js'
+import { settingsDb } from '../services/db.js'
+import ImportGuidePopup from './ImportGuidePopup.vue'
 
 const emit = defineEmits(['scan', 'close'])
 const props = defineProps({
@@ -76,6 +79,9 @@ const loading = ref(false)
 const loadingMsg = ref('')
 const error = ref('')
 const torchOn = ref(false)
+const showImportGuide = ref(false)
+const importGuideDismissed = ref(false)
+const fileInput = ref(null)
 
 let localStream = null
 let scanInterval = null
@@ -204,7 +210,7 @@ async function startCamera() {
       detector = new BarcodeDetector({ formats: supported })
       scanLoop()
     } else {
-      error.value = 'BarcodeDetector non supportato su questo dispositivo. Usa "Carica immagine".'
+      error.value = 'BarcodeDetector non supportato su questo dispositivo. Usa "Importa da altra App".'
     }
   } catch (e) {
     if (e.name === 'NotAllowedError' || e.message?.includes('NotAllowed')) {
@@ -250,6 +256,23 @@ async function toggleTorch() {
   } catch {
     torchOn.value = false
   }
+}
+
+async function onUploadClick() {
+  if (importGuideDismissed.value) {
+    fileInput.value?.click()
+  } else {
+    showImportGuide.value = true
+  }
+}
+
+async function dismissImportGuide(dontShow) {
+  showImportGuide.value = false
+  if (dontShow) {
+    importGuideDismissed.value = true
+    try { await settingsDb.set('import_guide_dismissed', true) } catch {}
+  }
+  fileInput.value?.click()
 }
 
 async function stopCamera() {
@@ -328,6 +351,10 @@ async function close() {
 watch(() => props.active, async (val) => {
   if (val) {
     error.value = ''
+    try {
+      const dismissed = await settingsDb.get('import_guide_dismissed')
+      if (dismissed) importGuideDismissed.value = true
+    } catch {}
     await startCamera()
   } else {
     await stopCamera()
