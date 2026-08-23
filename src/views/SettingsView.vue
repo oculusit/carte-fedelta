@@ -215,7 +215,7 @@
               <li>Tocca l'icona del codice a barre;</li>
               <li>Tocca il tasto "Importa da altra App". Se non fosse visibile fai prima un tap su "Ferma fotocamera";</li>
               <li>Seleziona l'immagine relativa alla tessera da importare;</li>
-              <li>Aggiungi eventuali dati aggiuntivi (nome del titolare della tessera o altre informazioni non sensibili);</li>
+              <li>Inserisci eventuali dati aggiuntivi (nome del titolare della tessera o altre informazioni non sensibili);</li>
               <li>Salva.</li>
             </ol>
           </div>
