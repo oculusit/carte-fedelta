@@ -47,7 +47,7 @@
         </div>
         <div class="btn btn-outline btn-block upload-label" @click="onUploadClick">
           Importa da altra App
-          <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileUpload" />
+          <input ref="fileInput" type="file" accept="image/*" hidden @click.stop @change="onFileUpload" />
         </div>
       </div>
 
