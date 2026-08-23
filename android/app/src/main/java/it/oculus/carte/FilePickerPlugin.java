@@ -150,7 +150,7 @@ public class FilePickerPlugin extends Plugin {
         ContentValues values = new ContentValues();
         values.put(MediaStore.Downloads.DISPLAY_NAME, filename);
         values.put(MediaStore.Downloads.MIME_TYPE, "application/json");
-        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+        values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/FidAPPti");
 
         Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
 
@@ -174,7 +174,7 @@ public class FilePickerPlugin extends Plugin {
 
         Log.d(TAG, "Written " + bytes.length + " bytes via MediaStore");
 
-        String downloadPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + filename;
+        String downloadPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FidAPPti/" + filename;
 
         JSObject result = new JSObject();
         result.put("uri", uri.toString());
@@ -185,7 +185,7 @@ public class FilePickerPlugin extends Plugin {
     }
 
     private void saveWithExternalFilesDir(PluginCall call, String filename, byte[] bytes) throws Exception {
-        File dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        File dir = new File(getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "FidAPPti");
         if (dir == null) {
             call.reject("Cartella Download non disponibile");
             return;
@@ -260,13 +260,14 @@ public class FilePickerPlugin extends Plugin {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                Uri treeUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload");
+                Uri treeUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload%2FFidAPPti");
                 intent.setDataAndType(treeUri, "vnd.android.document/directory");
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             } else {
-                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "FidAPPti");
                 if (dir == null || !dir.exists()) {
-                    dir = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                    File fallback = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                    dir = fallback != null ? new File(fallback, "FidAPPti") : null;
                 }
                 if (dir == null) {
                     call.reject("Cartella Download non disponibile");

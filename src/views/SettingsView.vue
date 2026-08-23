@@ -6,13 +6,13 @@
         <svg class="settings-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM18 6h-5c-1.1 0-2 .9-2 2v2.28c-.6.35-1 .98-1 1.72 0 1.1.9 2 2 2s2-.9 2-2c0-.74-.4-1.38-1-1.72V8h3v8H8V8h2V6H6v12h12V6z"/></svg>
         <h3>Backup Tessere Fedeltà</h3>
       </div>
-      <p class="section-desc">Esporta le tue tessere in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <p class="section-desc">Crea una copia del tuo archivio tessere fedeltà o ripristina una copia esistente (ad esempio se hai cambiato telefono o se vuoi condividere le tue tessere con un familiare).</p>
       <div class="backup-row">
-        <button class="btn btn-primary btn-block" @click="exportCardsBackup" :disabled="exportingCards">
-          {{ exportingCards ? 'Esportazione...' : 'Esporta backup' }}
+        <button class="btn btn-outline btn-block" @click="exportCardsBackup" :disabled="exportingCards">
+          {{ exportingCards ? 'Esportazione...' : 'Esporta' }}
         </button>
         <button class="btn btn-outline btn-block" @click="triggerImport('cards')">
-          Importa backup
+          Importa
         </button>
         <input v-if="!Capacitor.isNativePlatform()" ref="importCardsInput" type="file" accept=".json" @change="importBackupFromInput($event, 'cards')" hidden />
       </div>
@@ -25,13 +25,13 @@
         <svg class="settings-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
         <h3>Backup Biglietti da Visita</h3>
       </div>
-      <p class="section-desc">Esporta i tuoi biglietti in un file JSON che puoi salvare o condividere. Puoi anche importare un backup precedente.</p>
+      <p class="section-desc">Crea una copia dei tuoi Biglietti da Visita o ripristina una copia esistente (ad esempio se hai cambiato telefono o se vuoi averne una copia anche sul telefono di lavoro o personale).</p>
       <div class="backup-row">
-        <button class="btn btn-primary btn-block" @click="exportBcBackup" :disabled="exportingBc">
-          {{ exportingBc ? 'Esportazione...' : 'Esporta backup' }}
+        <button class="btn btn-outline btn-block" @click="exportBcBackup" :disabled="exportingBc">
+          {{ exportingBc ? 'Esportazione...' : 'Esporta' }}
         </button>
         <button class="btn btn-outline btn-block" @click="triggerImport('bc')">
-          Importa backup
+          Importa
         </button>
         <input v-if="!Capacitor.isNativePlatform()" ref="importBcInput" type="file" accept=".json" @change="importBackupFromInput($event, 'bc')" hidden />
       </div>
