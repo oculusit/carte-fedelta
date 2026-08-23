@@ -8,7 +8,7 @@
       </div>
       <p class="section-desc">Crea una copia del tuo archivio tessere fedeltà o ripristina una copia esistente (ad esempio se hai cambiato telefono o se vuoi condividere le tue tessere con un familiare).</p>
       <div class="backup-row">
-        <button class="btn btn-outline btn-block" @click="exportCardsBackup" :disabled="exportingCards">
+        <button class="btn btn-primary btn-block" @click="exportCardsBackup" :disabled="exportingCards">
           {{ exportingCards ? 'Esportazione...' : 'Esporta' }}
         </button>
         <button class="btn btn-outline btn-block" @click="triggerImport('cards')">
@@ -27,7 +27,7 @@
       </div>
       <p class="section-desc">Crea una copia dei tuoi Biglietti da Visita o ripristina una copia esistente (ad esempio se hai cambiato telefono o se vuoi averne una copia anche sul telefono di lavoro o personale).</p>
       <div class="backup-row">
-        <button class="btn btn-outline btn-block" @click="exportBcBackup" :disabled="exportingBc">
+        <button class="btn btn-primary btn-block" @click="exportBcBackup" :disabled="exportingBc">
           {{ exportingBc ? 'Esportazione...' : 'Esporta' }}
         </button>
         <button class="btn btn-outline btn-block" @click="triggerImport('bc')">
