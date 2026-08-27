@@ -246,6 +246,12 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
       $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
       $logoData = 'data:' . $mime . ';base64,' . base64_encode($fileData);
     }
+    // Prevent duplicate name collision on insert
+    $stmt = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE LOWER(name) = LOWER(?)');
+    $stmt->execute([$name]);
+    if ($stmt->fetch()) {
+      echo json_encode(['error' => 'Esiste già un negozio con il nome "' . $name . '"']); exit;
+    }
     $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, aliases, color, status) VALUES (?, \'upload\', ?, ?, ?, ?, \'approved\')')->execute([$name, $safeName, $logoData, $aliases, $color]);
     $reqId = (int)($_POST['request_id'] ?? 0);
     if ($reqId) {
@@ -262,6 +268,12 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     $color = trim($_POST['color'] ?? '');
     if (!$name || !$id) { echo json_encode(['error' => 'Dati mancanti']); exit; }
     if ($color === '' || !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
+    // Prevent duplicate name collision: if another store (different id) already has this name
+    $stmt = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE LOWER(name) = LOWER(?) AND id != ?');
+    $stmt->execute([$name, $id]);
+    if ($stmt->fetch()) {
+      echo json_encode(['error' => 'Esiste già un negozio con il nome "' . $name . '"']); exit;
+    }
     $fields = ['name = ?', 'aliases = ?', 'color = ?'];
     $params = [$name, $aliases, $color];
     if (isset($_FILES['logo_file']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
