@@ -617,6 +617,10 @@ try {
   $stmt->execute($params);
   $stores = $stmt->fetchAll();
 } catch(Exception $e) { $totalStores = 0; $totalPages = 1; }
+
+// All stores (unfiltered, unpaginated) used only for the infographic
+$allStores = [];
+try { $allStores = $db->query('SELECT id, name, logo_type, logo_path, logo_data FROM ' . TABLE_STORES)->fetchAll(); } catch(Exception $e) {}
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -1508,7 +1512,7 @@ async function saveVersionConfig(e) {
 // ── Logo Infographic ──
 const LOGO_DATA = <?php
   $logoList = [];
-  foreach ($stores as $s) {
+  foreach ($allStores as $s) {
     $src = '';
     if (!empty($s['logo_data']) && preg_match('/^data:image\//', $s['logo_data'])) {
       $src = $s['logo_data'];
