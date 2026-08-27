@@ -523,8 +523,36 @@ $sortMode = $_GET['sort'] ?? 'name';
 $sortMode = in_array($sortMode, ['name', 'downloads'], true) ? $sortMode : 'name';
 $orderBy = $sortMode === 'downloads' ? 'downloads DESC, name ASC' : 'name ASC';
 
+// Letter filter (0 = non-alphabetic, a-z = first letter)
+$letter = strtoupper(trim($_GET['letter'] ?? ''));
+if ($letter !== '' && !preg_match('/^[A-Z0-9]$/', $letter)) $letter = '';
+$perPage = 50;
+$page = max(1, (int)($_GET['page'] ?? 1));
+
+$where = '';
+$params = [];
+if ($letter !== '') {
+  if ($letter === '0') {
+    $where = "WHERE (name NOT REGEXP '^[a-zA-Z]')";
+  } else {
+    $where = "WHERE name LIKE ? COLLATE utf8mb4_bin";
+    $params[] = $letter . '%';
+  }
+}
+
 $stores = [];
-try { $stores = $db->query('SELECT id, name, aliases, color, downloads, logo_type, logo_path, logo_data, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ORDER BY ' . $orderBy)->fetchAll(); } catch(Exception $e) {}
+try {
+  $countStmt = $db->prepare('SELECT COUNT(*) FROM ' . TABLE_STORES . ' ' . $where);
+  $countStmt->execute($params);
+  $totalStores = (int)$countStmt->fetchColumn();
+  $totalPages = max(1, (int)ceil($totalStores / $perPage));
+  if ($page > $totalPages) $page = $totalPages;
+  $offset = ($page - 1) * $perPage;
+  $sql = 'SELECT id, name, aliases, color, downloads, logo_type, logo_path, logo_data, status, LENGTH(logo_data) AS logo_size_bytes FROM ' . TABLE_STORES . ' ' . $where . ' ORDER BY ' . $orderBy . ' LIMIT ' . (int)$perPage . ' OFFSET ' . (int)$offset;
+  $stmt = $db->prepare($sql);
+  $stmt->execute($params);
+  $stores = $stmt->fetchAll();
+} catch(Exception $e) { $totalStores = 0; $totalPages = 1; }
 ?><!DOCTYPE html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Carte Fedeltà</title>
@@ -572,6 +600,14 @@ tr:hover td{background:#f8f9fa}
 .tag-approved{background:#d4edda;color:#155724}
 .tag-rejected{background:#f8d7da;color:#721c24}
 .tag-super{background:#e8eaf6;color:#283593}
+.letter-filter{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
+.letter-filter a{display:inline-block;min-width:30px;padding:6px 8px;text-align:center;background:#f0f2f5;color:#333;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.letter-filter a:hover{background:#e0e4e9}
+.letter-filter a.active{background:#1a73e8;color:#fff}
+.pagination{display:flex;gap:4px;flex-wrap:wrap;margin-top:14px;justify-content:center}
+.pagination a{display:inline-block;min-width:32px;padding:6px 10px;text-align:center;background:#f0f2f5;color:#333;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.pagination a:hover{background:#e0e4e9}
+.pagination a.active{background:#1a73e8;color:#fff}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;z-index:9999;display:none}
 .toast.show{display:block}
 .logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
@@ -723,17 +759,24 @@ tr:hover td{background:#f8f9fa}
   </div>
 
   <div class="card">
-    <h2>Loghi Approvati (<?= count($stores) ?>)</h2>
+    <h2>Loghi Approvati (<?= $totalStores ?>)</h2>
     <?php if (empty($stores)): ?>
     <p style="color:#999;font-size:14px">Nessun negozio registrato.</p>
     <?php else: ?>
+      <div class="letter-filter">
+        <a href="?sort=<?= $sortMode ?>">Tutti</a>
+        <a href="?letter=0&sort=<?= $sortMode ?>" class="<?= $letter === '0' ? 'active' : '' ?>">0</a>
+        <?php foreach (range('A', 'Z') as $L): ?>
+        <a href="?letter=<?= $L ?>&sort=<?= $sortMode ?>" class="<?= $letter === $L ? 'active' : '' ?>"><?= $L ?></a>
+        <?php endforeach; ?>
+      </div>
       <table>
       <tr>
-        <th><a href="?sort=name" style="text-decoration:none;color:inherit">Negozio <?= $sortMode === 'name' ? '↓' : '' ?></a></th>
+        <th><a href="?sort=name&letter=<?= $letter ?>&page=<?= $page ?>" style="text-decoration:none;color:inherit">Negozio <?= $sortMode === 'name' ? '↓' : '' ?></a></th>
         <th>Logo</th>
         <th>Alias</th>
         <th>Colore</th>
-        <th><a href="?sort=downloads" style="text-decoration:none;color:inherit" title="Ordina per numero di download">Download <?= $sortMode === 'downloads' ? '↓' : '' ?></a></th>
+        <th><a href="?sort=downloads&letter=<?= $letter ?>&page=<?= $page ?>" style="text-decoration:none;color:inherit" title="Ordina per numero di download">Download <?= $sortMode === 'downloads' ? '↓' : '' ?></a></th>
         <th></th>
       </tr>
       <?php foreach ($stores as $s):
@@ -793,6 +836,19 @@ tr:hover td{background:#f8f9fa}
       </tr>
       <?php endforeach; ?>
     </table>
+    <?php if ($totalPages > 1): ?>
+      <div class="pagination">
+        <?php if ($page > 1): ?>
+          <a href="?sort=<?= $sortMode ?>&letter=<?= $letter ?>&page=<?= $page - 1 ?>">&laquo; Prev</a>
+        <?php endif; ?>
+        <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+          <a href="?sort=<?= $sortMode ?>&letter=<?= $letter ?>&page=<?= $p ?>" class="<?= $p === $page ? 'active' : '' ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <?php if ($page < $totalPages): ?>
+          <a href="?sort=<?= $sortMode ?>&letter=<?= $letter ?>&page=<?= $page + 1 ?>">Next &raquo;</a>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
     <?php endif; ?>
   </div>
 </div>
