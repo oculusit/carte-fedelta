@@ -342,6 +342,12 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     $id = (int)($_POST['id'] ?? 0);
     $storeName = trim($_POST['store_name'] ?? '');
     if (!$storeName) { echo json_encode(['error' => 'Nome negozio obbligatorio']); exit; }
+    // Prevent duplicate name collision
+    $dup = $db->prepare('SELECT id FROM ' . TABLE_STORES . ' WHERE LOWER(name) = LOWER(?)');
+    $dup->execute([$storeName]);
+    if ($dup->fetch()) {
+      echo json_encode(['error' => 'Esiste già un negozio con il nome "' . $storeName . '"']); exit;
+    }
     $color = trim($_POST['color'] ?? '');
     if ($color === '' || !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = null;
     $logoData = null;
