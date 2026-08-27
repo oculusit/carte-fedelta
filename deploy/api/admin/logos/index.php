@@ -898,8 +898,8 @@ tr:hover td{background:#f8f9fa}
         </td>
         <td style="text-align:center;font-weight:600"><?= (int)($s['downloads'] ?? 0) ?></td>
         <td style="white-space:nowrap">
-          <button class="btn btn-outline btn-sm" onclick="editStore(<?= htmlspecialchars(json_encode($s), ENT_QUOTES) ?>)">Modifica</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= $s['id'] ?>)">Elimina</button>
+          <button class="btn btn-outline btn-sm" onclick="editStore(<?= (int)$s['id'] ?>)">Modifica</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStore(<?= (int)$s['id'] ?>)">Elimina</button>
         </td>
       </tr>
       <?php endforeach; ?>
@@ -1222,6 +1222,8 @@ async function uploadStore(e) {
 }
 
 function editStore(store) {
+  if (typeof store === 'number') store = STORE_DATA[store] || null;
+  if (!store) { toast('Errore: negozio non trovato'); return; }
   document.getElementById('edit-store-id').value = store.id;
   document.getElementById('edit-store-name').value = store.name;
   document.getElementById('edit-store-aliases').value = (store.aliases || '').replace(/\n/g, '\n');
@@ -1522,6 +1524,22 @@ const LOGO_DATA = <?php
     if ($src) $logoList[] = ['name' => $s['name'], 'src' => $src];
   }
   echo json_encode($logoList);
+?>;
+
+// Store records for the "Modifica" dialog (keyed by id). Built in a <script> block
+// (not inside onclick), so names with apostrophes/quotes can't break the HTML.
+const STORE_DATA = <?php
+  $storeMap = [];
+  foreach ($stores as $s) {
+    $storeMap[$s['id']] = [
+      'id' => $s['id'],
+      'name' => $s['name'],
+      'aliases' => $s['aliases'] ?? '',
+      'color' => $s['color'] ?? '',
+      'logo_path' => $s['logo_path'] ?? '',
+    ];
+  }
+  echo json_encode($storeMap);
 ?>;
 
 async function generateInfographic() {
