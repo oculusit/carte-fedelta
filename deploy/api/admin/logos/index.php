@@ -7,6 +7,52 @@ require_once __DIR__ . '/../../migrate.php';
 
 if (!defined('BACKEND_VERSION')) define('BACKEND_VERSION', '1.2.5.back');
 
+// ── Global error handler: intercept DB/duplicate errors and return a usable message ──
+set_exception_handler(function (Throwable $e) {
+  $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['action']);
+  $isPdo = $e instanceof PDOException;
+  $dupEntry = $isPdo && (int)$e->getCode() === 23000;
+
+  if ($dupEntry) {
+    $msg = 'C\'è già un negozio con lo stesso nome, oppure un dato duplicato nel database.';
+    if (preg_match("/Duplicate entry '([^']*)' for key '([^']+)'/", $e->getMessage(), $m)) {
+      $msg = 'Esiste già un record con il valore "' . $m[1] . '" (per il campo "' . $m[2] . '"). Puoi eliminare o modificare la riga errata dalla lista Loghi Approvati.';
+    }
+  } else {
+    $msg = 'Si è verificato un errore nel database: ' . $e->getMessage();
+  }
+
+  if ($isPost) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => $msg, 'reset' => true]);
+    exit;
+  }
+
+  http_response_code(500);
+  ?><!DOCTYPE html>
+  <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Errore - Carte Fedeltà</title>
+  <style>
+  *{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#f0f2f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .card{background:#fff;border-radius:12px;padding:32px;width:480px;max-width:100%;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center}
+  h1{font-size:22px;color:#c5221f;margin-bottom:12px}
+  p{font-size:14px;color:#555;margin-bottom:18px;line-height:1.5}
+  .wrap{background:#fdecec;border:1px solid #f5c6c6;border-radius:8px;padding:12px;font-size:13px;color:#8a1f1f;margin-bottom:18px;word-break:break-word}
+  .btn{display:inline-block;padding:10px 20px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:14px;text-decoration:none;cursor:pointer;margin:4px}
+  .btn:hover{background:#1557b0}
+  .btn.secondary{background:#6c757d}.btn.secondary:hover{background:#5a6268}
+  </style>
+  </head><body><div class="card">
+  <h1>&#9888; Errore nel database</h1>
+  <p>Non è stato possibile completare l'operazione a causa di un problema con i dati dei negozi.</p>
+  <div class="wrap"><?= htmlspecialchars($msg) ?></div>
+  <p style="font-size:13px;color:#777">Vai sui <strong>Loghi Approvati</strong>, trova il negozio indicato e modificane il nome o eliminalo con il pulsante <strong>Elimina</strong>, poi ricarica la pagina.</p>
+  <a class="btn" href="?">&#8635; Torna al pannello</a>
+  <a class="btn secondary" href="?action_reload=1" onclick="event.preventDefault();location.reload()">Ricarica pagina</a>
+  </div></body></html><?php
+  exit;
+});
+ignore_user_abort(false);
+
 // Run migration on admin panel too (separate entry point from api/index.php)
 try {
   $mDb = new PDO('mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
@@ -361,10 +407,18 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
       if (move_uploaded_file($_FILES['logo_file']['tmp_name'], $uploadDir . $safeName)) {
         $mime = mime_content_type($uploadDir . $safeName) ?: 'image/' . $ext;
         $logoData = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($uploadDir . $safeName));
-        $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, color, status) VALUES (?, \'upload\', ?, ?, ?, \'approved\')')->execute([$storeName, $safeName, $logoData, $color]);
+        try {
+          $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, color, status) VALUES (?, \'upload\', ?, ?, ?, \'approved\')')->execute([$storeName, $safeName, $logoData, $color]);
+        } catch (Exception $e) {
+          echo json_encode(['error' => 'Esiste già un negozio con il nome "' . $storeName . '"']); exit;
+        }
       }
     } else {
-      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, color, status) VALUES (?, ?, \'approved\')')->execute([$storeName, $color]);
+      try {
+        $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, color, status) VALUES (?, ?, \'approved\')')->execute([$storeName, $color]);
+      } catch (Exception $e) {
+        echo json_encode(['error' => 'Esiste già un negozio con il nome "' . $storeName . '"']); exit;
+      }
     }
     if ($id) {
       $db->prepare('UPDATE ' . DB_PREFIX . 'missing_logos SET resolved = 1 WHERE id = ?')->execute([$id]);
@@ -512,13 +566,17 @@ $imgExts = ['webp','png','jpg','jpeg','svg'];
 $imgFiles = array_filter($customFiles, function($f) use ($imgExts) { return in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), $imgExts); });
 if ($imgFiles) {
   $existingNames = [];
-  try { $rows = $db->query('SELECT name FROM ' . TABLE_STORES)->fetchAll(); $existingNames = array_map('strtolower', array_column($rows, 'name')); } catch(Exception $e) {}
+  try { $rows = $db->query('SELECT name FROM ' . TABLE_STORES)->fetchAll(); $existingNames = array_map('strtolower', array_map('trim', array_column($rows, 'name'))); } catch(Exception $e) {}
   foreach ($imgFiles as $f) {
-    $storeName = pathinfo($f, PATHINFO_FILENAME);
+    $storeName = trim(pathinfo($f, PATHINFO_FILENAME));
     if (in_array(strtolower($storeName), $existingNames)) continue;
     $mime = mime_content_type($uploadDir . $f) ?: 'image/' . pathinfo($f, PATHINFO_EXTENSION);
     $b64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($uploadDir . $f));
-    $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$storeName, $f, $b64]);
+    try {
+      $db->prepare('INSERT INTO ' . TABLE_STORES . ' (name, logo_type, logo_path, logo_data, status) VALUES (?, \'upload\', ?, ?, \'approved\')')->execute([$storeName, $f, $b64]);
+    } catch (Exception $e) {
+      // Skip if name already exists (trailing-space / collation edge cases)
+    }
     $existingNames[] = strtolower($storeName);
   }
 }
@@ -1050,15 +1108,23 @@ async function postAction(action, data) {
   return res.json();
 }
 
+function handleActionError(r) {
+  const msg = r.error || 'Errore sconosciuto';
+  toast('Errore: ' + msg);
+  if (r.reset) {
+    setTimeout(function(){ location.href = '?'; }, 2500);
+  }
+}
+
 async function approveLogo(id) {
   const r = await postAction('approve_logo', { id });
-  if (r.success) { toast('Logo approvato!'); reloadToSection('logos-queue'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Logo approvato!'); reloadToSection('logos-queue'); } else { handleActionError(r); }
 }
 
 async function rejectLogo(id) {
   if (!confirm('Rifiutare questo logo?')) return;
   const r = await postAction('reject_logo', { id });
-  if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { toast('Errore'); }
+  if (r.success) { toast('Logo rifiutato'); reloadToSection('logos-queue'); } else { handleActionError(r); }
 }
 
 let pendingRequestId = null;
@@ -1081,7 +1147,7 @@ function createStoreFromRequest(id, storeName) {
 
 async function dismissRequest(id) {
   const r = await postAction('dismiss_request', { id });
-  if (r.success) { toast('Richiesta ignorata'); reloadToSection('missing-stores'); } else { toast('Errore'); }
+  if (r.success) { toast('Richiesta ignorata'); reloadToSection('missing-stores'); } else { handleActionError(r); }
 }
 
 async function createAdmin(e) {
@@ -1091,12 +1157,12 @@ async function createAdmin(e) {
     password: document.getElementById('new-admin-pass').value,
     role: document.getElementById('new-admin-role').value,
   });
-  if (r.success) { toast('Amministratore creato!'); reloadToSection('admins'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Amministratore creato!'); reloadToSection('admins'); } else { handleActionError(r); }
 }
 
 async function deleteAdmin(id) {
   const r = await postAction('delete_admin', { id });
-  if (r.success) { toast('Amministratore rimosso'); reloadToSection('admins'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Amministratore rimosso'); reloadToSection('admins'); } else { handleActionError(r); }
 }
 
 async function saveMailConfig(e) {
@@ -1130,7 +1196,7 @@ async function changePassword(e) {
     new_password: document.getElementById('new-pass').value,
   });
   if (r.success) { toast('Password aggiornata!'); document.getElementById('cur-pass').value = ''; document.getElementById('new-pass').value = ''; }
-  else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  else { handleActionError(r); }
 }
 
 async function uploadStore(e) {
@@ -1148,7 +1214,7 @@ async function uploadStore(e) {
     pendingRequestId = null;
     toast('Negozio creato!');
     reloadToSection('custom-logos');
-  } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  } else { handleActionError(r); }
 }
 
 function editStore(store) {
@@ -1196,7 +1262,7 @@ async function saveStore(e) {
   }
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Negozio aggiornato!'); reloadToSection('custom-logos'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Negozio aggiornato!'); reloadToSection('custom-logos'); } else { handleActionError(r); }
 }
 
 async function deleteStore(id) {
@@ -1206,7 +1272,7 @@ async function deleteStore(id) {
   fd.append('id', id);
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { document.getElementById('store-' + id)?.remove(); toast('Negozio eliminato'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { document.getElementById('store-' + id)?.remove(); toast('Negozio eliminato'); } else { handleActionError(r); }
 }
 
 async function resetUserPassword(userId, email) {
@@ -1218,7 +1284,7 @@ async function resetUserPassword(userId, email) {
   fd.append('new_password', newPass);
   const res = await fetch('', { method: 'POST', body: fd });
   const r = await res.json();
-  if (r.success) { toast('Password aggiornata!'); } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  if (r.success) { toast('Password aggiornata!'); } else { handleActionError(r); }
 }
 
 // ── Crop logic ──
@@ -1427,7 +1493,7 @@ uploadStore = async function(e) {
     pendingRequestId = null;
     toast('Negozio creato!');
     reloadToSection('custom-logos');
-  } else { toast('Errore: ' + (r.error || 'sconosciuto')); }
+  } else { handleActionError(r); }
 };
 
 async function saveVersionConfig(e) {
