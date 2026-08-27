@@ -352,6 +352,24 @@ if (panelIsLoggedIn() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
   if ($action === 'delete_store') {
     $id = (int)($_POST['id'] ?? 0);
     if (!$id) { echo json_encode(['error' => 'ID mancante']); exit; }
+    // Delete the logo file on disk too, otherwise the file-sync block re-creates the row
+    try {
+      $stmt = $db->prepare('SELECT id, name, logo_path FROM ' . TABLE_STORES . ' WHERE id = ?');
+      $stmt->execute([$id]);
+      $row = $stmt->fetch();
+      if ($row && !empty($row['logo_path'])) {
+        $uploadDir = __DIR__ . '/../../../uploads/logos/';
+        $file = basename($row['logo_path']);
+        $path = $uploadDir . $file;
+        if ($file && $file !== '.' && $file !== '..' && file_exists($path)) @unlink($path);
+        // Also remove any file matching the store name with known extensions
+        $safeCheck = str_replace(['/', '\\', "\0"], '_', $row['name']);
+        foreach (['webp','png','jpg','jpeg','svg'] as $ext) {
+          $p = $uploadDir . $safeCheck . '.' . $ext;
+          if (file_exists($p)) @unlink($p);
+        }
+      }
+    } catch (Exception $e) {}
     $db->prepare('DELETE FROM ' . TABLE_STORES . ' WHERE id = ?')->execute([$id]);
     echo json_encode(['success' => true]);
     exit;
