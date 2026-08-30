@@ -1,0 +1,21 @@
+{
+  "name": "FidAPPti Source",
+  "identifier": "com.oculus.fidappti.source",
+  "apps": [
+    {
+      "name": "FidAPPti",
+      "bundleIdentifier": "it.oculus.carte",
+      "developerName": "Alessandro Oculus Blasi",
+      "subtitle": "Carte fedeltà digitali, biglietti da visita e NFC",
+      "localizedDescription": "FidAPPti è il tuo portafoglio digitale per carte fedeltà e biglietti da visita. Salva i loghi, scansiona codici a barre e QR, condividi i tuoi biglietti via vCard, NFC e altro ancora. Tutto salvato in modo sicuro sul tuo dispositivo.",
+      "iconURL": "https://fidapptiweb.altervista.org/fidappti-logo.png",
+      "tintColor": "1a73e8",
+      "size": 0,
+      "version": "1.3.1",
+      "versionDate": "2026-08-30T00:00:00Z",
+      "downloadURL": "https://fidapptiweb.altervista.org/FidAPPti.ipa",
+      "screenshotURLs": [],
+      "versionDescription": "Versione iOS di FidAPPti. Compatibile con iOS 15+."
+    }
+  ]
+}
