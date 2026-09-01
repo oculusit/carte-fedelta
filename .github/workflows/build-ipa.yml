@@ -33,12 +33,12 @@ jobs:
         run: npx cap sync ios
 
       - name: List schemes (debug)
-        run: xcodebuild -list -workspace ios/App/App.xcworkspace
+        run: xcodebuild -list -project ios/App/App.xcodeproj
 
       - name: Archive unsigned
         run: |
           xcodebuild \
-            -workspace ios/App/App.xcworkspace \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
             -archivePath build/App.xcarchive \
