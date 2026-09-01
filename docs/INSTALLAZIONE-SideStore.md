@@ -59,7 +59,7 @@ Apri il programma SideStore. Vedrai un'icona, di solito in basso a destra
 A questo punto ti chiederà il **tuo Apple ID** (email e password). Inseriscili
 — serviranno solo a firmare le app, è normale.
 
-> 🛑 Se hai il "protezione di due fattori" attivo (consigliato!), ti manderà
+> 🛑 Se hai la "protezione di due fattori" attivo (consigliato!), ti manderà
 > un **codice sul telefono**: scrivilo quando te lo chiede.
 
 Attendi qualche minuto. Alla fine vedrai l'icona **SideStore** apparire
@@ -134,6 +134,28 @@ tanto: **non devi fare più nulla**, FidAPPti non ti scade più.
 
 > 💡 Suggerimento: se puoi, lascia il computer acceso o avvia il Server quando
 > usi il telefono. È l'unico "lavoretto" che serve.
+
+---
+
+## 🛡️ E i miei dati? Si perdono se l'app scade?
+
+**No, tranquillo: i tuoi dati NON si perdono.**
+
+Tessere, biglietti da visita, loghi e impostazioni sono salvati **sul tuo
+telefono** (nella memoria dell'app), non sul computer. Quando la firma scade,
+iOS si limita a non far **aprire** più l'app: **non cancella i dati dentro il
+telefono**.
+
+Quindi anche se vai in vacanza e la firma scade:
+
+1. L'app magari **non si apre** per qualche giorno.
+2. Quando torni e **rinnovi la firma** (Passo 8 sopra), FidAPPti riapre
+   **con tutte le tue tessere e biglietti al loro posto**.
+3. Nessuna perdita, nessun bisogno di reinserire nulla.
+
+> ⚠️ L'UNICA cosa che farebbe perdere i dati sarebbe **cancellare/disinstallare
+> l'app** dal telefono (come per qualsiasi altra app). Finché l'app resta
+> installata, i dati sono al sicuro anche se la firma scade.
 
 ---
 
