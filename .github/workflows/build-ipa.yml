@@ -72,6 +72,7 @@ jobs:
           files: |
             FidAPPti-ios-unsigned.ipa
             docs/INSTALLAZIONE-iOS.md
+            docs/INSTALLAZIONE-SideStore.md
           name: FidAPPti ${{ github.ref_name }}
           tag_name: ${{ github.ref }}
           draft: true
