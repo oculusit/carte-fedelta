@@ -131,8 +131,8 @@ async function shareApp() {
   z-index: 100;
   background: var(--primary);
   color: white;
-  padding: 0 16px;
-  height: var(--header-height);
+  padding: env(safe-area-inset-top) 16px 0;
+  min-height: calc(var(--header-height) + env(safe-area-inset-top));
   display: flex;
   align-items: center;
 }
@@ -144,6 +144,7 @@ async function shareApp() {
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
+  padding: 8px 0;
 }
 
 .header-back {

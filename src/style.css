@@ -31,7 +31,7 @@ body {
 
 .app {
   min-height: 100dvh;
-  padding-bottom: 100px;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
 }
 
 .main-content {

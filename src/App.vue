@@ -141,7 +141,7 @@ onMounted(async () => {
 .main-content {
   flex: 1;
   padding: 16px;
-  padding-bottom: 72px;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 
 .app-footer {
@@ -152,7 +152,7 @@ onMounted(async () => {
   text-align: center;
   font-size: 11px;
   color: var(--text-secondary);
-  padding: 10px 16px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
   background: var(--card-bg);
   border-top: 1px solid var(--border);
   z-index: 50;
@@ -184,7 +184,7 @@ onMounted(async () => {
 
 .fab {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
   right: 24px;
   width: 56px;
   height: 56px;
